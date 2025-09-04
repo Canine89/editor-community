@@ -53,7 +53,7 @@ export interface DailySalesOverview {
   totalBooks: number
   totalSalesPoints: number
   averageRank: number
-  topBook: {title: string, rank: number, salesPoint: number}
+  topBook: {title: string, rank: number, salesPoint: number, publisher: string}
   publisherCount: number
 }
 

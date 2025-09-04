@@ -256,7 +256,8 @@ export const getDailySalesOverview = (data: BookSalesData, date: string): DailyS
     topBook: {
       title: topBook.title,
       rank: topBook.rank,
-      salesPoint: topBook.sales_point
+      salesPoint: topBook.sales_point,
+      publisher: topBook.publisher
     },
     publisherCount: publishers.size
   }
