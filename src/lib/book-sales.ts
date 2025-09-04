@@ -373,11 +373,11 @@ interface CacheEntry {
 }
 
 // LocalStorage cache utilities
-const getFromStorage = (filename: string): BookSalesData | null => {
+const getFromStorage = (filename: string): BookSalesData | undefined => {
   try {
     const key = STORAGE_KEY_PREFIX + filename
     const stored = localStorage.getItem(key)
-    if (!stored) return null
+    if (!stored) return undefined
 
     const entry: CacheEntry = JSON.parse(stored)
     
@@ -385,13 +385,13 @@ const getFromStorage = (filename: string): BookSalesData | null => {
     if (entry.version !== STORAGE_VERSION || 
         Date.now() - entry.timestamp > MAX_STORAGE_AGE) {
       localStorage.removeItem(key)
-      return null
+      return undefined
     }
 
     return entry.data
   } catch (error) {
     console.warn(`Cache read error for ${filename}:`, error)
-    return null
+    return undefined
   }
 }
 
@@ -541,7 +541,9 @@ export const loadChartDataForBooks = async (
             // Always add to memory cache
             if (fileCache.size >= CACHE_SIZE_LIMIT) {
               const firstKey = fileCache.keys().next().value
-              fileCache.delete(firstKey) // LRU eviction
+              if (firstKey) {
+                fileCache.delete(firstKey) // LRU eviction
+              }
             }
             fileCache.set(file.filename, data)
           }
