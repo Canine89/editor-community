@@ -731,7 +731,6 @@ export const loadChartDataForBooks = async (
     const fakeIsbns = selectedBooks.map(book => book.fakeIsbn)
     
     // 기존 캐시 모두 삭제 (형식 변경으로 인한 호환성 문제 해결)
-    console.log('🗑️ 기존 차트 캐시 삭제 중... (fake_isbn 형식으로 변경됨)')
     chartDataCache.clear() // 메모리 캐시 삭제
     
     // localStorage 캐시도 삭제
@@ -760,13 +759,11 @@ export const loadChartDataForBooks = async (
     // Apply smart sampling for large datasets
     const { sampleEvery, maxPoints } = getOptimalSampling(relevantFiles.length, daysBefore)
     if (sampleEvery > 1) {
-      console.log(`📊 Smart sampling: ${relevantFiles.length} files → ${Math.ceil(relevantFiles.length / sampleEvery)} samples`)
       progressCallback?.(10, `스마트 샘플링: ${relevantFiles.length}개 파일 → ${Math.ceil(relevantFiles.length / sampleEvery)}개로 최적화`)
       relevantFiles = relevantFiles.filter((_, index) => index % sampleEvery === 0)
       relevantFiles = relevantFiles.slice(0, maxPoints) // Ensure we don't exceed maxPoints
     }
 
-    console.log(`⚡ Loading optimized chart data: ${relevantFiles.length} files over ${daysBefore} days`)
     progressCallback?.(15, `${relevantFiles.length}개 파일 로딩 시작`)
 
     const chartDataMap: { [date: string]: any } = {}
@@ -777,7 +774,6 @@ export const loadChartDataForBooks = async (
       isbnToBookMap.set(book.fakeIsbn, book)
     })
     
-    console.log('📚 매칭 대상 도서 (fake_isbn 기반):', Array.from(isbnToBookMap.entries()))
 
     // 🚀 Enhanced parallel processing with intelligent batch sizing
     const optimalBatchSize = Math.min(30, Math.max(8, Math.ceil(relevantFiles.length / 4))) // Larger batches for better performance
@@ -829,14 +825,9 @@ export const loadChartDataForBooks = async (
             }
           })
 
-          // 매칭 결과 로깅
-          if (matchedCount > 0) {
-            console.log(`📈 ${file.date}: ${matchedCount}권 매칭 완료`)
-          } else {
+          // 매칭 결과 로깅 (오류 시에만)
+          if (matchedCount === 0) {
             console.warn(`⚠️ ${file.date}: 매칭된 도서 없음`)
-            console.log('📋 해당 날짜 도서 fake_isbn 목록:', 
-              Object.values(data).slice(0, 5).map((book: any) => book.fake_isbn)
-            )
           }
 
           return { date: file.date, entry: chartEntry }

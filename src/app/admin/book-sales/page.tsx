@@ -330,7 +330,6 @@ export default function BookSalesPage() {
       setLoadingProgress(5)
       setLoadingStatus(`${selectedBookInfo.length}개 도서 선택 완료`)
 
-      console.log('📚 선택된 도서 정보:', selectedBookInfo)
 
       // 진행률 콜백 함수
       const progressCallback = (progress: number, status: string) => {
@@ -352,8 +351,6 @@ export default function BookSalesPage() {
         return
       }
 
-      console.log('✅ 차트 데이터 생성 성공:', chartData.length, '개 데이터 포인트')
-      console.log('📊 차트 데이터 샘플:', chartData[0])
       
       setChartData(chartData)
       setShowChart(true)
@@ -1097,7 +1094,6 @@ export default function BookSalesPage() {
                           const fakeIsbn = currentBook.fake_isbn.toString()
                           const dataKey = fakeIsbn
 
-                          console.log(`✅ [${index}] 판매지수: "${currentBook.title}" → 키: ${dataKey}`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -1189,7 +1185,6 @@ export default function BookSalesPage() {
                           const fakeIsbn = currentBook.fake_isbn.toString()
                           const rankDataKey = `${fakeIsbn}_rank`
 
-                          console.log(`✅ [${index}] 순위: "${currentBook.title}" → 키: ${rankDataKey}`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
