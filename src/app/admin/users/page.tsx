@@ -52,6 +52,7 @@ const permissionTypes = [
   { value: 'community_admin', label: '커뮤니티 관리자', color: 'bg-blue-500' },
   { value: 'jobs_admin', label: '구인구직 관리자', color: 'bg-green-500' },
   { value: 'users_admin', label: '사용자 관리자', color: 'bg-purple-500' },
+  { value: 'goldenrabbit_employee', label: '골든래빗 임직원', color: 'bg-orange-500' },
   { value: 'master', label: '마스터 관리자', color: 'bg-red-500' },
 ]
 

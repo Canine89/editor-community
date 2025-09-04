@@ -15,7 +15,8 @@ import {
   Activity,
   Settings,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -26,7 +27,7 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children, title, description }: AdminLayoutProps) {
-  const { isAdmin, loading, permissions } = useAdmin()
+  const { isAdmin, isMaster, isEmployee, loading, permissions } = useAdmin()
   const router = useRouter()
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     { icon: MessageSquare, label: '커뮤니티 관리', href: '/admin/community' },
     { icon: Briefcase, label: '구인구직 관리', href: '/admin/jobs' },
     { icon: Users, label: '사용자 관리', href: '/admin/users' },
+    ...(isEmployee ? [{ icon: BookOpen, label: '도서 판매 데이터', href: '/admin/book-sales' }] : []),
   ]
 
   return (

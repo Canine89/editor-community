@@ -8,7 +8,7 @@ import { useAuth } from './useAuth'
 interface AdminPermission {
   id: string
   user_id: string
-  permission_type: 'master' | 'community_admin' | 'jobs_admin' | 'users_admin'
+  permission_type: 'master' | 'community_admin' | 'jobs_admin' | 'users_admin' | 'goldenrabbit_employee'
   granted_by: string | null
   granted_at: string
   is_active: boolean
@@ -28,6 +28,7 @@ export function useAdmin() {
   const { user, loading: authLoading } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isMaster, setIsMaster] = useState(false)
+  const [isEmployee, setIsEmployee] = useState(false)
   const [permissions, setPermissions] = useState<AdminPermission[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
@@ -38,6 +39,7 @@ export function useAdmin() {
     if (!user) {
       setIsAdmin(false)
       setIsMaster(false)
+      setIsEmployee(false)
       setPermissions([])
       setLoading(false)
       return
@@ -57,6 +59,7 @@ export function useAdmin() {
       if (error) {
         setIsAdmin(false)
         setIsMaster(false)
+        setIsEmployee(false)
         setPermissions([])
         return
       }
@@ -66,12 +69,15 @@ export function useAdmin() {
       
       const hasAnyPermission = adminPermissions.length > 0
       const hasMasterPermission = adminPermissions.some((p: AdminPermission) => p.permission_type === 'master')
+      const hasEmployeePermission = adminPermissions.some((p: AdminPermission) => p.permission_type === 'goldenrabbit_employee')
       
       setIsAdmin(hasAnyPermission)
       setIsMaster(hasMasterPermission)
+      setIsEmployee(hasMasterPermission || hasEmployeePermission) // Master also has employee access
     } catch (error) {
       setIsAdmin(false)
       setIsMaster(false)
+      setIsEmployee(false)
       setPermissions([])
     } finally {
       setLoading(false)
@@ -304,6 +310,7 @@ export function useAdmin() {
     // Status
     isAdmin,
     isMaster,
+    isEmployee,
     loading,
     permissions,
     
