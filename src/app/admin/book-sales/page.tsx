@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 import {
   BookOpen,
   Calendar,
@@ -82,6 +83,10 @@ export default function BookSalesPage() {
   // 특정 날짜 통계 관련 state
   const [selectedDateForStats, setSelectedDateForStats] = useState<Date>()
   const [dateStatsData, setDateStatsData] = useState<{overview: any, publishers: any[]}>({overview: null, publishers: []})
+
+  // 페이지네이션 관련 state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20) // 페이지당 아이템 수 고정
 
   useEffect(() => {
     if (!adminLoading && canViewBookSalesValue) {
@@ -154,6 +159,9 @@ export default function BookSalesPage() {
     // 순위순 정렬
     books.sort((a, b) => a.rank - b.rank)
     setFilteredBooks(books)
+    
+    // 필터 변경 시 첫 페이지로 이동
+    setCurrentPage(1)
   }
 
   const handleSearch = (term: string) => {
@@ -418,6 +426,18 @@ export default function BookSalesPage() {
     return point.toLocaleString('ko-KR')
   }
 
+  // 페이지네이션 헬퍼 함수들
+  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentPageBooks = filteredBooks.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    // 페이지 변경 시 스크롤을 맨 위로 이동
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const columns: any[] = [
     {
       key: 'select',
@@ -472,7 +492,7 @@ export default function BookSalesPage() {
       sortable: true,
       render: (value: number) => (
         <div className="text-right">
-          <span className="text-sm font-mono">{formatSalesPoint(value)}</span>
+          <span className="text-sm">{formatSalesPoint(value)}</span>
         </div>
       )
     },
@@ -748,35 +768,60 @@ export default function BookSalesPage() {
                   검색 결과가 없습니다
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        {columns.map((column) => (
-                          <th
-                            key={column.key}
-                            className="text-left py-3 px-4 font-medium text-slate-600"
-                          >
-                            {column.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredBooks.map((row, index) => (
-                        <tr key={index} className="border-b hover:bg-slate-50">
+                <div className="space-y-4">
+                  {/* 페이지네이션 정보 */}
+                  <div className="flex justify-between items-center">
+                    <PaginationInfo
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={filteredBooks.length}
+                      itemsPerPage={itemsPerPage}
+                    />
+                    <div className="text-sm text-slate-500">
+                      페이지당 {itemsPerPage}건
+                    </div>
+                  </div>
+
+                  {/* 테이블 */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
                           {columns.map((column) => (
-                            <td key={column.key} className="py-2 px-4">
-                              {column.render
-                                ? column.render(row[column.key] as any, row as any)
-                                : String(row[column.key])
-                              }
-                            </td>
+                            <th
+                              key={column.key}
+                              className="text-left py-3 px-4 font-medium text-slate-600"
+                            >
+                              {column.label}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {currentPageBooks.map((row, index) => (
+                          <tr key={index} className="border-b hover:bg-slate-50">
+                            {columns.map((column) => (
+                              <td key={column.key} className="py-2 px-4">
+                                {column.render
+                                  ? column.render(row[column.key] as any, row as any)
+                                  : String(row[column.key])
+                                }
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 페이지네이션 */}
+                  <div className="flex justify-center mt-6">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
                 </div>
               )}
             </CardContent>

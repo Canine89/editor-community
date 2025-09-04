@@ -2,9 +2,20 @@
 
 import { createClient } from '@/lib/supabase'
 import { BookSalesData, BookSalesFileInfo, BookTrend, PublisherStats, CategoryStats, DailySalesOverview } from '@/types/book-sales'
+import { 
+  isDummyMode, 
+  loadDummyBookSalesData, 
+  getDummyBookSalesFiles,
+  generateDummyBookData
+} from '@/lib/dummy-book-data'
 
 // Get list of available data files from Supabase Storage
 export const getBookSalesFiles = async (): Promise<BookSalesFileInfo[]> => {
+  // 더미 모드인 경우 더미 데이터 반환
+  if (isDummyMode()) {
+    return getDummyBookSalesFiles()
+  }
+  
   try {
     const supabase = createClient()
     
@@ -64,6 +75,11 @@ export const getBookSalesFiles = async (): Promise<BookSalesFileInfo[]> => {
 
 // Load book sales data for a specific date from Supabase Storage
 export const loadBookSalesData = async (filename: string): Promise<BookSalesData> => {
+  // 더미 모드인 경우 더미 데이터 반환
+  if (isDummyMode()) {
+    return loadDummyBookSalesData(filename)
+  }
+  
   try {
     const supabase = createClient()
     
@@ -90,6 +106,29 @@ export const loadBookSalesData = async (filename: string): Promise<BookSalesData
 // Load multiple files and combine data
 export const loadMultipleBookSalesData = async (filenames: string[]): Promise<{[date: string]: BookSalesData}> => {
   const results: {[date: string]: BookSalesData} = {}
+  
+  // 더미 모드인 경우 더미 데이터 반환
+  if (isDummyMode()) {
+    for (const filename of filenames) {
+      const nameWithoutExt = filename.replace('yes24_', '').replace('.json', '')
+      const parts = nameWithoutExt.split('_')
+      
+      if (parts.length === 2) {
+        const year = parts[0]
+        const monthDay = parts[1]
+        
+        if (monthDay.length === 4) {
+          const month = monthDay.substring(0, 2)
+          const day = monthDay.substring(2, 4)
+          const date = `${year}-${month}-${day}`
+          
+          results[date] = generateDummyBookData(100)
+        }
+      }
+    }
+    
+    return results
+  }
   
   for (const filename of filenames) {
     // yes24_2025_MMDD.json → 2025-MM-DD
