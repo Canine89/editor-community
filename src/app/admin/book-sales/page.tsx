@@ -154,10 +154,10 @@ export default function BookSalesPage() {
 
     setLoadingChart(true)
     try {
-      // 오늘 날짜 기준 30일 전까지의 날짜 범위 계산
+      // 오늘 날짜 기준 30일 전까지의 날짜 범위 계산 (더 넉넉하게 설정)
       const today = new Date()
       const thirtyDaysAgo = new Date(today)
-      thirtyDaysAgo.setDate(today.getDate() - 30)
+      thirtyDaysAgo.setDate(today.getDate() - 35) // 35일로 여유있게 설정
 
       // 모든 파일의 데이터를 로드
       const allFilenames = availableFiles.map(f => f.filename)
@@ -192,7 +192,7 @@ export default function BookSalesPage() {
           const day = monthDay.substring(2, 4)
           const formatDate = `${year}-${month}-${day}`
           
-          // 날짜가 30일 범위 내에 있는지 확인
+          // 날짜가 35일 범위 내에 있는지 확인 (8월 초부터의 데이터 포함)
           const currentDate = new Date(formatDate)
           if (currentDate < thirtyDaysAgo || currentDate > today) continue
           
@@ -228,7 +228,7 @@ export default function BookSalesPage() {
       )
       
       if (sortedChartData.length === 0) {
-        alert('최근 30일 내 데이터가 없습니다.')
+        alert('선택된 도서의 판매 데이터가 없습니다.')
         return
       }
       
