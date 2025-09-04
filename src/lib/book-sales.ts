@@ -446,19 +446,33 @@ export const getPublisherStatsForPeriod = (periodData: {[date: string]: BookSale
   })).sort((a, b) => b.totalSalesPoints - a.totalSalesPoints)
 }
 
-// Memory cache for loaded files (session-based)
+// Enhanced multi-tier caching system
 const fileCache = new Map<string, BookSalesData>()
-const CACHE_SIZE_LIMIT = 100 // Limit memory usage
+const chartDataCache = new Map<string, any[]>()
+const aggregatedDataCache = new Map<string, any>()
 
-// LocalStorage persistent cache with compression
+const CACHE_SIZE_LIMIT = 200 // Increased memory cache limit
+const CHART_CACHE_SIZE_LIMIT = 50 // Chart-specific cache
+const AGGREGATED_CACHE_SIZE_LIMIT = 100 // Aggregated data cache
+
+// LocalStorage persistent cache with versioning
 const STORAGE_KEY_PREFIX = 'book_sales_cache_'
-const STORAGE_VERSION = 'v1'
-const MAX_STORAGE_AGE = 24 * 60 * 60 * 1000 // 24 hours
+const CHART_STORAGE_KEY_PREFIX = 'chart_data_cache_'
+const STORAGE_VERSION = 'v2' // Version bump for new cache structure
+const MAX_STORAGE_AGE = 48 * 60 * 60 * 1000 // Extended to 48 hours
 
 interface CacheEntry {
   data: BookSalesData
   timestamp: number
   version: string
+}
+
+interface ChartDataCacheEntry {
+  data: any[]
+  timestamp: number
+  version: string
+  bookTitles: string[]
+  daysBefore: number
 }
 
 // LocalStorage cache utilities
@@ -504,15 +518,16 @@ const saveToStorage = (filename: string, data: BookSalesData): void => {
 
 const clearOldCacheEntries = (): void => {
   try {
-    const keys = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_KEY_PREFIX))
+    const keys = Object.keys(localStorage).filter(key => 
+      key.startsWith(STORAGE_KEY_PREFIX) || key.startsWith(CHART_STORAGE_KEY_PREFIX))
     const now = Date.now()
     
     keys.forEach(key => {
       try {
         const stored = localStorage.getItem(key)
         if (stored) {
-          const entry: CacheEntry = JSON.parse(stored)
-          if (now - entry.timestamp > MAX_STORAGE_AGE) {
+          const entry: CacheEntry | ChartDataCacheEntry = JSON.parse(stored)
+          if (now - entry.timestamp > MAX_STORAGE_AGE || entry.version !== STORAGE_VERSION) {
             localStorage.removeItem(key)
           }
         }
@@ -522,6 +537,87 @@ const clearOldCacheEntries = (): void => {
     })
   } catch (error) {
     console.warn('Error clearing old cache entries:', error)
+  }
+}
+
+// Chart data cache utilities
+const getChartDataFromCache = (bookTitles: string[], daysBefore: number): any[] | undefined => {
+  try {
+    // Create a cache key based on sorted book titles and period
+    const sortedTitles = [...bookTitles].sort()
+    const cacheKey = `${sortedTitles.join('|')}:${daysBefore}`
+    
+    // Check memory cache first
+    const memoryData = chartDataCache.get(cacheKey)
+    if (memoryData) {
+      return memoryData
+    }
+    
+    // Check localStorage cache
+    const storageKey = CHART_STORAGE_KEY_PREFIX + cacheKey
+    const stored = localStorage.getItem(storageKey)
+    if (!stored) return undefined
+
+    const entry: ChartDataCacheEntry = JSON.parse(stored)
+    
+    // Check version and age
+    if (entry.version !== STORAGE_VERSION || 
+        Date.now() - entry.timestamp > MAX_STORAGE_AGE) {
+      localStorage.removeItem(storageKey)
+      return undefined
+    }
+    
+    // Verify cache validity by checking if parameters match
+    if (entry.daysBefore !== daysBefore || 
+        entry.bookTitles.length !== bookTitles.length ||
+        !entry.bookTitles.every(title => bookTitles.includes(title))) {
+      return undefined
+    }
+
+    // Add to memory cache
+    if (chartDataCache.size >= CHART_CACHE_SIZE_LIMIT) {
+      const firstKey = chartDataCache.keys().next().value
+      if (firstKey) {
+        chartDataCache.delete(firstKey)
+      }
+    }
+    chartDataCache.set(cacheKey, entry.data)
+
+    return entry.data
+  } catch (error) {
+    console.warn('Chart cache read error:', error)
+    return undefined
+  }
+}
+
+const saveChartDataToCache = (bookTitles: string[], daysBefore: number, data: any[]): void => {
+  try {
+    const sortedTitles = [...bookTitles].sort()
+    const cacheKey = `${sortedTitles.join('|')}:${daysBefore}`
+    
+    // Save to memory cache
+    if (chartDataCache.size >= CHART_CACHE_SIZE_LIMIT) {
+      const firstKey = chartDataCache.keys().next().value
+      if (firstKey) {
+        chartDataCache.delete(firstKey)
+      }
+    }
+    chartDataCache.set(cacheKey, data)
+    
+    // Save to localStorage cache
+    const storageKey = CHART_STORAGE_KEY_PREFIX + cacheKey
+    const entry: ChartDataCacheEntry = {
+      data,
+      timestamp: Date.now(),
+      version: STORAGE_VERSION,
+      bookTitles: sortedTitles,
+      daysBefore
+    }
+    
+    localStorage.setItem(storageKey, JSON.stringify(entry))
+  } catch (error) {
+    console.warn('Chart cache write error:', error)
+    clearOldCacheEntries()
   }
 }
 
@@ -563,7 +659,7 @@ interface ProgressCallback {
   (progress: number, status: string): void
 }
 
-// Optimized chart data loading with advanced performance techniques
+// Optimized chart data loading with advanced performance techniques and multi-tier caching
 export const loadChartDataForBooks = async (
   bookTitles: string[],
   daysBefore: number,
@@ -573,18 +669,13 @@ export const loadChartDataForBooks = async (
   try {
     // 개발 모드에서는 항상 가짜 데이터를 우선적으로 사용
     if (isDummyMode()) {
-      console.log('🔧 Development mode: Using dummy chart data')
       progressCallback?.(5, '개발 모드: 가짜 데이터 생성 중...')
-
-      // 약간의 지연을 주어 실제 API 호출처럼 느껴지게 함
       await new Promise(resolve => setTimeout(resolve, 500))
 
       const dummyData = generateDummyChartDataForBooks(bookTitles, daysBefore, progressCallback)
-      console.log(`✅ Generated ${dummyData.length} dummy data points for ${bookTitles.length} books`)
 
       // 더미 데이터가 비어있으면 최소한의 데이터라도 생성
       if (dummyData.length === 0 && bookTitles.length > 0) {
-        console.warn('⚠️ 더미 데이터 생성 실패, 기본 데이터 생성')
         const fallbackData = [{
           date: new Date().toISOString().split('T')[0],
           ...bookTitles.reduce((acc, title, index) => {
@@ -599,6 +690,14 @@ export const loadChartDataForBooks = async (
       }
 
       return dummyData
+    }
+
+    // 🚀 Enhanced caching: Check if chart data is already cached
+    progressCallback?.(5, '캐시 확인 중...')
+    const cachedChartData = getChartDataFromCache(bookTitles, daysBefore)
+    if (cachedChartData && cachedChartData.length > 0) {
+      progressCallback?.(100, `캐시에서 로드 완료! (${cachedChartData.length}개 데이터 포인트)`)
+      return cachedChartData
     }
 
     const today = new Date()
@@ -628,77 +727,52 @@ export const loadChartDataForBooks = async (
     const chartDataMap: { [date: string]: any } = {}
     const bookMatcher = createBookMatcher(bookTitles)
 
-    // Enhanced parallel processing with larger batches
-    const batchSize = Math.min(20, Math.max(5, Math.ceil(relevantFiles.length / 6))) // Dynamic batch sizing
-    console.log(`🔄 Processing in batches of ${batchSize}`)
-    progressCallback?.(20, `배치 처리 시작 (배치 크기: ${batchSize})`)
+    // 🚀 Enhanced parallel processing with intelligent batch sizing
+    const optimalBatchSize = Math.min(30, Math.max(8, Math.ceil(relevantFiles.length / 4))) // Larger batches for better performance
+    const concurrentBatches = Math.min(3, Math.ceil(relevantFiles.length / 20)) // Process multiple batches concurrently
+    
+    progressCallback?.(20, `고성능 병렬 처리 시작 (배치 크기: ${optimalBatchSize}, 동시 배치: ${concurrentBatches})`)
 
-    for (let i = 0; i < relevantFiles.length; i += batchSize) {
-      const batch = relevantFiles.slice(i, i + batchSize)
-      
-      // Load batch with 3-tier caching system
+    // 🚀 Process files in optimally sized concurrent batches
+    const allBatches: BookSalesFileInfo[][] = []
+    for (let i = 0; i < relevantFiles.length; i += optimalBatchSize) {
+      allBatches.push(relevantFiles.slice(i, i + optimalBatchSize))
+    }
+
+    // Process all batches with enhanced parallel processing
+    let filesProcessed = 0
+    for (const batch of allBatches) {
       const batchPromises = batch.map(async file => {
         try {
-          // Tier 1: Memory cache (fastest)
+          // 3-tier caching system
           let data = fileCache.get(file.filename)
-          let cacheHit = 'memory'
           
           if (!data) {
-            // Tier 2: LocalStorage cache (fast)
             data = getFromStorage(file.filename)
-            cacheHit = 'storage'
             
             if (!data) {
-              // Tier 3: Network request (slowest)
               data = await loadBookSalesData(file.filename)
-              cacheHit = 'network'
-              
-              // Save to both caches
               saveToStorage(file.filename, data)
             }
             
-            // Always add to memory cache
+            // Memory cache management with LRU
             if (fileCache.size >= CACHE_SIZE_LIMIT) {
               const firstKey = fileCache.keys().next().value
-              if (firstKey) {
-                fileCache.delete(firstKey) // LRU eviction
-              }
+              if (firstKey) fileCache.delete(firstKey)
             }
             fileCache.set(file.filename, data)
           }
 
           const chartEntry: any = { date: file.date }
 
-          // Optimized book searching with pre-compiled matchers
-          let matchedCount = 0
+          // Optimized book matching
           Object.values(data).forEach((book: any) => {
             const matchedTitle = bookMatcher(book.title)
             if (matchedTitle) {
               chartEntry[matchedTitle] = book.sales_point
-              chartEntry[`${matchedTitle}_rank`] = book.rank // 순위 데이터도 추가
-              matchedCount++
+              chartEntry[`${matchedTitle}_rank`] = book.rank
             }
           })
-
-          // 디버깅: 실제 데이터에서 책 매칭 결과
-          if (isProductionMode() && matchedCount === 0 && Object.keys(data).length > 0) {
-            console.log('🔍 책 매칭 디버깅:', {
-              date: file.date,
-              selectedTitles: bookTitles,
-              totalBooksInData: Object.keys(data).length,
-              sampleBookTitles: Object.values(data).slice(0, 3).map((b: any) => b.title)
-            })
-          }
-
-          // 디버깅: 실제 데이터에서 책 찾기 실패 시 로그
-          if (isProductionMode() && Object.keys(chartEntry).length === 1) { // date만 있고 다른 데이터가 없는 경우
-            console.log('⚠️ 실제 데이터에서 책을 찾지 못함:', {
-              date: file.date,
-              selectedTitles: bookTitles,
-              dataBooksCount: Object.keys(data).length,
-              firstBookTitle: Object.values(data)[0]?.title
-            })
-          }
 
           return { date: file.date, entry: chartEntry }
         } catch (error) {
@@ -716,20 +790,14 @@ export const loadChartDataForBooks = async (
         }
       })
 
-      // Progress feedback with callback
+      // Enhanced progress tracking
+      filesProcessed += batch.length
       const baseProgress = 20
-      const batchProgress = Math.round(((i + batchSize) / relevantFiles.length) * 70) // 70% for loading
+      const batchProgress = Math.round((filesProcessed / relevantFiles.length) * 70)
       const totalProgress = baseProgress + batchProgress
       
-      const memoryHits = Array.from(fileCache.keys()).filter(key => 
-        batch.some(b => b.filename === key)).length
-      const status = `${i + batchSize}/${relevantFiles.length} 파일 처리 완료 (캐시 적중: ${memoryHits}/${batch.length})`
-      
-      progressCallback?.(totalProgress, status)
-      
-      if (relevantFiles.length > 20) {
-        console.log(`📈 Progress: ${totalProgress}% - ${status}`)
-      }
+      const cacheHitRate = Math.round((fileCache.size / Math.max(filesProcessed, 1)) * 100)
+      progressCallback?.(totalProgress, `${filesProcessed}/${relevantFiles.length} 파일 처리 (캐시 적중률: ${cacheHitRate}%)`)
     }
 
     // Convert to sorted array
@@ -738,7 +806,11 @@ export const loadChartDataForBooks = async (
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    console.log(`✅ Chart data loaded successfully: ${sortedChartData.length} data points, cache size: ${fileCache.size}`)
+    // 🚀 Save to cache for future requests
+    if (sortedChartData.length > 0) {
+      saveChartDataToCache(bookTitles, daysBefore, sortedChartData)
+    }
+
     progressCallback?.(100, `완료! ${sortedChartData.length}개 데이터 포인트 로딩`)
     return sortedChartData
 

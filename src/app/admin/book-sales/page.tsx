@@ -142,7 +142,6 @@ export default function BookSalesPage() {
       // 초기 필터링된 책 목록 설정
       updateFilteredBooks(data, '', 'all')
 
-      console.log(`✅ bookData 로드 완료! (${Object.keys(data).length}개 도서)`)
     } catch (error) {
       console.error('Failed to load book data:', error)
     } finally {
@@ -308,7 +307,6 @@ export default function BookSalesPage() {
         if (currentBook) {
           selectedBookTitles.push(currentBook.title)
         } else {
-          console.warn(`⚠️ 도서를 찾지 못함: ${bookId}`)
           // 실제 데이터에서는 키 자체가 의미가 있을 수 있으므로 그대로 사용
           if (!isDummyMode() && bookData[bookId]) {
             selectedBookTitles.push(bookData[bookId].title)
@@ -326,7 +324,6 @@ export default function BookSalesPage() {
           .sort(() => Math.random() - 0.5)
           .slice(0, numBooks)
         selectedBookTitles = randomBooks.map(book => book.title)
-        console.log(`🔧 더미 모드: ${selectedBookTitles.length}개 임의 도서 선택`)
       }
 
       setLoadingProgress(5)
@@ -338,18 +335,6 @@ export default function BookSalesPage() {
         setLoadingStatus(status)
       }
 
-      console.log(`🔍 선택된 도서들:`, selectedBooks)
-      console.log(`📚 수집된 제목들:`, selectedBookTitles)
-      console.log(`🎯 더미 모드:`, isDummyMode())
-
-      // 프로덕션 환경에서 디버깅
-      if (!isDummyMode()) {
-        console.log('🔍 프로덕션 환경 디버깅:')
-        selectedBooks.forEach((bookId, index) => {
-          const book = bookData[bookId]
-          console.log(`${index + 1}. ${bookId} -> ${book?.title || '제목 없음'}`)
-        })
-      }
 
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
@@ -364,21 +349,8 @@ export default function BookSalesPage() {
         return
       }
 
-      console.log('📊 생성된 차트 데이터 샘플:', chartData.slice(0, 2))
-      console.log('📈 차트 데이터 구조:', {
-        totalPoints: chartData.length,
-        firstEntry: chartData[0],
-        keys: chartData[0] ? Object.keys(chartData[0]) : []
-      })
-
       setChartData(chartData)
       setShowChart(true)
-
-      console.log('🎨 차트 표시 상태:', {
-        showChart: true,
-        chartDataLength: chartData.length,
-        hasSelectedBooks: selectedBooks.length > 0
-      })
     } catch (error) {
       console.error('Failed to generate chart:', error)
       alert('그래프 생성 중 오류가 발생했습니다.')
@@ -1042,10 +1014,6 @@ export default function BookSalesPage() {
         >
           {showChart && chartData.length > 0 && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              {/* 디버깅: 차트 컨테이너 렌더링 확인 */}
-              <div style={{backgroundColor: 'yellow', padding: '10px', margin: '10px 0'}}>
-                🚨 디버깅: 차트 컨테이너가 렌더링됨! showChart={showChart.toString()}, chartData.length={chartData.length}
-              </div>
               {/* 판매지수 그래프 */}
               <Card>
                 <CardHeader>
@@ -1080,7 +1048,7 @@ export default function BookSalesPage() {
                           fontSize={12}
                         />
                         <Tooltip 
-                          formatter={(value, name) => [formatSalesPoint(Number(value)), name]}
+                          formatter={(value, name) => [formatSalesPoint(Number(value)), String(name)]}
                           labelFormatter={(label) => {
                             const date = new Date(label)
                             return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
@@ -1089,7 +1057,6 @@ export default function BookSalesPage() {
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
                           // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
-                          // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
                           let currentBook = null
 
                           if (isDummyMode()) {
@@ -1101,16 +1068,20 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
-                            console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
-                            console.warn(`📋 bookData 키들:`, Object.keys(bookData).slice(0, 5))
                             return null
                           }
 
-                          console.log(`✅ 차트 렌더링: ${bookId} -> ${currentBook.title}`)
+                          // 차트 데이터에서 사용되는 실제 키 찾기 (제목이 축약되었을 수 있음)
+                          const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'date' && !key.endsWith('_rank')) : []
+                          const matchedKey = chartDataKeys.find(key => 
+                            key === currentBook.title || 
+                            key.includes(currentBook.title.substring(0, 15)) ||
+                            currentBook.title.includes(key)
+                          )
 
-                          const shortTitle = currentBook.title.length > 20
-                            ? currentBook.title.substring(0, 20) + '...'
-                            : currentBook.title
+                          if (!matchedKey) {
+                            return null
+                          }
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -1118,7 +1089,7 @@ export default function BookSalesPage() {
                             <Line
                               key={bookId}
                               type="monotone"
-                              dataKey={currentBook.title} // 원래 제목을 dataKey로 사용
+                              dataKey={matchedKey} // 실제 차트 데이터에서 매칭된 키 사용
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
@@ -1177,7 +1148,6 @@ export default function BookSalesPage() {
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
                           // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
-                          // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
                           let currentBook = null
 
                           if (isDummyMode()) {
@@ -1189,16 +1159,21 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
-                            console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
-                            console.warn(`📋 bookData 키들:`, Object.keys(bookData).slice(0, 5))
                             return null
                           }
 
-                          console.log(`✅ 차트 렌더링: ${bookId} -> ${currentBook.title}`)
+                          // 차트 데이터에서 사용되는 실제 순위 키 찾기
+                          const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key.endsWith('_rank')) : []
+                          const matchedRankKey = chartDataKeys.find(key => {
+                            const titlePart = key.replace('_rank', '')
+                            return titlePart === currentBook.title || 
+                              titlePart.includes(currentBook.title.substring(0, 15)) ||
+                              currentBook.title.includes(titlePart)
+                          })
 
-                          const shortTitle = currentBook.title.length > 20
-                            ? currentBook.title.substring(0, 20) + '...'
-                            : currentBook.title
+                          if (!matchedRankKey) {
+                            return null
+                          }
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -1206,7 +1181,7 @@ export default function BookSalesPage() {
                             <Line
                               key={bookId + '_rank'}
                               type="monotone"
-                              dataKey={`${currentBook.title}_rank`} // 원래 제목을 dataKey로 사용
+                              dataKey={matchedRankKey} // 실제 차트 데이터에서 매칭된 순위 키 사용
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
