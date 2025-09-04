@@ -8,7 +8,7 @@ import { useAuth } from './useAuth'
 interface AdminPermission {
   id: string
   user_id: string
-  permission_type: 'master' | 'community_admin' | 'jobs_admin' | 'users_admin' | 'goldenrabbit_employee'
+  permission_type: 'master' | 'community_admin' | 'jobs_admin' | 'users_admin' | 'goldenrabbit_employee' | 'book_sales_viewer'
   granted_by: string | null
   granted_at: string
   is_active: boolean
@@ -87,6 +87,18 @@ export function useAdmin() {
   const hasPermission = (permissionType: AdminPermission['permission_type']): boolean => {
     if (isMaster) return true // Master has all permissions
     return permissions.some(p => p.permission_type === permissionType)
+  }
+
+  // 실제 관리 페이지 접근 권한 (Master만)
+  const canAccessAdminPages = (): boolean => {
+    return isMaster
+  }
+
+  // 도서 판매 데이터 접근 권한 (Master + goldenrabbit_employee + book_sales_viewer)
+  const canViewBookSales = (): boolean => {
+    return isMaster || 
+           hasPermission('goldenrabbit_employee') || 
+           hasPermission('book_sales_viewer')
   }
 
   const logActivity = async (
@@ -316,6 +328,8 @@ export function useAdmin() {
     
     // Permission checks
     hasPermission,
+    canAccessAdminPages,
+    canViewBookSales,
     
     // Activity logging
     logActivity,

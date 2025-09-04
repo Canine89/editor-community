@@ -46,7 +46,7 @@ import {
 import { BookSalesData, BookSalesFileInfo, DailySalesOverview } from '@/types/book-sales'
 
 export default function BookSalesPage() {
-  const { isEmployee, isMaster, isAdmin, logActivity } = useAdmin()
+  const { canViewBookSales, logActivity } = useAdmin()
   const [selectedDate, setSelectedDate] = useState('')
   const [bookData, setBookData] = useState<BookSalesData>({})
   const [overview, setOverview] = useState<DailySalesOverview | null>(null)
@@ -62,12 +62,11 @@ export default function BookSalesPage() {
   const [loadingChart, setLoadingChart] = useState(false)
 
   useEffect(() => {
-    // 임시로 모든 관리자가 접근 가능하도록 설정
-    if (isAdmin) {
+    if (canViewBookSales) {
       logActivity('view_book_sales_data')
       loadAvailableFiles()
     }
-  }, [isAdmin])
+  }, [canViewBookSales])
 
   const loadAvailableFiles = async () => {
     try {
@@ -322,8 +321,7 @@ export default function BookSalesPage() {
     }
   ]
 
-  // 임시로 관리자 권한만 확인 (나중에 세부 권한 적용 예정)
-  if (!isAdmin) {
+  if (!canViewBookSales) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8">
@@ -334,7 +332,7 @@ export default function BookSalesPage() {
                   <BookOpen className="w-16 h-16 text-slate-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-slate-900 mb-2">접근 권한이 필요합니다</h3>
                   <p className="text-slate-600">
-                    이 페이지는 관리자만 접근할 수 있습니다.
+                    이 페이지는 골든래빗 임직원만 접근할 수 있습니다.
                   </p>
                 </div>
               </CardContent>

@@ -26,14 +26,14 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children, title, description }: AdminLayoutProps) {
-  const { isAdmin, isMaster, isEmployee, loading, permissions } = useAdmin()
+  const { canAccessAdminPages, isMaster, isEmployee, loading, permissions } = useAdmin()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
+    if (!loading && !canAccessAdminPages) {
       router.replace('/')
     }
-  }, [loading, isAdmin, router])
+  }, [loading, canAccessAdminPages, router])
 
   if (loading) {
     return (
@@ -46,7 +46,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     )
   }
 
-  if (!isAdmin) {
+  if (!canAccessAdminPages) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Card className="w-full max-w-md">

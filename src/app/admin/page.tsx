@@ -39,16 +39,16 @@ interface ActivityLog {
 }
 
 export default function AdminDashboard() {
-  const { isAdmin, isMaster, getAdminStats, getRecentActivity, logActivity } = useAdmin()
+  const { canAccessAdminPages, isMaster, getAdminStats, getRecentActivity, logActivity } = useAdmin()
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canAccessAdminPages) {
       loadDashboardData()
     }
-  }, [isAdmin])
+  }, [canAccessAdminPages])
 
   const loadDashboardData = async () => {
     try {
