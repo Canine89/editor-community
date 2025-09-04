@@ -342,6 +342,15 @@ export default function BookSalesPage() {
       console.log(`📚 수집된 제목들:`, selectedBookTitles)
       console.log(`🎯 더미 모드:`, isDummyMode())
 
+      // 프로덕션 환경에서 디버깅
+      if (!isDummyMode()) {
+        console.log('🔍 프로덕션 환경 디버깅:')
+        selectedBooks.forEach((bookId, index) => {
+          const book = bookData[bookId]
+          console.log(`${index + 1}. ${bookId} -> ${book?.title || '제목 없음'}`)
+        })
+      }
+
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
         selectedBookTitles,

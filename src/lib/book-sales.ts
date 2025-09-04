@@ -9,6 +9,8 @@ import {
   generateDummyBookData
 } from '@/lib/dummy-book-data'
 
+const isProductionMode = () => !isDummyMode()
+
 // 개발 모드용 가짜 차트 데이터 생성 함수
 const generateDummyChartDataForBooks = (
   bookTitles: string[],
@@ -675,6 +677,16 @@ export const loadChartDataForBooks = async (
               chartEntry[`${matchedTitle}_rank`] = book.rank // 순위 데이터도 추가
             }
           })
+
+          // 디버깅: 실제 데이터에서 책 찾기 실패 시 로그
+          if (isProductionMode() && Object.keys(chartEntry).length === 1) { // date만 있고 다른 데이터가 없는 경우
+            console.log('⚠️ 실제 데이터에서 책을 찾지 못함:', {
+              date: file.date,
+              selectedTitles: bookTitles,
+              dataBooksCount: Object.keys(data).length,
+              firstBookTitle: Object.values(data)[0]?.title
+            })
+          }
 
           return { date: file.date, entry: chartEntry }
         } catch (error) {
