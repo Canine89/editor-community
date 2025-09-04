@@ -1,6 +1,6 @@
 // Book sales data utilities
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase'
 import { BookSalesData, BookSalesFileInfo, BookTrend, PublisherStats, CategoryStats, DailySalesOverview } from '@/types/book-sales'
 
 // Get list of available data files from Supabase Storage

@@ -17,7 +17,7 @@ import {
   Download,
   AlertTriangle
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase'
 import { getBookSalesFiles } from '@/lib/book-sales'
 
 interface UploadFile {
