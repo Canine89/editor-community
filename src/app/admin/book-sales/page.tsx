@@ -149,7 +149,14 @@ export default function BookSalesPage() {
       const multiData = await loadMultipleBookSalesData(allFilenames)
       
       // 선택된 도서들의 추이 데이터 생성
-      const trends = []
+      const trends: Array<{
+        bookTitle: string;
+        data: Array<{
+          date: string;
+          salesPoint: number;
+          rank: number;
+        }>;
+      }> = []
       
       for (const bookId of selectedBooks) {
         const currentBook = filteredBooks.find(b => b.bookId === bookId)
@@ -157,7 +164,11 @@ export default function BookSalesPage() {
         
         const trend = {
           bookTitle: currentBook.title,
-          data: []
+          data: [] as Array<{
+            date: string;
+            salesPoint: number;
+            rank: number;
+          }>
         }
         
         // 각 날짜별로 해당 도서의 판매지수 찾기
