@@ -92,9 +92,22 @@ export const loadMultipleBookSalesData = async (filenames: string[]): Promise<{[
   const results: {[date: string]: BookSalesData} = {}
   
   for (const filename of filenames) {
-    const date = filename.replace('yes24_', '').replace('.json', '').replace('_', '-')
-    const formattedDate = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
-    results[formattedDate] = await loadBookSalesData(filename)
+    // yes24_2025_MMDD.json → 2025-MM-DD
+    const nameWithoutExt = filename.replace('yes24_', '').replace('.json', '')
+    const parts = nameWithoutExt.split('_') // ['2025', 'MMDD']
+    
+    if (parts.length === 2) {
+      const year = parts[0]
+      const monthDay = parts[1]
+      
+      if (monthDay.length === 4) {
+        const month = monthDay.substring(0, 2)
+        const day = monthDay.substring(2, 4)
+        const formattedDate = `${year}-${month}-${day}`
+        
+        results[formattedDate] = await loadBookSalesData(filename)
+      }
+    }
   }
   
   return results

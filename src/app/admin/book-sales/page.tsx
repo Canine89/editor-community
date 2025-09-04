@@ -171,6 +171,11 @@ export default function BookSalesPage() {
       const allFilenames = availableFiles.map(f => f.filename)
       const multiData = await loadMultipleBookSalesData(allFilenames)
       
+      console.log('Available files:', allFilenames)
+      console.log('Loaded multiData keys:', Object.keys(multiData))
+      console.log('Selected books:', selectedBooks)
+      console.log('Current filteredBooks:', filteredBooks.map(b => ({ bookId: b.bookId, title: b.title })))
+      
       // 차트용 데이터 생성 - 날짜별로 모든 선택된 도서의 판매지수를 포함
       const dateMap: { [date: string]: any } = {}
       const selectedBookTitles: string[] = []
@@ -183,22 +188,9 @@ export default function BookSalesPage() {
       }
       
       // 모든 날짜에 대해 선택된 도서들의 데이터 수집
-      for (const [dateKey, data] of Object.entries(multiData)) {
+      for (const [formatDate, data] of Object.entries(multiData)) {
         try {
-          // yes24_2025_MMDD.json → 2025-MM-DD 형식으로 변환
-          const dateStr = dateKey.replace('yes24_', '').replace('.json', '')
-          const parts = dateStr.split('_') // ['2025', 'MMDD']
-          
-          if (parts.length !== 2) continue // 잘못된 형식 스킵
-          
-          const year = parts[0]
-          const monthDay = parts[1]
-          
-          if (!monthDay || monthDay.length !== 4) continue // MMDD 형식이 아니면 스킵
-          
-          const month = monthDay.substring(0, 2)
-          const day = monthDay.substring(2, 4)
-          const formatDate = `${year}-${month}-${day}`
+          // formatDate는 이미 YYYY-MM-DD 형식임 (loadMultipleBookSalesData에서 변환됨)
           
           // 날짜가 35일 범위 내에 있는지 확인 (8월 초부터의 데이터 포함)
           const currentDate = new Date(formatDate)
@@ -208,7 +200,10 @@ export default function BookSalesPage() {
           
           for (const bookId of selectedBooks) {
             const currentBook = filteredBooks.find(b => b.bookId === bookId)
-            if (!currentBook) continue
+            if (!currentBook) {
+              console.warn(`Selected book not found in filteredBooks: ${bookId}`)
+              continue
+            }
             
             const bookInDate = Object.values(data).find((book: any) => 
               book.title === currentBook.title && book.publisher === currentBook.publisher
@@ -220,12 +215,15 @@ export default function BookSalesPage() {
                 ? currentBook.title.substring(0, 20) + '...'
                 : currentBook.title
               chartEntry[shortTitle] = (bookInDate as any).sales_point
+              console.log(`Found data for ${shortTitle} on ${formatDate}: ${(bookInDate as any).sales_point}`)
+            } else {
+              console.log(`No data found for ${currentBook.title} on ${formatDate}`)
             }
           }
           
           dateMap[formatDate] = chartEntry
         } catch (parseError) {
-          console.warn(`날짜 파싱 실패: ${dateKey}`, parseError)
+          console.warn(`날짜 파싱 실패: ${formatDate}`, parseError)
           continue // 파싱 실패한 파일은 스킵
         }
       }
@@ -234,6 +232,9 @@ export default function BookSalesPage() {
       const sortedChartData = Object.values(dateMap).sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       )
+      
+      console.log('Generated dateMap:', dateMap)
+      console.log('Sorted chart data length:', sortedChartData.length)
       
       if (sortedChartData.length === 0) {
         alert('선택된 도서의 판매 데이터가 없습니다.')
