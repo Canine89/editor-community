@@ -117,37 +117,46 @@ export default function PDFWatermarkPage() {
       
       // 고해상도를 위한 스케일링
       const scale = 2
-      ctx.scale(scale, scale)
       
-      // 텍스트 스타일 설정
+      // 텍스트 스타일 설정 (먼저 설정해서 정확한 텍스트 크기 측정)
       ctx.font = `${fontSize}px Arial, sans-serif`
       const textMetrics = ctx.measureText(text)
       const textWidth = textMetrics.width
       const textHeight = fontSize
       
-      // 캔버스 크기 설정 (패딩 포함)
-      canvas.width = (textWidth + 40) * scale
-      canvas.height = (textHeight + 20) * scale
+      // 회전 각도에 따른 바운딩 박스 계산
+      const rotationRad = (Math.abs(rotation) * Math.PI) / 180
+      const rotatedWidth = textWidth * Math.abs(Math.cos(rotationRad)) + textHeight * Math.abs(Math.sin(rotationRad))
+      const rotatedHeight = textWidth * Math.abs(Math.sin(rotationRad)) + textHeight * Math.abs(Math.cos(rotationRad))
       
-      // 스케일링 재적용 (clear 후)
+      // 회전된 텍스트를 완전히 포함할 수 있는 캔버스 크기 계산 (충분한 여유 공간 포함)
+      const padding = Math.max(textWidth, textHeight) * 0.5 // 동적 패딩
+      const canvasWidth = Math.ceil(rotatedWidth + padding * 2)
+      const canvasHeight = Math.ceil(rotatedHeight + padding * 2)
+      
+      // 캔버스 크기 설정
+      canvas.width = canvasWidth * scale
+      canvas.height = canvasHeight * scale
+      
+      // 스케일링 적용
       ctx.scale(scale, scale)
+      
+      // 텍스트 스타일 재설정
       ctx.font = `${fontSize}px Arial, sans-serif`
       ctx.fillStyle = color
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.globalAlpha = opacity
       
-      // 회전 적용
-      const centerX = (textWidth + 40) / 2
-      const centerY = (textHeight + 20) / 2
+      // 회전 적용 (캔버스 중앙을 기준으로)
+      const centerX = canvasWidth / 2
+      const centerY = canvasHeight / 2
       
+      ctx.translate(centerX, centerY)
       if (rotation !== 0) {
-        ctx.translate(centerX, centerY)
         ctx.rotate((rotation * Math.PI) / 180)
-        ctx.fillText(text, 0, 0)
-      } else {
-        ctx.fillText(text, centerX, centerY)
       }
+      ctx.fillText(text, 0, 0)
       
       // 캔버스를 PNG 이미지로 변환
       const imageDataUrl = canvas.toDataURL('image/png')
@@ -163,9 +172,9 @@ export default function PDFWatermarkPage() {
         // mm를 포인트로 변환 (1mm = 2.834645669 points)
         const offsetPoints = offsetFromBottom * 2.834645669
         
-        // 이미지 크기 계산 (PDF 포인트 단위로)
-        const imgWidth = textWidth * 0.75 // 포인트 변환 비율
-        const imgHeight = textHeight * 0.75
+        // 이미지 크기 계산 (PDF 포인트 단위로) - 회전된 크기 고려
+        const imgWidth = (canvasWidth / scale) * 0.75 // 실제 캔버스 크기 기반
+        const imgHeight = (canvasHeight / scale) * 0.75
         
         // 이미지 위치 계산 (중앙 정렬)
         const x = (width - imgWidth) / 2
@@ -433,9 +442,9 @@ export default function PDFWatermarkPage() {
                               transform: `translateX(-50%) rotate(${watermarkSettings.rotation}deg)`,
                               transformOrigin: 'center center',
                               whiteSpace: 'nowrap',
-                              maxWidth: '160px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
+                              // 회전을 고려한 동적 크기 조정
+                              width: 'auto',
+                              minWidth: 'fit-content'
                             }}
                           >
                             {watermarkSettings.text}
