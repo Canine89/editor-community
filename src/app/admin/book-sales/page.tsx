@@ -171,11 +171,6 @@ export default function BookSalesPage() {
       const allFilenames = availableFiles.map(f => f.filename)
       const multiData = await loadMultipleBookSalesData(allFilenames)
       
-      console.log('Available files:', allFilenames)
-      console.log('Loaded multiData keys:', Object.keys(multiData))
-      console.log('Selected books:', selectedBooks)
-      console.log('Current filteredBooks:', filteredBooks.map(b => ({ bookId: b.bookId, title: b.title })))
-      
       // 차트용 데이터 생성 - 날짜별로 모든 선택된 도서의 판매지수를 포함
       const dateMap: { [date: string]: any } = {}
       const selectedBookTitles: string[] = []
@@ -200,10 +195,7 @@ export default function BookSalesPage() {
           
           for (const bookId of selectedBooks) {
             const currentBook = filteredBooks.find(b => b.bookId === bookId)
-            if (!currentBook) {
-              console.warn(`Selected book not found in filteredBooks: ${bookId}`)
-              continue
-            }
+            if (!currentBook) continue
             
             const bookInDate = Object.values(data).find((book: any) => 
               book.title === currentBook.title && book.publisher === currentBook.publisher
@@ -215,15 +207,11 @@ export default function BookSalesPage() {
                 ? currentBook.title.substring(0, 20) + '...'
                 : currentBook.title
               chartEntry[shortTitle] = (bookInDate as any).sales_point
-              console.log(`Found data for ${shortTitle} on ${formatDate}: ${(bookInDate as any).sales_point}`)
-            } else {
-              console.log(`No data found for ${currentBook.title} on ${formatDate}`)
             }
           }
           
           dateMap[formatDate] = chartEntry
         } catch (parseError) {
-          console.warn(`날짜 파싱 실패: ${formatDate}`, parseError)
           continue // 파싱 실패한 파일은 스킵
         }
       }
@@ -232,9 +220,6 @@ export default function BookSalesPage() {
       const sortedChartData = Object.values(dateMap).sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       )
-      
-      console.log('Generated dateMap:', dateMap)
-      console.log('Sorted chart data length:', sortedChartData.length)
       
       if (sortedChartData.length === 0) {
         alert('선택된 도서의 판매 데이터가 없습니다.')
