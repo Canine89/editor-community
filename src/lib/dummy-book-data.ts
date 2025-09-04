@@ -134,7 +134,8 @@ export function generateDummyFileInfos(): BookSalesFileInfo[] {
 // 더미 개요 데이터 생성 함수
 export function generateDummyOverview(data: BookSalesData, date: string): DailySalesOverview {
   const books = Object.values(data)
-  const publishers = [...new Set(books.map(book => book.publisher))]
+  const publisherSet = new Set(books.map(book => book.publisher))
+  const publishers = Array.from(publisherSet)
   
   const topBook = books.reduce((prev, current) => {
     return (prev.sales_point > current.sales_point) ? prev : current
