@@ -154,6 +154,11 @@ export default function BookSalesPage() {
 
     setLoadingChart(true)
     try {
+      // 오늘 날짜 기준 30일 전까지의 날짜 범위 계산
+      const today = new Date()
+      const thirtyDaysAgo = new Date(today)
+      thirtyDaysAgo.setDate(today.getDate() - 30)
+
       // 모든 파일의 데이터를 로드
       const allFilenames = availableFiles.map(f => f.filename)
       const multiData = await loadMultipleBookSalesData(allFilenames)
@@ -171,41 +176,61 @@ export default function BookSalesPage() {
       
       // 모든 날짜에 대해 선택된 도서들의 데이터 수집
       for (const [dateKey, data] of Object.entries(multiData)) {
-        // yes24_2025_MMDD.json → 2025-MM-DD 형식으로 변환
-        const dateStr = dateKey.replace('yes24_', '').replace('.json', '')
-        const parts = dateStr.split('_') // ['2025', 'MMDD']
-        const year = parts[0]
-        const monthDay = parts[1]
-        const month = monthDay.substring(0, 2)
-        const day = monthDay.substring(2, 4)
-        const formatDate = `${year}-${month}-${day}`
-        
-        const chartEntry: any = { date: formatDate }
-        
-        for (const bookId of selectedBooks) {
-          const currentBook = filteredBooks.find(b => b.bookId === bookId)
-          if (!currentBook) continue
+        try {
+          // yes24_2025_MMDD.json → 2025-MM-DD 형식으로 변환
+          const dateStr = dateKey.replace('yes24_', '').replace('.json', '')
+          const parts = dateStr.split('_') // ['2025', 'MMDD']
           
-          const bookInDate = Object.values(data).find((book: any) => 
-            book.title === currentBook.title && book.publisher === currentBook.publisher
-          )
+          if (parts.length !== 2) continue // 잘못된 형식 스킵
           
-          if (bookInDate) {
-            // 도서 제목을 키로 사용 (최대 20자로 제한)
-            const shortTitle = currentBook.title.length > 20 
-              ? currentBook.title.substring(0, 20) + '...'
-              : currentBook.title
-            chartEntry[shortTitle] = (bookInDate as any).sales_point
+          const year = parts[0]
+          const monthDay = parts[1]
+          
+          if (!monthDay || monthDay.length !== 4) continue // MMDD 형식이 아니면 스킵
+          
+          const month = monthDay.substring(0, 2)
+          const day = monthDay.substring(2, 4)
+          const formatDate = `${year}-${month}-${day}`
+          
+          // 날짜가 30일 범위 내에 있는지 확인
+          const currentDate = new Date(formatDate)
+          if (currentDate < thirtyDaysAgo || currentDate > today) continue
+          
+          const chartEntry: any = { date: formatDate }
+          
+          for (const bookId of selectedBooks) {
+            const currentBook = filteredBooks.find(b => b.bookId === bookId)
+            if (!currentBook) continue
+            
+            const bookInDate = Object.values(data).find((book: any) => 
+              book.title === currentBook.title && book.publisher === currentBook.publisher
+            )
+            
+            if (bookInDate) {
+              // 도서 제목을 키로 사용 (최대 20자로 제한)
+              const shortTitle = currentBook.title.length > 20 
+                ? currentBook.title.substring(0, 20) + '...'
+                : currentBook.title
+              chartEntry[shortTitle] = (bookInDate as any).sales_point
+            }
           }
+          
+          dateMap[formatDate] = chartEntry
+        } catch (parseError) {
+          console.warn(`날짜 파싱 실패: ${dateKey}`, parseError)
+          continue // 파싱 실패한 파일은 스킵
         }
-        
-        dateMap[formatDate] = chartEntry
       }
       
       // 날짜순으로 정렬 (2025-08-01, 2025-08-04 형식)
       const sortedChartData = Object.values(dateMap).sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       )
+      
+      if (sortedChartData.length === 0) {
+        alert('최근 30일 내 데이터가 없습니다.')
+        return
+      }
       
       setChartData(sortedChartData)
       setShowChart(true)
