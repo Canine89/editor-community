@@ -32,9 +32,12 @@ export function useAdmin() {
   const [permissions, setPermissions] = useState<AdminPermission[]>([])
   const [loading, setLoading] = useState(true)
   
+  // 개발 모드 체크
+  const isDevMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+  
   // 계산된 권한 상태들
-  const canAccessAdminPagesValue = isMaster
-  const canViewBookSalesValue = isMaster || 
+  const canAccessAdminPagesValue = isDevMode || isMaster
+  const canViewBookSalesValue = isDevMode || isMaster || 
     permissions.some(p => p.permission_type === 'goldenrabbit_employee') ||
     permissions.some(p => p.permission_type === 'book_sales_viewer')
   const supabase = createClient()
@@ -51,8 +54,35 @@ export function useAdmin() {
       return
     }
 
+    // 개발 모드에서는 모든 권한 자동 부여
+    if (isDevMode) {
+      setIsAdmin(true)
+      setIsMaster(true)
+      setIsEmployee(true)
+      setPermissions([
+        {
+          id: 'dev-master',
+          user_id: user.id,
+          permission_type: 'master',
+          granted_by: 'dev-mode',
+          granted_at: new Date().toISOString(),
+          is_active: true
+        },
+        {
+          id: 'dev-employee',
+          user_id: user.id,
+          permission_type: 'goldenrabbit_employee',
+          granted_by: 'dev-mode',
+          granted_at: new Date().toISOString(),
+          is_active: true
+        }
+      ])
+      setLoading(false)
+      return
+    }
+
     checkAdminPermissions()
-  }, [user, authLoading])
+  }, [user, authLoading, isDevMode])
 
   const checkAdminPermissions = async () => {
     try {
@@ -91,17 +121,20 @@ export function useAdmin() {
   }
 
   const hasPermission = (permissionType: AdminPermission['permission_type']): boolean => {
+    if (isDevMode) return true // 개발 모드에서는 모든 권한 허용
     if (isMaster) return true // Master has all permissions
     return permissions.some(p => p.permission_type === permissionType)
   }
 
   // 실제 관리 페이지 접근 권한 (Master만)
   const canAccessAdminPages = (): boolean => {
+    if (isDevMode) return true // 개발 모드에서는 모든 관리 페이지 접근 허용
     return isMaster
   }
 
   // 도서 판매 데이터 접근 권한 (Master + goldenrabbit_employee + book_sales_viewer)
   const canViewBookSales = (): boolean => {
+    if (isDevMode) return true // 개발 모드에서는 도서 판매 데이터 접근 허용
     return isMaster || 
            hasPermission('goldenrabbit_employee') || 
            hasPermission('book_sales_viewer')
@@ -113,6 +146,9 @@ export function useAdmin() {
     targetId?: string,
     details?: any
   ) => {
+    // 개발 모드에서는 활동 로깅을 건너뜀
+    if (isDevMode) return
+    
     if (!isAdmin || !user) return
 
     try {
