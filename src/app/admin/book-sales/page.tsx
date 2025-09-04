@@ -65,7 +65,13 @@ export default function BookSalesPage() {
     // 임시로 모든 관리자가 접근 가능하도록 설정
     if (isAdmin) {
       logActivity('view_book_sales_data')
-      const files = getBookSalesFiles()
+      loadAvailableFiles()
+    }
+  }, [isAdmin])
+
+  const loadAvailableFiles = async () => {
+    try {
+      const files = await getBookSalesFiles()
       setAvailableFiles(files)
       if (files.length > 0) {
         // 가장 최근 날짜를 기본으로 선택
@@ -73,8 +79,10 @@ export default function BookSalesPage() {
         setSelectedDate(latestFile.filename)
         loadDataForDate(latestFile.filename)
       }
+    } catch (error) {
+      console.error('Failed to load available files:', error)
     }
-  }, [isAdmin])
+  }
 
   const loadDataForDate = async (filename: string) => {
     setLoading(true)

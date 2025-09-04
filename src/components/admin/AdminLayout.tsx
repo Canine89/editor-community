@@ -69,6 +69,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     { icon: MessageSquare, label: '커뮤니티 관리', href: '/admin/community' },
     { icon: Briefcase, label: '구인구직 관리', href: '/admin/jobs' },
     { icon: Users, label: '사용자 관리', href: '/admin/users' },
+    { icon: Settings, label: '파일 관리', href: '/admin/file-management' },
   ]
 
   return (

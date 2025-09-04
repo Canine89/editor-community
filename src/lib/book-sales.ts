@@ -1,44 +1,86 @@
 // Book sales data utilities
 
+import { createClient } from '@/lib/supabase/client'
 import { BookSalesData, BookSalesFileInfo, BookTrend, PublisherStats, CategoryStats, DailySalesOverview } from '@/types/book-sales'
 
-// Get list of available data files
-export const getBookSalesFiles = (): BookSalesFileInfo[] => {
-  // Generate file list based on known pattern
-  const files: BookSalesFileInfo[] = []
-  
-  // August 2025 files
-  const augDates = ['01', '04', '05', '06', '08', '12', '13', '18', '19', '20', '22', '23', '24', '25', '26', '27', '28', '29', '30']
-  augDates.forEach(day => {
-    files.push({
-      date: `2025-08-${day}`,
-      filename: `yes24_2025_08${day}.json`,
-      displayDate: `2025년 8월 ${parseInt(day)}일`
-    })
-  })
-  
-  // September 2025 files
-  const sepDates = ['01', '02', '03', '04']
-  sepDates.forEach(day => {
-    files.push({
-      date: `2025-09-${day}`,
-      filename: `yes24_2025_09${day}.json`,
-      displayDate: `2025년 9월 ${parseInt(day)}일`
-    })
-  })
-  
-  return files.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+// Get list of available data files from Supabase Storage
+export const getBookSalesFiles = async (): Promise<BookSalesFileInfo[]> => {
+  try {
+    const supabase = createClient()
+    
+    // List all files in the book-sales-data bucket
+    const { data: files, error } = await supabase.storage
+      .from('book-sales-data')
+      .list('', {
+        limit: 100,
+        offset: 0,
+        sortBy: { column: 'name', order: 'asc' }
+      })
+
+    if (error) {
+      console.error('Error fetching files from Supabase Storage:', error)
+      return []
+    }
+
+    // Filter and parse JSON files with yes24_ pattern
+    const bookSalesFiles: BookSalesFileInfo[] = []
+    
+    for (const file of files || []) {
+      if (file.name.startsWith('yes24_') && file.name.endsWith('.json')) {
+        try {
+          // Parse filename: yes24_2025_MMDD.json
+          const nameWithoutExt = file.name.replace('.json', '')
+          const parts = nameWithoutExt.split('_') // ['yes24', '2025', 'MMDD']
+          
+          if (parts.length === 3) {
+            const year = parts[1]
+            const monthDay = parts[2]
+            
+            if (monthDay.length === 4) {
+              const month = monthDay.substring(0, 2)
+              const day = monthDay.substring(2, 4)
+              const date = `${year}-${month}-${day}`
+              
+              bookSalesFiles.push({
+                date,
+                filename: file.name,
+                displayDate: `${year}년 ${parseInt(month)}월 ${parseInt(day)}일`
+              })
+            }
+          }
+        } catch (parseError) {
+          console.warn(`Failed to parse filename: ${file.name}`, parseError)
+        }
+      }
+    }
+    
+    // Sort by date
+    return bookSalesFiles.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  } catch (error) {
+    console.error('Error in getBookSalesFiles:', error)
+    return []
+  }
 }
 
-// Load book sales data for a specific date
+// Load book sales data for a specific date from Supabase Storage
 export const loadBookSalesData = async (filename: string): Promise<BookSalesData> => {
   try {
-    const response = await fetch(`/data/book-sales/${filename}`)
-    if (!response.ok) {
-      throw new Error(`Failed to load ${filename}`)
+    const supabase = createClient()
+    
+    // Download file from Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('book-sales-data')
+      .download(filename)
+
+    if (error) {
+      console.error(`Error downloading ${filename}:`, error)
+      return {}
     }
-    const data = await response.json()
-    return data
+
+    // Convert blob to text and parse JSON
+    const text = await data.text()
+    const jsonData = JSON.parse(text)
+    return jsonData
   } catch (error) {
     console.error(`Error loading book sales data:`, error)
     return {}
