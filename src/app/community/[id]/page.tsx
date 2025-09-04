@@ -83,10 +83,16 @@ export default function PostDetailPage() {
     if (id) {
       loadPost()
       loadComments()
-      incrementViewCount()
       checkIfLiked()
     }
   }, [id, user])
+
+  // 조회수 증가는 별도 useEffect로 분리 (세션 기반 중복 방지)
+  useEffect(() => {
+    if (id) {
+      incrementViewCountOnce()
+    }
+  }, [id]) // user 의존성 제거
 
   const loadPost = async () => {
     try {
@@ -144,18 +150,39 @@ export default function PostDetailPage() {
     }
   }
 
-  const incrementViewCount = async () => {
+  const incrementViewCountOnce = async () => {
     try {
+      const postId = Array.isArray(id) ? id[0] : id
+      const viewedPostsKey = 'viewed_posts_session'
+      
+      // 세션 스토리지에서 조회한 게시글 목록 가져오기
+      const viewedPosts = JSON.parse(sessionStorage.getItem(viewedPostsKey) || '[]')
+      
+      // 이미 조회한 게시글인지 확인
+      if (viewedPosts.includes(postId)) {
+        return // 이미 조회했으면 조회수 증가 안 함
+      }
+      
       const supabase = createClient()
       
       // 조회수 증가 함수 호출
       const { error } = await (supabase.rpc as any)('increment_post_views', {
-        post_uuid: Array.isArray(id) ? id[0] : id
+        post_uuid: postId
       })
 
       if (error) {
         console.error('조회수 업데이트 오류:', error)
+        return
       }
+      
+      // 조회한 게시글 목록에 추가
+      viewedPosts.push(postId)
+      sessionStorage.setItem(viewedPostsKey, JSON.stringify(viewedPosts))
+      
+      // 조회수만 UI에서 즉시 업데이트 (전체 재로드 없이)
+      setPost(prevPost => 
+        prevPost ? { ...prevPost, view_count: prevPost.view_count + 1 } : null
+      )
     } catch (error) {
       console.error('조회수 업데이트 중 오류:', error)
     }
