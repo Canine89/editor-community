@@ -790,7 +790,7 @@ export default function BookSalesPage() {
                           {columns.map((column) => (
                             <th
                               key={column.key}
-                              className="text-left py-3 px-4 font-medium text-slate-600"
+                              className="text-left py-2 px-4 font-medium text-slate-600"
                             >
                               {column.label}
                             </th>
@@ -801,7 +801,7 @@ export default function BookSalesPage() {
                         {currentPageBooks.map((row, index) => (
                           <tr key={index} className="border-b hover:bg-slate-50">
                             {columns.map((column) => (
-                              <td key={column.key} className="py-2 px-4">
+                              <td key={column.key} className="py-1 px-4">
                                 {column.render
                                   ? column.render(row[column.key] as any, row as any)
                                   : String(row[column.key])
