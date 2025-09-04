@@ -134,12 +134,8 @@ CREATE POLICY "Admins can manage all comments" ON comments
 GRANT SELECT ON admin_posts_view TO authenticated;
 GRANT SELECT ON admin_jobs_view TO authenticated;
 
--- Create RLS policies for admin views
-CREATE POLICY "Only admins can view admin_posts_view" ON admin_posts_view
-    FOR SELECT USING (is_admin(auth.uid()));
-
-CREATE POLICY "Only admins can view admin_jobs_view" ON admin_jobs_view  
-    FOR SELECT USING (is_admin(auth.uid()));
+-- Note: Views don't support RLS policies directly
+-- Security is handled through the underlying tables and functions
 
 -- 12. Create function to log admin activities
 CREATE OR REPLACE FUNCTION log_admin_activity(

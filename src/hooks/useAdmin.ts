@@ -185,11 +185,30 @@ export function useAdmin() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          permissions:admin_permissions(
+            id,
+            permission_type,
+            granted_at
+          )
+        `)
         .order('created_at', { ascending: false })
 
-      return data || []
+      if (error) {
+        console.error('Failed to fetch users:', error)
+        return []
+      }
+
+      // Ensure permissions is always an array
+      const usersWithPermissions = (data || []).map(user => ({
+        ...user,
+        permissions: user.permissions || []
+      }))
+
+      return usersWithPermissions
     } catch (error) {
+      console.error('Error in getAllUsers:', error)
       return []
     }
   }

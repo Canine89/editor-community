@@ -138,7 +138,7 @@ export default function AdminUsersPage() {
   }
 
   const getAvailablePermissions = (user: AdminUser) => {
-    const userPermissions = user.permissions.map(p => p.permission_type)
+    const userPermissions = (user.permissions || []).map(p => p.permission_type)
     return permissionTypes.filter(p => !userPermissions.includes(p.value as any))
   }
 
@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
       label: '권한',
       render: (value: AdminUser['permissions'], row: AdminUser) => (
         <div className="flex flex-wrap gap-1">
-          {value.length === 0 ? (
+          {(!value || value.length === 0) ? (
             <Badge variant="outline" className="text-xs">일반 사용자</Badge>
           ) : (
             value.map((perm) => (
@@ -217,9 +217,9 @@ export default function AdminUsersPage() {
 
   const stats = {
     total: users.length,
-    admins: users.filter(u => u.permissions.length > 0).length,
-    masters: users.filter(u => u.permissions.some(p => p.permission_type === 'master')).length,
-    regular: users.filter(u => u.permissions.length === 0).length
+    admins: users.filter(u => (u.permissions || []).length > 0).length,
+    masters: users.filter(u => (u.permissions || []).some(p => p.permission_type === 'master')).length,
+    regular: users.filter(u => (u.permissions || []).length === 0).length
   }
 
   return (
@@ -336,7 +336,7 @@ export default function AdminUsersPage() {
                   <div className="mt-3">
                     <p className="text-sm font-medium text-slate-700 mb-2">현재 권한:</p>
                     <div className="flex flex-wrap gap-1">
-                      {selectedUser.permissions.length === 0 ? (
+                      {(!selectedUser.permissions || selectedUser.permissions.length === 0) ? (
                         <Badge variant="outline" className="text-xs">일반 사용자</Badge>
                       ) : (
                         selectedUser.permissions.map((perm) => (
