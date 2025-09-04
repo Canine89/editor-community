@@ -171,7 +171,15 @@ export default function BookSalesPage() {
       
       // 모든 날짜에 대해 선택된 도서들의 데이터 수집
       for (const [dateKey, data] of Object.entries(multiData)) {
-        const formatDate = dateKey.replace('yes24_', '').replace('.json', '').replace('_', '-')
+        // yes24_2025_MMDD.json → 2025-MM-DD 형식으로 변환
+        const dateStr = dateKey.replace('yes24_', '').replace('.json', '')
+        const parts = dateStr.split('_') // ['2025', 'MMDD']
+        const year = parts[0]
+        const monthDay = parts[1]
+        const month = monthDay.substring(0, 2)
+        const day = monthDay.substring(2, 4)
+        const formatDate = `${year}-${month}-${day}`
+        
         const chartEntry: any = { date: formatDate }
         
         for (const bookId of selectedBooks) {
@@ -194,9 +202,9 @@ export default function BookSalesPage() {
         dateMap[formatDate] = chartEntry
       }
       
-      // 날짜순으로 정렬
+      // 날짜순으로 정렬 (2025-08-01, 2025-08-04 형식)
       const sortedChartData = Object.values(dateMap).sort((a, b) => 
-        a.date.localeCompare(b.date)
+        new Date(a.date).getTime() - new Date(b.date).getTime()
       )
       
       setChartData(sortedChartData)
@@ -473,6 +481,10 @@ export default function BookSalesPage() {
                       textAnchor="end"
                       height={60}
                       fontSize={12}
+                      tickFormatter={(value) => {
+                        const date = new Date(value)
+                        return `${date.getMonth() + 1}/${date.getDate()}`
+                      }}
                     />
                     <YAxis 
                       tickFormatter={(value) => formatSalesPoint(value)}
@@ -480,7 +492,10 @@ export default function BookSalesPage() {
                     />
                     <Tooltip 
                       formatter={(value, name) => [formatSalesPoint(Number(value)), name]}
-                      labelFormatter={(label) => `날짜: ${label}`}
+                      labelFormatter={(label) => {
+                        const date = new Date(label)
+                        return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+                      }}
                     />
                     <Legend />
                     {selectedBooks.map((bookId, index) => {
