@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAdmin } from '@/hooks/useAdmin'
-import AdminLayout from '@/components/admin/AdminLayout'
 import DataTable from '@/components/admin/DataTable'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -198,25 +197,37 @@ export default function BookSalesPage() {
   // 임시로 관리자 권한만 확인 (나중에 세부 권한 적용 예정)
   if (!isAdmin) {
     return (
-      <AdminLayout title="접근 거부" description="이 페이지에 접근할 권한이 없습니다">
-        <Card>
-          <CardContent className="p-8">
-            <div className="text-center">
-              <BookOpen className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">접근 권한이 필요합니다</h3>
-              <p className="text-slate-600">
-                이 페이지는 관리자만 접근할 수 있습니다.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </AdminLayout>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardContent className="p-8">
+                <div className="text-center">
+                  <BookOpen className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">접근 권한이 필요합니다</h3>
+                  <p className="text-slate-600">
+                    이 페이지는 관리자만 접근할 수 있습니다.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <AdminLayout title="도서 판매 데이터" description="골든래빗 출간 도서 판매 통계 및 분석">
-      <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* 페이지 헤더 */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">도서 판매 데이터</h1>
+            <p className="text-gray-600">골든래빗 출간 도서 판매 통계 및 분석</p>
+          </div>
+          
+          <div className="space-y-6">
         {/* 날짜 선택 및 통계 개요 */}
         <div className="flex flex-col lg:flex-row gap-4">
           <Card className="lg:w-1/3">
@@ -340,7 +351,9 @@ export default function BookSalesPage() {
           searchPlaceholder="도서명, 저자, 출판사 검색..."
           emptyMessage="검색 결과가 없습니다"
         />
+          </div>
+        </div>
       </div>
-    </AdminLayout>
+    </div>
   )
 }
