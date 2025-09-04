@@ -24,6 +24,8 @@ import {
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -66,6 +68,12 @@ export default function BookSalesPage() {
   const [chartPeriod, setChartPeriod] = useState<30 | 60 | 120 | 180>(30)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingStatus, setLoadingStatus] = useState('')
+  
+  // 출판사 순위 그래프 관련 state
+  const [showPublisherRanking, setShowPublisherRanking] = useState(false)
+  const [publisherRankingData, setPublisherRankingData] = useState<any[]>([])
+  const [loadingPublisherRanking, setLoadingPublisherRanking] = useState(false)
+  const [publisherRankingPeriod, setPublisherRankingPeriod] = useState<30 | 60 | 90 | 120>(30)
   
   // 기간별 조회 관련 state
   const [viewMode, setViewMode] = useState<'daily' | 'date-specific'>('daily')
@@ -304,6 +312,104 @@ export default function BookSalesPage() {
     }
   }
 
+  // 출판사 순위 그래프 생성
+  const generatePublisherRanking = async () => {
+    setLoadingPublisherRanking(true)
+    setLoadingProgress(0)
+    setLoadingStatus('출판사 데이터 수집 중...')
+    
+    try {
+      // 선택된 기간에 해당하는 파일들 찾기
+      const endDate = selectedDate || new Date()
+      const startDate = new Date(endDate)
+      startDate.setDate(startDate.getDate() - publisherRankingPeriod)
+      
+      const periodFiles = availableFiles.filter(file => {
+        const fileDate = new Date(file.date)
+        return fileDate >= startDate && fileDate <= endDate
+      })
+      
+      if (periodFiles.length === 0) {
+        alert('선택된 기간에 해당하는 데이터가 없습니다.')
+        return
+      }
+      
+      setLoadingProgress(10)
+      setLoadingStatus(`${periodFiles.length}개 파일 로딩 중...`)
+      
+      // 기간별 출판사 데이터 수집
+      const publisherDataByDate: { [date: string]: { [publisher: string]: { totalSalesPoints: number, bookCount: number } } } = {}
+      
+      for (let i = 0; i < periodFiles.length; i++) {
+        const file = periodFiles[i]
+        const progress = 10 + (i / periodFiles.length) * 70
+        setLoadingProgress(progress)
+        setLoadingStatus(`${file.date} 데이터 처리 중...`)
+        
+        try {
+          const data = await loadBookSalesData(file.filename)
+          const publisherStats = getPublisherStats(data)
+          
+          publisherDataByDate[file.date] = {}
+          publisherStats.forEach(pub => {
+            publisherDataByDate[file.date][pub.name] = {
+              totalSalesPoints: pub.totalSalesPoints,
+              bookCount: pub.bookCount
+            }
+          })
+        } catch (error) {
+          console.error(`Failed to load data for ${file.filename}:`, error)
+        }
+      }
+      
+      setLoadingProgress(80)
+      setLoadingStatus('차트 데이터 준비 중...')
+      
+      // 모든 출판사 목록 수집
+      const allPublishers = new Set<string>()
+      Object.values(publisherDataByDate).forEach(dateData => {
+        Object.keys(dateData).forEach(publisher => allPublishers.add(publisher))
+      })
+      
+      // 상위 8개 출판사만 선택 (총 판매지수 기준)
+      const publisherTotals = Array.from(allPublishers).map(publisher => {
+        const total = Object.values(publisherDataByDate).reduce((sum, dateData) => {
+          return sum + (dateData[publisher]?.totalSalesPoints || 0)
+        }, 0)
+        return { name: publisher, total }
+      })
+      
+      const topPublishers = publisherTotals
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8)
+        .map(p => p.name)
+      
+      // 차트 데이터 생성
+      const chartData = Object.entries(publisherDataByDate)
+        .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+        .map(([date, publishers]) => {
+          const dataPoint: any = { date }
+          topPublishers.forEach(publisher => {
+            dataPoint[publisher] = publishers[publisher]?.totalSalesPoints || 0
+          })
+          return dataPoint
+        })
+      
+      setPublisherRankingData(chartData)
+      setShowPublisherRanking(true)
+      setLoadingProgress(100)
+      setLoadingStatus('완료!')
+      
+    } catch (error) {
+      console.error('Failed to generate publisher ranking:', error)
+      alert('출판사 순위 차트 생성 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingPublisherRanking(false)
+      setLoadingProgress(0)
+      setLoadingStatus('')
+    }
+  }
+
   const formatPrice = (price: number) => {
     return price.toLocaleString('ko-KR') + '원'
   }
@@ -366,7 +472,7 @@ export default function BookSalesPage() {
       sortable: true,
       render: (value: number) => (
         <div className="text-right">
-          <span className="font-mono font-medium">{formatSalesPoint(value)}</span>
+          <span className="text-sm font-mono">{formatSalesPoint(value)}</span>
         </div>
       )
     },
@@ -658,6 +764,82 @@ export default function BookSalesPage() {
           </Card>
         )}
 
+        {/* 출판사 순위 그래프 섹션 */}
+        {viewMode === 'daily' && (
+          <Card className="transition-all duration-300 ease-in-out">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                출판사 순위 분석
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm text-slate-600">
+                  기간별 출판사 판매지수 추이를 확인할 수 있습니다.
+                </div>
+                
+                {/* 차트 기간 선택 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">분석 기간:</span>
+                  <Select 
+                    value={publisherRankingPeriod.toString()} 
+                    onValueChange={(value) => setPublisherRankingPeriod(parseInt(value) as 30 | 60 | 90 | 120)}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30일</SelectItem>
+                      <SelectItem value="60">60일</SelectItem>
+                      <SelectItem value="90">90일</SelectItem>
+                      <SelectItem value="120">120일</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-3">
+                  {/* 프로그레스 바 (로딩 중일 때만 표시) */}
+                  {loadingPublisherRanking && (
+                    <div className="w-full space-y-2 animate-fadeIn">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">{loadingStatus}</span>
+                        <span className="font-medium">{loadingProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${loadingProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={generatePublisherRanking}
+                      disabled={loadingPublisherRanking}
+                      className="flex items-center gap-2 transition-all duration-200"
+                    >
+                      {loadingPublisherRanking ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          분석중...
+                        </>
+                      ) : (
+                        <>
+                          <BarChart3 className="w-4 h-4" />
+                          출판사 순위 분석 ({publisherRankingPeriod}일)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 차트 표시 섹션 - 판매지수와 순위 그래프 모두 표시 */}
         <div 
           className={`transition-all duration-500 ease-in-out overflow-hidden ${
@@ -773,7 +955,7 @@ export default function BookSalesPage() {
                           domain={['dataMin - 5', 'dataMax + 5']}
                         />
                         <Tooltip 
-                          formatter={(value, name) => [`${value}위`, name.replace('_rank', '')]}
+                          formatter={(value, name) => [`${value}위`, String(name).replace('_rank', '')]}
                           labelFormatter={(label) => {
                             const date = new Date(label)
                             return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
@@ -824,6 +1006,89 @@ export default function BookSalesPage() {
           )}
         </div>
 
+        {/* 출판사 순위 차트 표시 섹션 */}
+        <div 
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            showPublisherRanking && publisherRankingData.length > 0 
+              ? 'max-h-[2000px] opacity-100 transform translate-y-0' 
+              : 'max-h-0 opacity-0 transform -translate-y-4'
+          }`}
+        >
+          {showPublisherRanking && publisherRankingData.length > 0 && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      출판사별 판매지수 추이 ({publisherRankingPeriod}일간)
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {publisherRankingData.length}개 데이터 포인트
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="w-full h-[500px] mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={publisherRankingData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          fontSize={12}
+                          tickFormatter={(value) => {
+                            const date = new Date(value)
+                            return `${date.getMonth() + 1}/${date.getDate()}`
+                          }}
+                        />
+                        <YAxis 
+                          tickFormatter={(value) => formatSalesPoint(value)}
+                          fontSize={12}
+                        />
+                        <Tooltip 
+                          formatter={(value, name) => [formatSalesPoint(Number(value)), String(name)]}
+                          labelFormatter={(label) => {
+                            const date = new Date(label)
+                            return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+                          }}
+                        />
+                        <Legend />
+                        {publisherRankingData.length > 0 && Object.keys(publisherRankingData[0])
+                          .filter(key => key !== 'date')
+                          .map((publisher, index) => {
+                            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
+                            return (
+                              <Bar
+                                key={publisher}
+                                dataKey={publisher}
+                                fill={colors[index % colors.length]}
+                                name={publisher.length > 15 ? publisher.substring(0, 15) + '...' : publisher}
+                              />
+                            )
+                          })}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowPublisherRanking(false)
+                    setPublisherRankingData([])
+                  }}
+                >
+                  닫기
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 날짜별 통계 개요 */}
         {viewMode === 'date-specific' && selectedDateForStats && (
@@ -924,7 +1189,7 @@ export default function BookSalesPage() {
                     <tbody>
                       {dateStatsData.publishers.slice(0, 20).map((publisher, index) => (
                         <tr key={publisher.name} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-3 px-2">
+                          <td className="py-2 px-2">
                             <Badge 
                               variant={index < 3 ? 'default' : index < 10 ? 'secondary' : 'outline'}
                               className="w-8 h-6 justify-center text-xs"
@@ -932,13 +1197,13 @@ export default function BookSalesPage() {
                               {index + 1}
                             </Badge>
                           </td>
-                          <td className="py-3 px-2 font-medium">{publisher.name}</td>
-                          <td className="py-3 px-2 text-right font-mono text-blue-600">
+                          <td className="py-2 px-2 font-medium">{publisher.name}</td>
+                          <td className="py-2 px-2 text-right text-sm font-mono text-blue-600">
                             {formatSalesPoint(publisher.totalSalesPoints)}
                           </td>
-                          <td className="py-3 px-2 text-right">{publisher.bookCount}권</td>
-                          <td className="py-3 px-2 text-right">{formatPrice(publisher.averagePrice)}</td>
-                          <td className="py-3 px-2 text-right">{publisher.averageRank}</td>
+                          <td className="py-2 px-2 text-right">{publisher.bookCount}권</td>
+                          <td className="py-2 px-2 text-right text-sm font-mono">{formatPrice(publisher.averagePrice)}</td>
+                          <td className="py-2 px-2 text-right">{publisher.averageRank}</td>
                         </tr>
                       ))}
                     </tbody>
