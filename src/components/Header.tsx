@@ -28,12 +28,13 @@ import {
   PenTool,
   FileText,
   ChevronDown,
-  Shield
+  Shield,
+  BarChart3
 } from 'lucide-react'
 
 export default function Header() {
   const { user, signOut } = useAuth()
-  const { isAdmin } = useAdmin()
+  const { isAdmin, isEmployee, isMaster } = useAdmin()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
@@ -45,6 +46,7 @@ export default function Header() {
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool },
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
+    ...(isAdmin ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
     { name: '모든 도구 보기', href: '/tools', icon: Wrench },
   ]
 
