@@ -12,6 +12,7 @@ export interface BookInfo {
   sales_point: number
   author: string[]
   tags: string[]
+  bookId?: string // 더미 데이터용 선택적 속성
 }
 
 export interface BookSalesData {
