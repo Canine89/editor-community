@@ -68,6 +68,8 @@ export default function BookSalesPage() {
   const [chartData, setChartData] = useState<any[]>([])
   const [loadingChart, setLoadingChart] = useState(false)
   const [chartPeriod, setChartPeriod] = useState<30 | 60 | 120 | 180>(30)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingStatus, setLoadingStatus] = useState('')
   
   // 기간별 조회 관련 state
   const [viewMode, setViewMode] = useState<'daily' | 'period'>('daily')
@@ -235,6 +237,9 @@ export default function BookSalesPage() {
     }
 
     setLoadingChart(true)
+    setLoadingProgress(0)
+    setLoadingStatus('준비 중...')
+    
     try {
       // 선택된 도서 제목 수집
       const selectedBookTitles: string[] = []
@@ -245,11 +250,21 @@ export default function BookSalesPage() {
         }
       }
       
+      setLoadingProgress(5)
+      setLoadingStatus(`${selectedBookTitles.length}개 도서 선택 완료`)
+      
+      // 진행률 콜백 함수
+      const progressCallback = (progress: number, status: string) => {
+        setLoadingProgress(progress)
+        setLoadingStatus(status)
+      }
+      
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
         selectedBookTitles,
         chartPeriod,
-        availableFiles
+        availableFiles,
+        progressCallback
       )
       
       if (chartData.length === 0) {
@@ -264,6 +279,8 @@ export default function BookSalesPage() {
       alert('그래프 생성 중 오류가 발생했습니다.')
     } finally {
       setLoadingChart(false)
+      setLoadingProgress(0)
+      setLoadingStatus('')
     }
   }
 
@@ -618,24 +635,42 @@ export default function BookSalesPage() {
                   </Select>
                 </div>
                 
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={generateChart}
-                    disabled={loadingChart || selectedBooks.length === 0}
-                    className="flex items-center gap-2"
-                  >
-                    {loadingChart ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        처리중...
-                      </>
-                    ) : (
-                      <>
-                        <BarChart3 className="w-4 h-4" />
-                        그래프 보기 ({chartPeriod}일)
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-3">
+                  {/* 프로그레스 바 (로딩 중일 때만 표시) */}
+                  {loadingChart && (
+                    <div className="w-full space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">{loadingStatus}</span>
+                        <span className="font-medium">{loadingProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${loadingProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={generateChart}
+                      disabled={loadingChart || selectedBooks.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      {loadingChart ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          처리중...
+                        </>
+                      ) : (
+                        <>
+                          <BarChart3 className="w-4 h-4" />
+                          그래프 보기 ({chartPeriod}일)
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

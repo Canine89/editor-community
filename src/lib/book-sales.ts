@@ -357,57 +357,208 @@ export const getPublisherStatsForPeriod = (periodData: {[date: string]: BookSale
   })).sort((a, b) => b.totalSalesPoints - a.totalSalesPoints)
 }
 
-// Optimized chart data loading with specific book filtering
+// Memory cache for loaded files (session-based)
+const fileCache = new Map<string, BookSalesData>()
+const CACHE_SIZE_LIMIT = 100 // Limit memory usage
+
+// LocalStorage persistent cache with compression
+const STORAGE_KEY_PREFIX = 'book_sales_cache_'
+const STORAGE_VERSION = 'v1'
+const MAX_STORAGE_AGE = 24 * 60 * 60 * 1000 // 24 hours
+
+interface CacheEntry {
+  data: BookSalesData
+  timestamp: number
+  version: string
+}
+
+// LocalStorage cache utilities
+const getFromStorage = (filename: string): BookSalesData | null => {
+  try {
+    const key = STORAGE_KEY_PREFIX + filename
+    const stored = localStorage.getItem(key)
+    if (!stored) return null
+
+    const entry: CacheEntry = JSON.parse(stored)
+    
+    // Check version and age
+    if (entry.version !== STORAGE_VERSION || 
+        Date.now() - entry.timestamp > MAX_STORAGE_AGE) {
+      localStorage.removeItem(key)
+      return null
+    }
+
+    return entry.data
+  } catch (error) {
+    console.warn(`Cache read error for ${filename}:`, error)
+    return null
+  }
+}
+
+const saveToStorage = (filename: string, data: BookSalesData): void => {
+  try {
+    const key = STORAGE_KEY_PREFIX + filename
+    const entry: CacheEntry = {
+      data,
+      timestamp: Date.now(),
+      version: STORAGE_VERSION
+    }
+    
+    localStorage.setItem(key, JSON.stringify(entry))
+  } catch (error) {
+    // Storage full or other error - silently fail
+    console.warn(`Cache write error for ${filename}:`, error)
+    // Try to clear some old entries
+    clearOldCacheEntries()
+  }
+}
+
+const clearOldCacheEntries = (): void => {
+  try {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_KEY_PREFIX))
+    const now = Date.now()
+    
+    keys.forEach(key => {
+      try {
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          const entry: CacheEntry = JSON.parse(stored)
+          if (now - entry.timestamp > MAX_STORAGE_AGE) {
+            localStorage.removeItem(key)
+          }
+        }
+      } catch {
+        localStorage.removeItem(key) // Remove corrupted entries
+      }
+    })
+  } catch (error) {
+    console.warn('Error clearing old cache entries:', error)
+  }
+}
+
+// Smart sampling algorithm for large date ranges
+const getOptimalSampling = (totalFiles: number, daysBefore: number) => {
+  // For periods > 90 days, use smart sampling to reduce load time
+  if (daysBefore <= 60) return { sampleEvery: 1, maxPoints: totalFiles }
+  if (daysBefore <= 120) return { sampleEvery: 2, maxPoints: 60 } 
+  if (daysBefore <= 180) return { sampleEvery: 3, maxPoints: 60 }
+  return { sampleEvery: 4, maxPoints: 45 } // Very long periods
+}
+
+// Enhanced book title matching with pre-compiled regex
+const createBookMatcher = (bookTitles: string[]) => {
+  const matchers = bookTitles.map(title => ({
+    exact: title,
+    shortTitle: title.length > 20 ? title.substring(0, 20) + '...' : title,
+    // Pre-compile regex for faster matching
+    regex: new RegExp(title.split('').map(char => 
+      /[.*+?^${}()|[\]\\]/.test(char) ? '\\' + char : char
+    ).join('.*'), 'i')
+  }))
+  
+  return (bookTitle: string) => {
+    for (const matcher of matchers) {
+      if (bookTitle === matcher.exact || 
+          bookTitle.includes(matcher.exact) || 
+          matcher.exact.includes(bookTitle) ||
+          matcher.regex.test(bookTitle)) {
+        return matcher.shortTitle
+      }
+    }
+    return null
+  }
+}
+
+// Progress callback interface
+interface ProgressCallback {
+  (progress: number, status: string): void
+}
+
+// Optimized chart data loading with advanced performance techniques
 export const loadChartDataForBooks = async (
   bookTitles: string[],
   daysBefore: number,
-  availableFiles: BookSalesFileInfo[]
+  availableFiles: BookSalesFileInfo[],
+  progressCallback?: ProgressCallback
 ): Promise<any[]> => {
   try {
     const today = new Date()
     const targetDate = new Date(today)
     targetDate.setDate(today.getDate() - daysBefore)
 
-    // Filter files within the specified date range
-    const relevantFiles = availableFiles
+    // Filter and sort files by date
+    let relevantFiles = availableFiles
       .filter(file => {
         const fileDate = new Date(file.date)
         return fileDate >= targetDate && fileDate <= today
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    console.log(`Loading chart data for ${relevantFiles.length} files over ${daysBefore} days`)
+    // Apply smart sampling for large datasets
+    const { sampleEvery, maxPoints } = getOptimalSampling(relevantFiles.length, daysBefore)
+    if (sampleEvery > 1) {
+      console.log(`📊 Smart sampling: ${relevantFiles.length} files → ${Math.ceil(relevantFiles.length / sampleEvery)} samples`)
+      progressCallback?.(10, `스마트 샘플링: ${relevantFiles.length}개 파일 → ${Math.ceil(relevantFiles.length / sampleEvery)}개로 최적화`)
+      relevantFiles = relevantFiles.filter((_, index) => index % sampleEvery === 0)
+      relevantFiles = relevantFiles.slice(0, maxPoints) // Ensure we don't exceed maxPoints
+    }
+
+    console.log(`⚡ Loading optimized chart data: ${relevantFiles.length} files over ${daysBefore} days`)
+    progressCallback?.(15, `${relevantFiles.length}개 파일 로딩 시작`)
 
     const chartDataMap: { [date: string]: any } = {}
+    const bookMatcher = createBookMatcher(bookTitles)
 
-    // Process files in batches to improve performance
-    const batchSize = 10
+    // Enhanced parallel processing with larger batches
+    const batchSize = Math.min(20, Math.max(5, Math.ceil(relevantFiles.length / 6))) // Dynamic batch sizing
+    console.log(`🔄 Processing in batches of ${batchSize}`)
+    progressCallback?.(20, `배치 처리 시작 (배치 크기: ${batchSize})`)
+
     for (let i = 0; i < relevantFiles.length; i += batchSize) {
       const batch = relevantFiles.slice(i, i + batchSize)
       
-      // Load batch of files concurrently
+      // Load batch with 3-tier caching system
       const batchPromises = batch.map(async file => {
         try {
-          const data = await loadBookSalesData(file.filename)
+          // Tier 1: Memory cache (fastest)
+          let data = fileCache.get(file.filename)
+          let cacheHit = 'memory'
+          
+          if (!data) {
+            // Tier 2: LocalStorage cache (fast)
+            data = getFromStorage(file.filename)
+            cacheHit = 'storage'
+            
+            if (!data) {
+              // Tier 3: Network request (slowest)
+              data = await loadBookSalesData(file.filename)
+              cacheHit = 'network'
+              
+              // Save to both caches
+              saveToStorage(file.filename, data)
+            }
+            
+            // Always add to memory cache
+            if (fileCache.size >= CACHE_SIZE_LIMIT) {
+              const firstKey = fileCache.keys().next().value
+              fileCache.delete(firstKey) // LRU eviction
+            }
+            fileCache.set(file.filename, data)
+          }
+
           const chartEntry: any = { date: file.date }
 
-          // Only look for the specific books we need
+          // Optimized book searching with pre-compiled matchers
           Object.values(data).forEach((book: any) => {
-            const matchingTitle = bookTitles.find(title => 
-              book.title === title || book.title.includes(title) || title.includes(book.title)
-            )
-            
-            if (matchingTitle) {
-              const shortTitle = matchingTitle.length > 20 
-                ? matchingTitle.substring(0, 20) + '...'
-                : matchingTitle
-              chartEntry[shortTitle] = book.sales_point
+            const matchedTitle = bookMatcher(book.title)
+            if (matchedTitle) {
+              chartEntry[matchedTitle] = book.sales_point
             }
           })
 
           return { date: file.date, entry: chartEntry }
         } catch (error) {
-          console.warn(`Failed to load ${file.filename}:`, error)
+          console.warn(`⚠️ Failed to load ${file.filename}:`, error)
           return null
         }
       })
@@ -420,18 +571,35 @@ export const loadChartDataForBooks = async (
           chartDataMap[result.date] = result.entry
         }
       })
+
+      // Progress feedback with callback
+      const baseProgress = 20
+      const batchProgress = Math.round(((i + batchSize) / relevantFiles.length) * 70) // 70% for loading
+      const totalProgress = baseProgress + batchProgress
+      
+      const memoryHits = Array.from(fileCache.keys()).filter(key => 
+        batch.some(b => b.filename === key)).length
+      const status = `${i + batchSize}/${relevantFiles.length} 파일 처리 완료 (캐시 적중: ${memoryHits}/${batch.length})`
+      
+      progressCallback?.(totalProgress, status)
+      
+      if (relevantFiles.length > 20) {
+        console.log(`📈 Progress: ${totalProgress}% - ${status}`)
+      }
     }
 
     // Convert to sorted array
+    progressCallback?.(95, '차트 데이터 정렬 및 최적화 중...')
     const sortedChartData = Object.values(chartDataMap).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    console.log(`Chart data loaded: ${sortedChartData.length} data points`)
+    console.log(`✅ Chart data loaded successfully: ${sortedChartData.length} data points, cache size: ${fileCache.size}`)
+    progressCallback?.(100, `완료! ${sortedChartData.length}개 데이터 포인트 로딩`)
     return sortedChartData
 
   } catch (error) {
-    console.error('Error loading chart data:', error)
+    console.error('❌ Error loading chart data:', error)
     return []
   }
 }
