@@ -97,7 +97,7 @@ export default function FileManagementPage() {
           )
         )
 
-        logActivity('upload_book_sales_file', { filename: uploadFile.file.name })
+        logActivity('upload_book_sales_file', undefined, undefined, { filename: uploadFile.file.name })
       } catch (error) {
         console.error('Upload error:', error)
         setUploadFiles(prev => 
@@ -142,7 +142,7 @@ export default function FileManagementPage() {
         throw error
       }
 
-      logActivity('delete_book_sales_file', { filename })
+      logActivity('delete_book_sales_file', undefined, undefined, { filename })
       loadExistingFiles()
     } catch (error) {
       console.error('Delete error:', error)
