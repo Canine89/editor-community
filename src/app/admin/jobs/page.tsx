@@ -210,11 +210,11 @@ export default function AdminJobsPage() {
       variant: 'ghost' as const
     },
     ...(hasPermission('jobs_admin') || hasPermission('master') ? [{
-      label: row => (row.is_active ? '비활성화' : '활성화'),
-      icon: (row: AdminJob) => row.is_active ? ToggleLeft : ToggleRight,
+      label: '상태변경',
+      icon: ToggleLeft,
       onClick: handleToggleStatus,
       variant: 'ghost' as const,
-      className: (row: AdminJob) => row.is_active ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'
+      className: 'text-blue-600 hover:text-blue-700'
     }] : [])
   ]
 

@@ -51,7 +51,7 @@ export function useAdmin() {
       const { data, error } = await supabase
         .from('admin_permissions')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id || '')
         .eq('is_active', true)
 
       if (error) {
@@ -61,11 +61,11 @@ export function useAdmin() {
         return
       }
 
-      const adminPermissions = data || []
+      const adminPermissions = (data as AdminPermission[]) || []
       setPermissions(adminPermissions)
       
       const hasAnyPermission = adminPermissions.length > 0
-      const hasMasterPermission = adminPermissions.some(p => p.permission_type === 'master')
+      const hasMasterPermission = adminPermissions.some((p: AdminPermission) => p.permission_type === 'master')
       
       setIsAdmin(hasAnyPermission)
       setIsMaster(hasMasterPermission)
@@ -92,7 +92,7 @@ export function useAdmin() {
     if (!isAdmin || !user) return
 
     try {
-      await supabase
+      await (supabase as any)
         .from('admin_activity_logs')
         .insert({
           admin_id: user.id,
@@ -199,7 +199,7 @@ export function useAdmin() {
     if (!hasPermission('community_admin')) return false
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('posts')
         .delete()
         .eq('id', postId)
@@ -218,7 +218,7 @@ export function useAdmin() {
     if (!hasPermission('jobs_admin')) return false
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('jobs')
         .update({ is_active: isActive })
         .eq('id', jobId)
@@ -242,7 +242,7 @@ export function useAdmin() {
     if (!isMaster) return false
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('admin_permissions')
         .upsert({
           user_id: userId,
@@ -265,7 +265,7 @@ export function useAdmin() {
     if (!isMaster) return false
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('admin_permissions')
         .update({ is_active: false })
         .eq('user_id', userId)

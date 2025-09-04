@@ -184,7 +184,7 @@ export default function PDFWatermarkPage() {
       const pdfBytes = await pdfDoc.save()
       
       // 다운로드용 Blob 생성
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       
       // 파일 다운로드

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { useAuthStore } from '@/lib/store'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface Post {
   id: string
@@ -27,7 +26,7 @@ interface Post {
 export default function EditPostPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const supabase = createClient()
-  const { user } = useAuthStore()
+  const { user } = useAuth()
   
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,7 +45,7 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!user) {
-      router.push('/auth/login')
+      router.push('/auth')
       return
     }
     fetchPost()
@@ -62,32 +61,32 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
 
       if (error) {
         console.error('게시글 조회 오류:', error)
-        toast.error('게시글을 불러올 수 없습니다')
+        alert('게시글을 불러올 수 없습니다')
         router.push('/community')
         return
       }
 
       if (!data) {
-        toast.error('게시글을 찾을 수 없습니다')
+        alert('게시글을 찾을 수 없습니다')
         router.push('/community')
         return
       }
 
       // 작성자 확인
-      if (data.author_id !== user?.id) {
-        toast.error('수정 권한이 없습니다')
+      if ((data as any).author_id !== user?.id) {
+        alert('수정 권한이 없습니다')
         router.push(`/community/${params.id}`)
         return
       }
 
-      setPost(data)
-      setTitle(data.title)
-      setContent(data.content)
-      setCategory(data.category)
-      setIsAnonymous(data.is_anonymous)
+      setPost(data as Post)
+      setTitle((data as Post).title)
+      setContent((data as Post).content)
+      setCategory((data as Post).category)
+      setIsAnonymous((data as Post).is_anonymous)
     } catch (error) {
       console.error('게시글 조회 중 오류:', error)
-      toast.error('게시글을 불러오는 중 오류가 발생했습니다')
+      alert('게시글을 불러오는 중 오류가 발생했습니다')
       router.push('/community')
     } finally {
       setLoading(false)
@@ -98,19 +97,19 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
     if (!post || !user) return
 
     if (!title.trim()) {
-      toast.error('제목을 입력해주세요')
+      alert('제목을 입력해주세요')
       return
     }
 
     if (!content.trim()) {
-      toast.error('내용을 입력해주세요')
+      alert('내용을 입력해주세요')
       return
     }
 
     setSaving(true)
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('posts')
         .update({
           title: title.trim(),
@@ -124,15 +123,15 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
 
       if (error) {
         console.error('게시글 수정 오류:', error)
-        toast.error('게시글 수정에 실패했습니다')
+        alert('게시글 수정에 실패했습니다')
         return
       }
 
-      toast.success('게시글이 수정되었습니다')
+      alert('게시글이 수정되었습니다')
       router.push(`/community/${post.id}`)
     } catch (error) {
       console.error('게시글 수정 중 오류:', error)
-      toast.error('게시글 수정 중 오류가 발생했습니다')
+      alert('게시글 수정 중 오류가 발생했습니다')
     } finally {
       setSaving(false)
     }

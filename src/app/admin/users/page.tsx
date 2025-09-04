@@ -139,7 +139,7 @@ export default function AdminUsersPage() {
 
   const getAvailablePermissions = (user: AdminUser) => {
     const userPermissions = user.permissions.map(p => p.permission_type)
-    return permissionTypes.filter(p => !userPermissions.includes(p.value))
+    return permissionTypes.filter(p => !userPermissions.includes(p.value as any))
   }
 
   const columns = [
