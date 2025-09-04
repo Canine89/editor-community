@@ -555,6 +555,7 @@ export const loadChartDataForBooks = async (
             const matchedTitle = bookMatcher(book.title)
             if (matchedTitle) {
               chartEntry[matchedTitle] = book.sales_point
+              chartEntry[`${matchedTitle}_rank`] = book.rank // 순위 데이터도 추가
             }
           })
 

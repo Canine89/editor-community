@@ -553,7 +553,20 @@ export default function BookSalesPage() {
           </div>
         )}
 
-        {/* 그래프 보기 섹션 - 일별 조회 모드에서만 표시 (레이아웃 고정) */}
+
+        {/* 도서 목록 테이블 - 일별 조회 모드에서만 표시 */}
+        {viewMode === 'daily' && (
+          <DataTable
+            title="도서 판매 현황"
+            data={filteredBooks}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder="도서명, 저자, 출판사 검색..."
+            emptyMessage="검색 결과가 없습니다"
+          />
+        )}
+
+        {/* 그래프 보기 섹션 - 테이블 아래 위치 */}
         {viewMode === 'daily' && (
           <Card className="transition-all duration-300 ease-in-out">
             <CardHeader>
@@ -577,7 +590,7 @@ export default function BookSalesPage() {
                 <div className="space-y-4">
                   <div className="text-sm text-slate-600">
                     {selectedBooks.length > 0 
-                      ? `${selectedBooks.length}권의 도서가 선택되었습니다. 판매지수 추이를 확인해보세요.`
+                      ? `${selectedBooks.length}권의 도서가 선택되었습니다. 판매지수와 순위 추이를 확인해보세요.`
                       : '도서를 선택하면 차트 생성 옵션이 표시됩니다.'
                     }
                   </div>
@@ -645,81 +658,157 @@ export default function BookSalesPage() {
           </Card>
         )}
 
-        {/* 차트 표시 섹션 - 부드러운 전환 효과 */}
+        {/* 차트 표시 섹션 - 판매지수와 순위 그래프 모두 표시 */}
         <div 
           className={`transition-all duration-500 ease-in-out overflow-hidden ${
             showChart && chartData.length > 0 
-              ? 'max-h-[2000px] opacity-100 transform translate-y-0' 
+              ? 'max-h-[4000px] opacity-100 transform translate-y-0' 
               : 'max-h-0 opacity-0 transform -translate-y-4'
           }`}
         >
           {showChart && chartData.length > 0 && (
-            <Card className="animate-in slide-in-from-bottom-4 duration-500">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    판매지수 추이 비교 ({chartPeriod}일간)
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {chartData.length}개 데이터 포인트
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-            <CardContent>
-              <div className="w-full h-[400px] mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                      fontSize={12}
-                      tickFormatter={(value) => {
-                        const date = new Date(value)
-                        return `${date.getMonth() + 1}/${date.getDate()}`
-                      }}
-                    />
-                    <YAxis 
-                      tickFormatter={(value) => formatSalesPoint(value)}
-                      fontSize={12}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [formatSalesPoint(Number(value)), name]}
-                      labelFormatter={(label) => {
-                        const date = new Date(label)
-                        return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
-                      }}
-                    />
-                    <Legend />
-                    {selectedBooks.map((bookId, index) => {
-                      const currentBook = filteredBooks.find(b => b.bookId === bookId)
-                      if (!currentBook) return null
-                      
-                      const shortTitle = currentBook.title.length > 20 
-                        ? currentBook.title.substring(0, 20) + '...'
-                        : currentBook.title
-                      
-                      const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
-                      
-                      return (
-                        <Line
-                          key={bookId}
-                          type="monotone"
-                          dataKey={shortTitle}
-                          stroke={colors[index % colors.length]}
-                          strokeWidth={2}
-                          dot={{ r: 4 }}
-                          activeDot={{ r: 6 }}
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              {/* 판매지수 그래프 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      판매지수 추이 비교 ({chartPeriod}일간)
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {chartData.length}개 데이터 포인트
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="w-full h-[400px] mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          fontSize={12}
+                          tickFormatter={(value) => {
+                            const date = new Date(value)
+                            return `${date.getMonth() + 1}/${date.getDate()}`
+                          }}
                         />
-                      )
-                    })}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-4 pt-4 border-t flex justify-end">
+                        <YAxis 
+                          tickFormatter={(value) => formatSalesPoint(value)}
+                          fontSize={12}
+                        />
+                        <Tooltip 
+                          formatter={(value, name) => [formatSalesPoint(Number(value)), name]}
+                          labelFormatter={(label) => {
+                            const date = new Date(label)
+                            return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+                          }}
+                        />
+                        <Legend />
+                        {selectedBooks.map((bookId, index) => {
+                          const currentBook = filteredBooks.find(b => b.bookId === bookId)
+                          if (!currentBook) return null
+                          
+                          const shortTitle = currentBook.title.length > 20 
+                            ? currentBook.title.substring(0, 20) + '...'
+                            : currentBook.title
+                          
+                          const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+                          
+                          return (
+                            <Line
+                              key={bookId}
+                              type="monotone"
+                              dataKey={shortTitle}
+                              stroke={colors[index % colors.length]}
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          )
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 순위 그래프 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      순위 추이 비교 ({chartPeriod}일간)
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {chartData.length}개 데이터 포인트
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="w-full h-[400px] mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          fontSize={12}
+                          tickFormatter={(value) => {
+                            const date = new Date(value)
+                            return `${date.getMonth() + 1}/${date.getDate()}`
+                          }}
+                        />
+                        <YAxis 
+                          reversed={true}
+                          tickFormatter={(value) => `${value}위`}
+                          fontSize={12}
+                          domain={['dataMin - 5', 'dataMax + 5']}
+                        />
+                        <Tooltip 
+                          formatter={(value, name) => [`${value}위`, name.replace('_rank', '')]}
+                          labelFormatter={(label) => {
+                            const date = new Date(label)
+                            return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
+                          }}
+                        />
+                        <Legend />
+                        {selectedBooks.map((bookId, index) => {
+                          const currentBook = filteredBooks.find(b => b.bookId === bookId)
+                          if (!currentBook) return null
+                          
+                          const shortTitle = currentBook.title.length > 20 
+                            ? currentBook.title.substring(0, 20) + '...'
+                            : currentBook.title
+                          
+                          const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+                          
+                          return (
+                            <Line
+                              key={bookId + '_rank'}
+                              type="monotone"
+                              dataKey={`${shortTitle}_rank`}
+                              stroke={colors[index % colors.length]}
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          )
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
                 <Button 
                   variant="outline" 
                   onClick={() => {
@@ -731,22 +820,9 @@ export default function BookSalesPage() {
                   닫기
                 </Button>
               </div>
-            </CardContent>
-            </Card>
+            </div>
           )}
         </div>
-
-        {/* 도서 목록 테이블 - 일별 조회 모드에서만 표시 */}
-        {viewMode === 'daily' && (
-          <DataTable
-            title="도서 판매 현황"
-            data={filteredBooks}
-            columns={columns}
-            loading={loading}
-            searchPlaceholder="도서명, 저자, 출판사 검색..."
-            emptyMessage="검색 결과가 없습니다"
-          />
-        )}
 
 
         {/* 날짜별 통계 개요 */}
