@@ -20,7 +20,9 @@ import {
   BookOpen,
   Calendar,
   Search,
-  BarChart3
+  BarChart3,
+  Copy,
+  Check
 } from 'lucide-react'
 import {
   LineChart,
@@ -87,6 +89,9 @@ export default function BookSalesPage() {
   // 페이지네이션 관련 state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20) // 페이지당 아이템 수 고정
+
+  // 복사 기능 관련 state
+  const [copiedBookId, setCopiedBookId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!adminLoading && canViewBookSalesValue) {
@@ -438,6 +443,44 @@ export default function BookSalesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // 도서 정보 복사 함수
+  const copyBookInfo = async (book: any) => {
+    const bookInfo = `저자: ${book.author.join(', ')}
+출판사: ${book.publisher}
+출간일: ${book.publish_date}
+판매지수: ${formatSalesPoint(book.sales_point)}
+가격: ${formatPrice(book.right_price)}
+쪽: ${book.page || 'N/A'}쪽
+판형: N/A`
+
+    try {
+      await navigator.clipboard.writeText(bookInfo)
+      setCopiedBookId(book.bookId)
+      
+      // 2초 후 복사 상태 초기화
+      setTimeout(() => {
+        setCopiedBookId(null)
+      }, 2000)
+    } catch (err) {
+      console.error('복사 실패:', err)
+      // fallback: 텍스트 선택 방식
+      const textArea = document.createElement('textarea')
+      textArea.value = bookInfo
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopiedBookId(book.bookId)
+        setTimeout(() => {
+          setCopiedBookId(null)
+        }, 2000)
+      } catch (fallbackErr) {
+        console.error('Fallback 복사도 실패:', fallbackErr)
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
   const columns: any[] = [
     {
       key: 'select',
@@ -512,6 +555,32 @@ export default function BookSalesPage() {
       sortable: true,
       render: (value: string) => (
         <span className="text-sm text-slate-600">{value}</span>
+      )
+    },
+    {
+      key: 'copy',
+      label: '정보복사',
+      sortable: false,
+      render: (value: any, row: any) => (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => copyBookInfo(row)}
+          className="h-7 px-2 text-xs"
+          disabled={copiedBookId === row.bookId}
+        >
+          {copiedBookId === row.bookId ? (
+            <>
+              <Check className="w-3 h-3 mr-1" />
+              복사됨
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3 mr-1" />
+              복사
+            </>
+          )}
+        </Button>
       )
     }
   ]
