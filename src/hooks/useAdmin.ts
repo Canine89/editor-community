@@ -187,7 +187,7 @@ export function useAdmin() {
         .from('profiles')
         .select(`
           *,
-          permissions:admin_permissions(
+          permissions:admin_permissions!admin_permissions_user_id_fkey(
             id,
             permission_type,
             granted_at
