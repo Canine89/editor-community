@@ -21,7 +21,10 @@ import {
   User,
   Clock,
   Eye,
-  Send
+  Send,
+  Edit3,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -73,6 +76,8 @@ export default function PostDetailPage() {
   const [isLiked, setIsLiked] = useState(false)
   const [likingPost, setLikingPost] = useState(false)
   const [isAnonymousComment, setIsAnonymousComment] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deletingPost, setDeletingPost] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -304,6 +309,46 @@ export default function PostDetailPage() {
     )
   }
 
+  // 게시글 소유권 확인
+  const isPostOwner = () => {
+    return user && post && user.id === post.author_id
+  }
+
+  // 게시글 삭제
+  const handleDeletePost = async () => {
+    if (!user || !post || !isPostOwner()) return
+
+    setDeletingPost(true)
+
+    try {
+      const supabase = createClient()
+
+      // 댓글 삭제 (외래키 제약으로 인해 먼저 삭제)
+      await (supabase.from('comments') as any).delete().eq('post_id', post.id)
+      
+      // 좋아요 삭제  
+      await (supabase.from('likes') as any).delete().eq('post_id', post.id)
+
+      // 게시글 삭제
+      const { error } = await (supabase.from('posts') as any).delete().eq('id', post.id)
+
+      if (error) {
+        console.error('게시글 삭제 오류:', error)
+        alert('게시글 삭제 중 오류가 발생했습니다.')
+        return
+      }
+
+      alert('게시글이 삭제되었습니다.')
+      router.push('/community')
+    } catch (error) {
+      console.error('게시글 삭제 중 오류:', error)
+      alert('게시글 삭제 중 오류가 발생했습니다.')
+    } finally {
+      setDeletingPost(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
   if (!post) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -323,13 +368,36 @@ export default function PostDetailPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* 헤더 */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="icon" asChild>
-              <Link href="/community">
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-bold text-slate-900">게시글 상세</h1>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" asChild>
+                <Link href="/community">
+                  <ArrowLeft className="w-4 h-4" />
+                </Link>
+              </Button>
+              <h1 className="text-2xl font-bold text-slate-900">게시글 상세</h1>
+            </div>
+
+            {/* 작성자 전용 버튼 */}
+            {isPostOwner() && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/community/${post.id}/edit`}>
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    수정
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={deletingPost}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  삭제
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* 게시글 본문 */}
@@ -539,6 +607,51 @@ export default function PostDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <h3 className="text-lg font-semibold text-slate-900">
+                게시글 삭제 확인
+              </h3>
+            </div>
+            <p className="text-slate-600 mb-6">
+              정말로 이 게시글을 삭제하시겠습니까? 
+              <br />
+              삭제된 게시글은 복구할 수 없습니다.
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deletingPost}
+              >
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeletePost}
+                disabled={deletingPost}
+              >
+                {deletingPost ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    삭제 중...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    삭제하기
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

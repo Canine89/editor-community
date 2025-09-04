@@ -8,10 +8,21 @@ import {
   Scissors,
   Download,
   Wrench,
-  ArrowRight
+  ArrowRight,
+  FileCheck,
+  PenTool
 } from 'lucide-react'
 
 const tools = [
+  {
+    id: 'pdf-watermark',
+    title: 'PDF 워터마크',
+    description: 'PDF 파일에 텍스트 워터마크를 추가하여 저작권 보호 및 문서 표시',
+    icon: PenTool,
+    href: '/tools/pdf-watermark',
+    color: 'bg-indigo-500',
+    available: true
+  },
   {
     id: 'pdf-extractor',
     title: 'PDF 페이지 추출기',

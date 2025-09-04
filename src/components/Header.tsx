@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { useAdmin } from '@/hooks/useAdmin'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,17 +24,28 @@ import {
   User,
   LogOut,
   Home,
-  Sparkles
+  Sparkles,
+  PenTool,
+  FileText,
+  ChevronDown,
+  Shield
 } from 'lucide-react'
 
 export default function Header() {
   const { user, signOut } = useAuth()
+  const { isAdmin } = useAdmin()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
     { name: '커뮤니티', href: '/community', icon: MessageSquare },
     { name: '구인구직', href: '/jobs', icon: Briefcase },
-    { name: '유틸리티', href: '/tools', icon: Wrench },
+  ]
+
+  const tools = [
+    { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool },
+    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
+    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
+    { name: '모든 도구 보기', href: '/tools', icon: Wrench },
   ]
 
   return (
@@ -61,6 +74,73 @@ export default function Header() {
                 <span>{item.name}</span>
               </Link>
             ))}
+
+            {/* 유틸리티 드롭다운 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex items-center space-x-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  <Wrench className="h-4 w-4" />
+                  <span>유틸리티</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {tools.map((tool) => (
+                  <DropdownMenuItem key={tool.name} asChild>
+                    <Link href={tool.href} className="flex items-center">
+                      <tool.icon className="mr-2 h-4 w-4" />
+                      <span>{tool.name}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* 관리자 메뉴 */}
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>관리자</span>
+                    <Badge variant="destructive" className="text-xs ml-1">ADMIN</Badge>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex items-center">
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>대시보드</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/community" className="flex items-center">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      <span>커뮤니티 관리</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/jobs" className="flex items-center">
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      <span>구인구직 관리</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/users" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>사용자 관리</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </nav>
 
           {/* 사용자 메뉴 */}
@@ -164,6 +244,65 @@ export default function Header() {
                       <span>{item.name}</span>
                     </Link>
                   ))}
+
+                  {/* 모바일 유틸리티 메뉴 */}
+                  <div className="border-t pt-2 mt-2">
+                    <p className="text-xs font-medium text-slate-500 px-2 mb-2">유틸리티 도구</p>
+                    {tools.map((tool) => (
+                      <Link
+                        key={tool.name}
+                        href={tool.href}
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <tool.icon className="h-4 w-4" />
+                        <span>{tool.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* 모바일 관리자 메뉴 */}
+                  {isAdmin && (
+                    <div className="border-t pt-2 mt-2">
+                      <p className="text-xs font-medium text-red-500 px-2 mb-2 flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        관리자 메뉴
+                        <Badge variant="destructive" className="text-xs">ADMIN</Badge>
+                      </p>
+                      <Link
+                        href="/admin"
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>대시보드</span>
+                      </Link>
+                      <Link
+                        href="/admin/community"
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span>커뮤니티 관리</span>
+                      </Link>
+                      <Link
+                        href="/admin/jobs"
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Briefcase className="h-4 w-4" />
+                        <span>구인구직 관리</span>
+                      </Link>
+                      <Link
+                        href="/admin/users"
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <User className="h-4 w-4" />
+                        <span>사용자 관리</span>
+                      </Link>
+                    </div>
+                  )}
 
                   {user && (
                     <>
