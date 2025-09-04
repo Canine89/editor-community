@@ -726,13 +726,23 @@ export const loadChartDataForBooks = async (
       return dummyData
     }
 
-    // 🚀 Enhanced caching: Check if chart data is already cached
-    progressCallback?.(5, '캐시 확인 중...')
+    // 🚀 Enhanced caching: 이전 형식 캐시 무효화 후 새로 생성
+    progressCallback?.(5, '이전 형식 캐시 삭제 및 신규 생성...')
     const fakeIsbns = selectedBooks.map(book => book.fakeIsbn)
-    const cachedChartData = getChartDataFromCache(fakeIsbns, daysBefore)
-    if (cachedChartData && cachedChartData.length > 0) {
-      progressCallback?.(100, `캐시에서 로드 완료! (${cachedChartData.length}개 데이터 포인트)`)
-      return cachedChartData
+    
+    // 기존 캐시 모두 삭제 (형식 변경으로 인한 호환성 문제 해결)
+    console.log('🗑️ 기존 차트 캐시 삭제 중... (fake_isbn 형식으로 변경됨)')
+    chartDataCache.clear() // 메모리 캐시 삭제
+    
+    // localStorage 캐시도 삭제
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(CHART_STORAGE_KEY_PREFIX)) {
+          localStorage.removeItem(key)
+        }
+      })
+    } catch (error) {
+      console.warn('localStorage 캐시 삭제 실패:', error)
     }
 
     const today = new Date()
