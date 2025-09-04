@@ -127,9 +127,6 @@ export default function BookSalesPage() {
     setLoading(true)
     try {
       const data = await loadBookSalesData(filename)
-      console.log('📚 로드된 bookData:', data)
-      console.log('📊 bookData 키 개수:', Object.keys(data).length)
-      console.log('📋 bookData 샘플:', Object.values(data).slice(0, 3))
       setBookData(data)
       
       // 개요 데이터 생성
@@ -145,13 +142,7 @@ export default function BookSalesPage() {
       // 초기 필터링된 책 목록 설정
       updateFilteredBooks(data, '', 'all')
 
-      // 디버깅: bookData 로드 완료 후 상태 확인
-      console.log('✅ bookData 로드 완료!')
-      console.log('📊 최종 bookData 상태:', {
-        totalBooks: Object.keys(data).length,
-        firstBook: Object.values(data)[0],
-        bookIds: Object.keys(data).slice(0, 5)
-      })
+      console.log(`✅ bookData 로드 완료! (${Object.keys(data).length}개 도서)`)
     } catch (error) {
       console.error('Failed to load book data:', error)
     } finally {
@@ -302,43 +293,40 @@ export default function BookSalesPage() {
     try {
       let selectedBookTitles: string[] = []
 
-      // 더미 모드에서는 선택된 책들의 제목을 직접 사용하거나 임의 선택
-      if (isDummyMode()) {
-        if (selectedBooks.length === 0) {
-          // 선택된 책이 없으면 임의로 책들 선택
-          const allBooks = Object.values(bookData)
-          const numBooks = Math.min(5, allBooks.length)
-          const randomBooks = allBooks
-            .sort(() => Math.random() - 0.5)
-            .slice(0, numBooks)
-          selectedBookTitles = randomBooks.map(book => book.title)
-          console.log(`🔧 더미 모드: ${selectedBookTitles.length}개 임의 도서 선택`)
+      // 선택된 도서 제목 수집
+      for (const bookId of selectedBooks) {
+        let currentBook = null
+
+        if (isDummyMode()) {
+          // 더미 모드: bookId 속성으로 찾기
+          currentBook = Object.values(bookData).find(b => b.bookId === bookId)
         } else {
-          // 선택된 책이 있으면 제목들을 수집 (필터링된 데이터나 전체 데이터에서)
-          for (const bookId of selectedBooks) {
-            // 먼저 필터링된 데이터에서 찾기
-            let currentBook = filteredBooks.find(b => b.bookId === bookId)
-            if (!currentBook) {
-              // 필터링된 데이터에 없으면 전체 데이터에서 찾기
-              currentBook = Object.values(bookData).find(b => b.bookId === bookId)
-            }
-            if (currentBook) {
-              selectedBookTitles.push(currentBook.title)
-            } else {
-              // 책을 찾지 못했으면 bookId를 제목으로 사용 (더미 데이터용)
-              console.warn(`⚠️ 도서를 찾지 못함: ${bookId}, 더미 제목으로 사용`)
-              selectedBookTitles.push(`도서 ${bookId}`)
-            }
+          // 실제 데이터 모드: 키로 직접 접근
+          currentBook = bookData[bookId]
+        }
+
+        if (currentBook) {
+          selectedBookTitles.push(currentBook.title)
+        } else {
+          console.warn(`⚠️ 도서를 찾지 못함: ${bookId}`)
+          // 실제 데이터에서는 키 자체가 의미가 있을 수 있으므로 그대로 사용
+          if (!isDummyMode() && bookData[bookId]) {
+            selectedBookTitles.push(bookData[bookId].title)
+          } else {
+            selectedBookTitles.push(`도서 ${bookId}`)
           }
         }
-      } else {
-        // 일반 모드: 선택된 도서 제목 수집 (전체 데이터에서 찾기)
-        for (const bookId of selectedBooks) {
-          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
-          if (currentBook) {
-            selectedBookTitles.push(currentBook.title)
-          }
-        }
+      }
+
+      // 더미 모드이고 선택된 책이 없으면 임의 선택
+      if (isDummyMode() && selectedBooks.length === 0) {
+        const allBooks = Object.values(bookData)
+        const numBooks = Math.min(5, allBooks.length)
+        const randomBooks = allBooks
+          .sort(() => Math.random() - 0.5)
+          .slice(0, numBooks)
+        selectedBookTitles = randomBooks.map(book => book.title)
+        console.log(`🔧 더미 모드: ${selectedBookTitles.length}개 임의 도서 선택`)
       }
 
       setLoadingProgress(5)
@@ -353,27 +341,6 @@ export default function BookSalesPage() {
       console.log(`🔍 선택된 도서들:`, selectedBooks)
       console.log(`📚 수집된 제목들:`, selectedBookTitles)
       console.log(`🎯 더미 모드:`, isDummyMode())
-      console.log(`📈 bookData 상태:`, {
-        isEmpty: Object.keys(bookData).length === 0,
-        totalBooks: Object.keys(bookData).length,
-        sampleBook: Object.values(bookData)[0]
-      })
-
-      // 선택된 도서들의 상세 정보 확인
-      console.log('🔍 선택된 도서 상세 정보:')
-      console.log('📋 bookData 구조 확인:', {
-        keys: Object.keys(bookData).slice(0, 5),
-        firstBook: Object.values(bookData)[0]
-      })
-
-      selectedBooks.forEach((bookId, index) => {
-        const book = Object.values(bookData).find(b => b.bookId === bookId)
-        const directAccess = bookData[bookId] // 직접 접근도 시도
-        console.log(`${index + 1}. ID: ${bookId}`)
-        console.log(`   - find() 결과: ${!!book}, 제목: ${book?.title || 'N/A'}`)
-        console.log(`   - 직접 접근: ${!!directAccess}, 제목: ${directAccess?.title || 'N/A'}`)
-        console.log(`   - bookId 속성: ${book?.bookId || directAccess?.bookId || 'N/A'}`)
-      })
 
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
@@ -1097,10 +1064,18 @@ export default function BookSalesPage() {
                         {selectedBooks.map((bookId, index) => {
                           // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
                           // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
-                          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          let currentBook = null
+
+                          if (isDummyMode()) {
+                            // 더미 모드: bookId 속성으로 찾기
+                            currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          } else {
+                            // 실제 데이터 모드: 키로 직접 접근
+                            currentBook = bookData[bookId]
+                          }
+
                           if (!currentBook) {
                             console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
-                            console.warn(`📋 bookData 샘플:`, Object.values(bookData).slice(0, 2))
                             return null
                           }
 
@@ -1174,10 +1149,18 @@ export default function BookSalesPage() {
                         {selectedBooks.map((bookId, index) => {
                           // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
                           // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
-                          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          let currentBook = null
+
+                          if (isDummyMode()) {
+                            // 더미 모드: bookId 속성으로 찾기
+                            currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          } else {
+                            // 실제 데이터 모드: 키로 직접 접근
+                            currentBook = bookData[bookId]
+                          }
+
                           if (!currentBook) {
                             console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
-                            console.warn(`📋 bookData 샘플:`, Object.values(bookData).slice(0, 2))
                             return null
                           }
 
