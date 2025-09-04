@@ -29,9 +29,9 @@ import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 
-// PDF.js worker 설정 - 안정적인 CDN 사용
+// PDF.js worker 설정 - 실제 설치된 버전과 일치
 if (typeof window !== 'undefined') {
-  GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
+  GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'
 }
 
 interface CorrectionPair {
@@ -101,10 +101,10 @@ export default function PDFSpellCheckerPage() {
       const arrayBuffer = await file.arrayBuffer()
       const loadingTask = getDocument({ 
         data: arrayBuffer,
-        // 추가 옵션으로 호환성 개선
-        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.4.168/cmaps/',
+        // 추가 옵션으로 호환성 개선 - 실제 버전과 일치
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
         cMapPacked: true,
-        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.4.168/standard_fonts/',
+        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/standard_fonts/',
       })
       
       const pdf = await loadingTask.promise
