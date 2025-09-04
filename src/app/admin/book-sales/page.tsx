@@ -37,7 +37,7 @@ import {
 import { BookSalesData, BookSalesFileInfo, DailySalesOverview } from '@/types/book-sales'
 
 export default function BookSalesPage() {
-  const { isEmployee, logActivity } = useAdmin()
+  const { isEmployee, isMaster, logActivity } = useAdmin()
   const [selectedDate, setSelectedDate] = useState('')
   const [bookData, setBookData] = useState<BookSalesData>({})
   const [overview, setOverview] = useState<DailySalesOverview | null>(null)
@@ -49,7 +49,7 @@ export default function BookSalesPage() {
   const [publishers, setPublishers] = useState<string[]>([])
 
   useEffect(() => {
-    if (isEmployee) {
+    if (isEmployee || isMaster) {
       logActivity('view_book_sales_data')
       const files = getBookSalesFiles()
       setAvailableFiles(files)
@@ -60,7 +60,7 @@ export default function BookSalesPage() {
         loadDataForDate(latestFile.filename)
       }
     }
-  }, [isEmployee])
+  }, [isEmployee, isMaster])
 
   const loadDataForDate = async (filename: string) => {
     setLoading(true)
@@ -194,7 +194,7 @@ export default function BookSalesPage() {
     }
   ]
 
-  if (!isEmployee) {
+  if (!isEmployee && !isMaster) {
     return (
       <AdminLayout title="접근 거부" description="이 페이지에 접근할 권한이 없습니다">
         <Card>
@@ -203,7 +203,7 @@ export default function BookSalesPage() {
               <BookOpen className="w-16 h-16 text-slate-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">접근 권한이 필요합니다</h3>
               <p className="text-slate-600">
-                이 페이지는 골든래빗 임직원만 접근할 수 있습니다.
+                이 페이지는 골든래빗 임직원 또는 마스터 관리자만 접근할 수 있습니다.
               </p>
             </div>
           </CardContent>
