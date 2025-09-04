@@ -45,7 +45,8 @@ import {
   getTopBooksBySales,
   loadDataForPeriod,
   getPeriodOverview,
-  getPublisherStatsForPeriod
+  getPublisherStatsForPeriod,
+  loadChartDataForBooks
 } from '@/lib/book-sales'
 import { BookSalesData, BookSalesFileInfo, DailySalesOverview, PeriodOverview, PeriodType } from '@/types/book-sales'
 
@@ -66,6 +67,7 @@ export default function BookSalesPage() {
   const [showChart, setShowChart] = useState(false)
   const [chartData, setChartData] = useState<any[]>([])
   const [loadingChart, setLoadingChart] = useState(false)
+  const [chartPeriod, setChartPeriod] = useState<30 | 60 | 120 | 180>(30)
   
   // 기간별 조회 관련 state
   const [viewMode, setViewMode] = useState<'daily' | 'period'>('daily')
@@ -234,71 +236,28 @@ export default function BookSalesPage() {
 
     setLoadingChart(true)
     try {
-      // 오늘 날짜 기준 30일 전까지의 날짜 범위 계산 (더 넉넉하게 설정)
-      const today = new Date()
-      const thirtyDaysAgo = new Date(today)
-      thirtyDaysAgo.setDate(today.getDate() - 35) // 35일로 여유있게 설정
-
-      // 모든 파일의 데이터를 로드
-      const allFilenames = availableFiles.map(f => f.filename)
-      const multiData = await loadMultipleBookSalesData(allFilenames)
-      
-      // 차트용 데이터 생성 - 날짜별로 모든 선택된 도서의 판매지수를 포함
-      const dateMap: { [date: string]: any } = {}
+      // 선택된 도서 제목 수집
       const selectedBookTitles: string[] = []
-      
-      // 선택된 도서 정보 수집
       for (const bookId of selectedBooks) {
         const currentBook = filteredBooks.find(b => b.bookId === bookId)
-        if (!currentBook) continue
-        selectedBookTitles.push(currentBook.title)
-      }
-      
-      // 모든 날짜에 대해 선택된 도서들의 데이터 수집
-      for (const [formatDate, data] of Object.entries(multiData)) {
-        try {
-          // formatDate는 이미 YYYY-MM-DD 형식임 (loadMultipleBookSalesData에서 변환됨)
-          
-          // 날짜가 35일 범위 내에 있는지 확인 (8월 초부터의 데이터 포함)
-          const currentDate = new Date(formatDate)
-          if (currentDate < thirtyDaysAgo || currentDate > today) continue
-          
-          const chartEntry: any = { date: formatDate }
-          
-          for (const bookId of selectedBooks) {
-            const currentBook = filteredBooks.find(b => b.bookId === bookId)
-            if (!currentBook) continue
-            
-            const bookInDate = Object.values(data).find((book: any) => 
-              book.title === currentBook.title && book.publisher === currentBook.publisher
-            )
-            
-            if (bookInDate) {
-              // 도서 제목을 키로 사용 (최대 20자로 제한)
-              const shortTitle = currentBook.title.length > 20 
-                ? currentBook.title.substring(0, 20) + '...'
-                : currentBook.title
-              chartEntry[shortTitle] = (bookInDate as any).sales_point
-            }
-          }
-          
-          dateMap[formatDate] = chartEntry
-        } catch (parseError) {
-          continue // 파싱 실패한 파일은 스킵
+        if (currentBook) {
+          selectedBookTitles.push(currentBook.title)
         }
       }
       
-      // 날짜순으로 정렬 (2025-08-01, 2025-08-04 형식)
-      const sortedChartData = Object.values(dateMap).sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
+      // 최적화된 차트 데이터 로딩 사용
+      const chartData = await loadChartDataForBooks(
+        selectedBookTitles,
+        chartPeriod,
+        availableFiles
       )
       
-      if (sortedChartData.length === 0) {
-        alert('선택된 도서의 판매 데이터가 없습니다.')
+      if (chartData.length === 0) {
+        alert('선택된 기간에 해당하는 도서 데이터가 없습니다.')
         return
       }
       
-      setChartData(sortedChartData)
+      setChartData(chartData)
       setShowChart(true)
     } catch (error) {
       console.error('Failed to generate chart:', error)
@@ -638,27 +597,46 @@ export default function BookSalesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="space-y-4">
                 <div className="text-sm text-slate-600">
                   {selectedBooks.length}권의 도서가 선택되었습니다. 판매지수 추이를 확인해보세요.
                 </div>
-                <Button 
-                  onClick={generateChart}
-                  disabled={loadingChart}
-                  className="flex items-center gap-2"
-                >
-                  {loadingChart ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      처리중...
-                    </>
-                  ) : (
-                    <>
-                      <BarChart3 className="w-4 h-4" />
-                      그래프 보기
-                    </>
-                  )}
-                </Button>
+                
+                {/* 차트 기간 선택 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">차트 기간:</span>
+                  <Select value={chartPeriod.toString()} onValueChange={(value) => setChartPeriod(parseInt(value) as 30 | 60 | 120 | 180)}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30일</SelectItem>
+                      <SelectItem value="60">60일</SelectItem>
+                      <SelectItem value="120">120일</SelectItem>
+                      <SelectItem value="180">180일</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={generateChart}
+                    disabled={loadingChart || selectedBooks.length === 0}
+                    className="flex items-center gap-2"
+                  >
+                    {loadingChart ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        처리중...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-4 h-4" />
+                        그래프 보기 ({chartPeriod}일)
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -668,9 +646,14 @@ export default function BookSalesPage() {
         {showChart && chartData.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                판매지수 추이 비교
+              <CardTitle className="text-sm font-medium flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  판매지수 추이 비교 ({chartPeriod}일간)
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {chartData.length}개 데이터 포인트
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>

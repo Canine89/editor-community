@@ -356,3 +356,82 @@ export const getPublisherStatsForPeriod = (periodData: {[date: string]: BookSale
     averageRank: stats.books.size > 0 ? Math.round(stats.totalRanks / stats.books.size) : 0
   })).sort((a, b) => b.totalSalesPoints - a.totalSalesPoints)
 }
+
+// Optimized chart data loading with specific book filtering
+export const loadChartDataForBooks = async (
+  bookTitles: string[],
+  daysBefore: number,
+  availableFiles: BookSalesFileInfo[]
+): Promise<any[]> => {
+  try {
+    const today = new Date()
+    const targetDate = new Date(today)
+    targetDate.setDate(today.getDate() - daysBefore)
+
+    // Filter files within the specified date range
+    const relevantFiles = availableFiles
+      .filter(file => {
+        const fileDate = new Date(file.date)
+        return fileDate >= targetDate && fileDate <= today
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    console.log(`Loading chart data for ${relevantFiles.length} files over ${daysBefore} days`)
+
+    const chartDataMap: { [date: string]: any } = {}
+
+    // Process files in batches to improve performance
+    const batchSize = 10
+    for (let i = 0; i < relevantFiles.length; i += batchSize) {
+      const batch = relevantFiles.slice(i, i + batchSize)
+      
+      // Load batch of files concurrently
+      const batchPromises = batch.map(async file => {
+        try {
+          const data = await loadBookSalesData(file.filename)
+          const chartEntry: any = { date: file.date }
+
+          // Only look for the specific books we need
+          Object.values(data).forEach((book: any) => {
+            const matchingTitle = bookTitles.find(title => 
+              book.title === title || book.title.includes(title) || title.includes(book.title)
+            )
+            
+            if (matchingTitle) {
+              const shortTitle = matchingTitle.length > 20 
+                ? matchingTitle.substring(0, 20) + '...'
+                : matchingTitle
+              chartEntry[shortTitle] = book.sales_point
+            }
+          })
+
+          return { date: file.date, entry: chartEntry }
+        } catch (error) {
+          console.warn(`Failed to load ${file.filename}:`, error)
+          return null
+        }
+      })
+
+      const batchResults = await Promise.all(batchPromises)
+      
+      // Add successful results to chart data
+      batchResults.forEach(result => {
+        if (result) {
+          chartDataMap[result.date] = result.entry
+        }
+      })
+    }
+
+    // Convert to sorted array
+    const sortedChartData = Object.values(chartDataMap).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+
+    console.log(`Chart data loaded: ${sortedChartData.length} data points`)
+    return sortedChartData
+
+  } catch (error) {
+    console.error('Error loading chart data:', error)
+    return []
+  }
+}
