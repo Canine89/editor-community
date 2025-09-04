@@ -604,9 +604,9 @@ export default function BookSalesPage() {
           </Card>
         )}
 
-        {/* 그래프 보기 섹션 - 일별 조회 모드에서만 표시 */}
-        {viewMode === 'daily' && selectedBooks.length > 0 && (
-          <Card>
+        {/* 그래프 보기 섹션 - 일별 조회 모드에서만 표시 (레이아웃 고정) */}
+        {viewMode === 'daily' && (
+          <Card className="transition-all duration-300 ease-in-out">
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
@@ -614,62 +614,81 @@ export default function BookSalesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-slate-600">
-                  {selectedBooks.length}권의 도서가 선택되었습니다. 판매지수 추이를 확인해보세요.
-                </div>
-                
-                {/* 차트 기간 선택 */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">차트 기간:</span>
-                  <Select value={chartPeriod.toString()} onValueChange={(value) => setChartPeriod(parseInt(value) as 30 | 60 | 120 | 180)}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30일</SelectItem>
-                      <SelectItem value="60">60일</SelectItem>
-                      <SelectItem value="120">120일</SelectItem>
-                      <SelectItem value="180">180일</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-3">
-                  {/* 프로그레스 바 (로딩 중일 때만 표시) */}
-                  {loadingChart && (
-                    <div className="w-full space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">{loadingStatus}</span>
-                        <span className="font-medium">{loadingProgress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${loadingProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+              <div 
+                className={`transition-all duration-300 ease-in-out ${
+                  selectedBooks.length > 0 
+                    ? 'opacity-100 transform translate-y-0' 
+                    : 'opacity-50 transform translate-y-2'
+                }`}
+                style={{ 
+                  minHeight: selectedBooks.length > 0 ? 'auto' : '120px',
+                  pointerEvents: selectedBooks.length > 0 ? 'auto' : 'none'
+                }}
+              >
+                <div className="space-y-4">
+                  <div className="text-sm text-slate-600">
+                    {selectedBooks.length > 0 
+                      ? `${selectedBooks.length}권의 도서가 선택되었습니다. 판매지수 추이를 확인해보세요.`
+                      : '도서를 선택하면 차트 생성 옵션이 표시됩니다.'
+                    }
+                  </div>
                   
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={generateChart}
-                      disabled={loadingChart || selectedBooks.length === 0}
-                      className="flex items-center gap-2"
+                  {/* 차트 기간 선택 - 도서가 선택되었을 때만 활성화 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">차트 기간:</span>
+                    <Select 
+                      value={chartPeriod.toString()} 
+                      onValueChange={(value) => setChartPeriod(parseInt(value) as 30 | 60 | 120 | 180)}
+                      disabled={selectedBooks.length === 0}
                     >
-                      {loadingChart ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          처리중...
-                        </>
-                      ) : (
-                        <>
-                          <BarChart3 className="w-4 h-4" />
-                          그래프 보기 ({chartPeriod}일)
-                        </>
-                      )}
-                    </Button>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">30일</SelectItem>
+                        <SelectItem value="60">60일</SelectItem>
+                        <SelectItem value="120">120일</SelectItem>
+                        <SelectItem value="180">180일</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {/* 프로그레스 바 (로딩 중일 때만 표시) */}
+                    {loadingChart && (
+                      <div className="w-full space-y-2 animate-fadeIn">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">{loadingStatus}</span>
+                          <span className="font-medium">{loadingProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${loadingProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={generateChart}
+                        disabled={loadingChart || selectedBooks.length === 0}
+                        className="flex items-center gap-2 transition-all duration-200"
+                      >
+                        {loadingChart ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            처리중...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="w-4 h-4" />
+                            그래프 보기 ({chartPeriod}일)
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -677,20 +696,27 @@ export default function BookSalesPage() {
           </Card>
         )}
 
-        {/* 차트 표시 섹션 */}
-        {showChart && chartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  판매지수 추이 비교 ({chartPeriod}일간)
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {chartData.length}개 데이터 포인트
-                </Badge>
-              </CardTitle>
-            </CardHeader>
+        {/* 차트 표시 섹션 - 부드러운 전환 효과 */}
+        <div 
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            showChart && chartData.length > 0 
+              ? 'max-h-[2000px] opacity-100 transform translate-y-0' 
+              : 'max-h-0 opacity-0 transform -translate-y-4'
+          }`}
+        >
+          {showChart && chartData.length > 0 && (
+            <Card className="animate-in slide-in-from-bottom-4 duration-500">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    판매지수 추이 비교 ({chartPeriod}일간)
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {chartData.length}개 데이터 포인트
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
             <CardContent>
               <div className="w-full h-[400px] mb-4">
                 <ResponsiveContainer width="100%" height="100%">
@@ -757,8 +783,9 @@ export default function BookSalesPage() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
-        )}
+            </Card>
+          )}
+        </div>
 
         {/* 도서 목록 테이블 - 일별 조회 모드에서만 표시 */}
         {viewMode === 'daily' && (
