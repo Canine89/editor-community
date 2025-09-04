@@ -201,7 +201,7 @@ export function useAdmin() {
       }
 
       // Ensure permissions is always an array
-      const usersWithPermissions = (data || []).map(user => ({
+      const usersWithPermissions = (data || []).map((user: any) => ({
         ...user,
         permissions: user.permissions || []
       }))
