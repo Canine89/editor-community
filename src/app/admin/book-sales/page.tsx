@@ -46,7 +46,7 @@ import {
 import { BookSalesData, BookSalesFileInfo, DailySalesOverview } from '@/types/book-sales'
 
 export default function BookSalesPage() {
-  const { canViewBookSales, logActivity } = useAdmin()
+  const { canViewBookSales, canViewBookSalesValue, logActivity, loading: adminLoading } = useAdmin()
   const [selectedDate, setSelectedDate] = useState('')
   const [bookData, setBookData] = useState<BookSalesData>({})
   const [overview, setOverview] = useState<DailySalesOverview | null>(null)
@@ -62,11 +62,11 @@ export default function BookSalesPage() {
   const [loadingChart, setLoadingChart] = useState(false)
 
   useEffect(() => {
-    if (canViewBookSales()) {
+    if (!adminLoading && canViewBookSalesValue) {
       logActivity('view_book_sales_data')
       loadAvailableFiles()
     }
-  }, [canViewBookSales])
+  }, [canViewBookSalesValue, adminLoading])
 
   const loadAvailableFiles = async () => {
     try {
@@ -321,7 +321,18 @@ export default function BookSalesPage() {
     }
   ]
 
-  if (!canViewBookSales()) {
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">권한 확인 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!canViewBookSalesValue) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8">

@@ -31,6 +31,12 @@ export function useAdmin() {
   const [isEmployee, setIsEmployee] = useState(false)
   const [permissions, setPermissions] = useState<AdminPermission[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // 계산된 권한 상태들
+  const canAccessAdminPagesValue = isMaster
+  const canViewBookSalesValue = isMaster || 
+    permissions.some(p => p.permission_type === 'goldenrabbit_employee') ||
+    permissions.some(p => p.permission_type === 'book_sales_viewer')
   const supabase = createClient()
 
   useEffect(() => {
@@ -330,6 +336,8 @@ export function useAdmin() {
     hasPermission,
     canAccessAdminPages,
     canViewBookSales,
+    canAccessAdminPagesValue,
+    canViewBookSalesValue,
     
     // Activity logging
     logActivity,
