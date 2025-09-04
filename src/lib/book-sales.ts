@@ -670,13 +670,25 @@ export const loadChartDataForBooks = async (
           const chartEntry: any = { date: file.date }
 
           // Optimized book searching with pre-compiled matchers
+          let matchedCount = 0
           Object.values(data).forEach((book: any) => {
             const matchedTitle = bookMatcher(book.title)
             if (matchedTitle) {
               chartEntry[matchedTitle] = book.sales_point
               chartEntry[`${matchedTitle}_rank`] = book.rank // 순위 데이터도 추가
+              matchedCount++
             }
           })
+
+          // 디버깅: 실제 데이터에서 책 매칭 결과
+          if (isProductionMode() && matchedCount === 0 && Object.keys(data).length > 0) {
+            console.log('🔍 책 매칭 디버깅:', {
+              date: file.date,
+              selectedTitles: bookTitles,
+              totalBooksInData: Object.keys(data).length,
+              sampleBookTitles: Object.values(data).slice(0, 3).map((b: any) => b.title)
+            })
+          }
 
           // 디버깅: 실제 데이터에서 책 찾기 실패 시 로그
           if (isProductionMode() && Object.keys(chartEntry).length === 1) { // date만 있고 다른 데이터가 없는 경우

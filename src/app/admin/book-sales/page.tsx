@@ -363,7 +363,14 @@ export default function BookSalesPage() {
         alert('선택된 기간에 해당하는 도서 데이터가 없습니다.')
         return
       }
-      
+
+      console.log('📊 생성된 차트 데이터 샘플:', chartData.slice(0, 2))
+      console.log('📈 차트 데이터 구조:', {
+        totalPoints: chartData.length,
+        firstEntry: chartData[0],
+        keys: chartData[0] ? Object.keys(chartData[0]) : []
+      })
+
       setChartData(chartData)
       setShowChart(true)
     } catch (error) {
@@ -1085,8 +1092,11 @@ export default function BookSalesPage() {
 
                           if (!currentBook) {
                             console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
+                            console.warn(`📋 bookData 키들:`, Object.keys(bookData).slice(0, 5))
                             return null
                           }
+
+                          console.log(`✅ 차트 렌더링: ${bookId} -> ${currentBook.title}`)
 
                           const shortTitle = currentBook.title.length > 20
                             ? currentBook.title.substring(0, 20) + '...'
@@ -1170,8 +1180,11 @@ export default function BookSalesPage() {
 
                           if (!currentBook) {
                             console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
+                            console.warn(`📋 bookData 키들:`, Object.keys(bookData).slice(0, 5))
                             return null
                           }
+
+                          console.log(`✅ 차트 렌더링: ${bookId} -> ${currentBook.title}`)
 
                           const shortTitle = currentBook.title.length > 20
                             ? currentBook.title.substring(0, 20) + '...'
