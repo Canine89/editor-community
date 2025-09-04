@@ -450,8 +450,7 @@ export default function BookSalesPage() {
 출간일: ${book.publish_date}
 판매지수: ${formatSalesPoint(book.sales_point)}
 가격: ${formatPrice(book.right_price)}
-쪽: ${book.page || 'N/A'}쪽
-판형: N/A`
+쪽: ${book.page || 'N/A'}쪽`
 
     try {
       await navigator.clipboard.writeText(bookInfo)
@@ -516,7 +515,19 @@ export default function BookSalesPage() {
       sortable: true,
       render: (value: string, row: any) => (
         <div>
-          <p className="font-medium text-slate-900 line-clamp-2">{value}</p>
+          <a 
+            href={row.url || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-medium text-slate-900 line-clamp-2 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+            onClick={(e) => {
+              if (!row.url) {
+                e.preventDefault()
+              }
+            }}
+          >
+            {value}
+          </a>
           <p className="text-xs text-slate-500 mt-1">{row.author.join(', ')}</p>
         </div>
       )
