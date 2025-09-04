@@ -335,7 +335,6 @@ export default function BookSalesPage() {
         setLoadingStatus(status)
       }
 
-
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
         selectedBookTitles,
