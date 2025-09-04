@@ -62,7 +62,7 @@ export default function BookSalesPage() {
   const [loadingChart, setLoadingChart] = useState(false)
 
   useEffect(() => {
-    if (canViewBookSales) {
+    if (canViewBookSales()) {
       logActivity('view_book_sales_data')
       loadAvailableFiles()
     }
@@ -321,7 +321,7 @@ export default function BookSalesPage() {
     }
   ]
 
-  if (!canViewBookSales) {
+  if (!canViewBookSales()) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8">

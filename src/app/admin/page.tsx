@@ -45,10 +45,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (canAccessAdminPages) {
+    if (canAccessAdminPages()) {
       loadDashboardData()
     }
-  }, [canAccessAdminPages])
+  }, [canAccessAdminPages()])
 
   const loadDashboardData = async () => {
     try {

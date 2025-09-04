@@ -30,10 +30,10 @@ export default function AdminLayout({ children, title, description }: AdminLayou
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !canAccessAdminPages) {
+    if (!loading && !canAccessAdminPages()) {
       router.replace('/')
     }
-  }, [loading, canAccessAdminPages, router])
+  }, [loading, canAccessAdminPages(), router])
 
   if (loading) {
     return (
@@ -46,7 +46,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     )
   }
 
-  if (!canAccessAdminPages) {
+  if (!canAccessAdminPages()) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Card className="w-full max-w-md">

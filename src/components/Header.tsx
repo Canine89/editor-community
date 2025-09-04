@@ -46,7 +46,7 @@ export default function Header() {
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool },
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
-    ...(canViewBookSales ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
+    ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
     { name: '모든 도구 보기', href: '/tools', icon: Wrench },
   ]
 
@@ -102,7 +102,7 @@ export default function Header() {
             </DropdownMenu>
 
             {/* 관리자 메뉴 */}
-            {canAccessAdminPages && (
+            {canAccessAdminPages() && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -264,7 +264,7 @@ export default function Header() {
                   </div>
 
                   {/* 모바일 관리자 메뉴 */}
-                  {canAccessAdminPages && (
+                  {canAccessAdminPages() && (
                     <div className="border-t pt-2 mt-2">
                       <p className="text-xs font-medium text-red-500 px-2 mb-2 flex items-center gap-1">
                         <Shield className="h-3 w-3" />
