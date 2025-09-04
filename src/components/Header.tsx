@@ -47,7 +47,6 @@ export default function Header() {
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
     ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
-    { name: '모든 도구 보기', href: '/tools', icon: Wrench },
   ]
 
   return (

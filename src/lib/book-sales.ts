@@ -2,12 +2,59 @@
 
 import { createClient } from '@/lib/supabase'
 import { BookSalesData, BookSalesFileInfo, BookTrend, PublisherStats, CategoryStats, DailySalesOverview } from '@/types/book-sales'
-import { 
-  isDummyMode, 
-  loadDummyBookSalesData, 
+import {
+  isDummyMode,
+  loadDummyBookSalesData,
   getDummyBookSalesFiles,
   generateDummyBookData
 } from '@/lib/dummy-book-data'
+
+// 개발 모드용 가짜 차트 데이터 생성 함수
+const generateDummyChartDataForBooks = (
+  bookTitles: string[],
+  daysBefore: number,
+  progressCallback?: (progress: number, status: string) => void
+): any[] => {
+  const data = []
+  const today = new Date()
+
+  // 진행률 시뮬레이션
+  progressCallback?.(10, '가짜 데이터 생성 준비 중...')
+  setTimeout(() => progressCallback?.(30, '가짜 차트 데이터 생성 중...'), 100)
+
+  for (let i = daysBefore - 1; i >= 0; i--) {
+    const date = new Date(today)
+    date.setDate(today.getDate() - i)
+    const dateString = date.toISOString().split('T')[0]
+
+    const entry: any = { date: dateString }
+
+    bookTitles.forEach((title, index) => {
+      // 제목이 유효한지 확인
+      if (!title || typeof title !== 'string' || title.trim() === '') {
+        console.warn(`⚠️ Invalid book title: ${title}, skipping...`)
+        return
+      }
+
+      const cleanTitle = title.trim()
+      const baseValue = 500 + (index * 100) // 각 도서별 기본 판매지수
+      const variation = Math.random() * 200 - 100 // -100 ~ +100 범위의 변동
+      const salesPoint = Math.max(50, Math.round(baseValue + variation))
+
+      entry[cleanTitle] = salesPoint
+      entry[`${cleanTitle}_rank`] = Math.floor(Math.random() * 100) + 1 // 1~100위 랜덤
+
+    })
+
+    data.push(entry)
+  }
+
+  setTimeout(() => {
+    progressCallback?.(100, `가짜 데이터 생성 완료! ${data.length}개 데이터 포인트`)
+  }, 200)
+
+  return data
+}
 
 // Get list of available data files from Supabase Storage
 export const getBookSalesFiles = async (): Promise<BookSalesFileInfo[]> => {
@@ -522,6 +569,36 @@ export const loadChartDataForBooks = async (
   progressCallback?: ProgressCallback
 ): Promise<any[]> => {
   try {
+    // 개발 모드에서는 항상 가짜 데이터를 우선적으로 사용
+    if (isDummyMode()) {
+      console.log('🔧 Development mode: Using dummy chart data')
+      progressCallback?.(5, '개발 모드: 가짜 데이터 생성 중...')
+
+      // 약간의 지연을 주어 실제 API 호출처럼 느껴지게 함
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const dummyData = generateDummyChartDataForBooks(bookTitles, daysBefore, progressCallback)
+      console.log(`✅ Generated ${dummyData.length} dummy data points for ${bookTitles.length} books`)
+
+      // 더미 데이터가 비어있으면 최소한의 데이터라도 생성
+      if (dummyData.length === 0 && bookTitles.length > 0) {
+        console.warn('⚠️ 더미 데이터 생성 실패, 기본 데이터 생성')
+        const fallbackData = [{
+          date: new Date().toISOString().split('T')[0],
+          ...bookTitles.reduce((acc, title, index) => {
+            if (title && typeof title === 'string' && title.trim()) {
+              acc[title.trim()] = 100 + (index * 50)
+              acc[`${title.trim()}_rank`] = index + 1
+            }
+            return acc
+          }, {} as any)
+        }]
+        return fallbackData
+      }
+
+      return dummyData
+    }
+
     const today = new Date()
     const targetDate = new Date(today)
     targetDate.setDate(today.getDate() - daysBefore)

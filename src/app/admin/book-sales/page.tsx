@@ -49,6 +49,7 @@ import {
   getPublisherStatsForPeriod,
   loadChartDataForBooks
 } from '@/lib/book-sales'
+import { isDummyMode } from '@/lib/dummy-book-data'
 import { BookSalesData, BookSalesFileInfo, DailySalesOverview, PeriodOverview, PeriodType } from '@/types/book-sales'
 
 export default function BookSalesPage() {
@@ -88,7 +89,7 @@ export default function BookSalesPage() {
 
   // 페이지네이션 관련 state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(20) // 페이지당 아이템 수 고정
+  const [itemsPerPage, setItemsPerPage] = useState(10) // 페이지당 아이템 수
 
   // 복사 기능 관련 state
   const [copiedBookId, setCopiedBookId] = useState<string | null>(null)
@@ -126,6 +127,9 @@ export default function BookSalesPage() {
     setLoading(true)
     try {
       const data = await loadBookSalesData(filename)
+      console.log('📚 로드된 bookData:', data)
+      console.log('📊 bookData 키 개수:', Object.keys(data).length)
+      console.log('📋 bookData 샘플:', Object.values(data).slice(0, 3))
       setBookData(data)
       
       // 개요 데이터 생성
@@ -140,6 +144,14 @@ export default function BookSalesPage() {
       
       // 초기 필터링된 책 목록 설정
       updateFilteredBooks(data, '', 'all')
+
+      // 디버깅: bookData 로드 완료 후 상태 확인
+      console.log('✅ bookData 로드 완료!')
+      console.log('📊 최종 bookData 상태:', {
+        totalBooks: Object.keys(data).length,
+        firstBook: Object.values(data)[0],
+        bookIds: Object.keys(data).slice(0, 5)
+      })
     } catch (error) {
       console.error('Failed to load book data:', error)
     } finally {
@@ -179,6 +191,10 @@ export default function BookSalesPage() {
     updateFilteredBooks(bookData, searchTerm, publisher)
   }
 
+  const handleClearAllSelections = () => {
+    setSelectedBooks([])
+  }
+
   const handleDateChange = (date: Date | undefined) => {
     if (!date) return
     
@@ -189,12 +205,12 @@ export default function BookSalesPage() {
     })
     
     if (targetFile) {
-      setSelectedDate(date)
-      setSelectedFilename(targetFile.filename)
-      loadDataForDate(targetFile.filename)
-      // 날짜 변경 시 그래프 숨기기
-      setShowChart(false)
-      setSelectedBooks([])
+              setSelectedDate(date)
+        setSelectedFilename(targetFile.filename)
+        loadDataForDate(targetFile.filename)
+        // 날짜 변경 시 그래프 숨기기 (선택된 도서는 유지)
+        setShowChart(false)
+        setShowPublisherRanking(false)
     }
   }
 
@@ -241,9 +257,11 @@ export default function BookSalesPage() {
 
   const handleViewModeChange = (mode: 'daily' | 'date-specific') => {
     setViewMode(mode)
+    // 뷰 모드 변경 시 그래프 숨기기 (선택된 도서는 유지)
     setShowChart(false)
-    setSelectedBooks([])
-    
+    setShowPublisherRanking(false)
+    setChartData([])
+
     if (mode === 'date-specific') {
       // 날짜별 통계 모드: 최신 날짜로 초기 설정
       if (availableFiles.length > 0 && !selectedDateForStats) {
@@ -272,7 +290,7 @@ export default function BookSalesPage() {
 
 
   const generateChart = async () => {
-    if (selectedBooks.length === 0) {
+    if (!isDummyMode() && selectedBooks.length === 0) {
       alert('그래프를 보려면 최소 1개의 도서를 선택해주세요.')
       return
     }
@@ -282,24 +300,81 @@ export default function BookSalesPage() {
     setLoadingStatus('준비 중...')
     
     try {
-      // 선택된 도서 제목 수집
-      const selectedBookTitles: string[] = []
-      for (const bookId of selectedBooks) {
-        const currentBook = filteredBooks.find(b => b.bookId === bookId)
-        if (currentBook) {
-          selectedBookTitles.push(currentBook.title)
+      let selectedBookTitles: string[] = []
+
+      // 더미 모드에서는 선택된 책들의 제목을 직접 사용하거나 임의 선택
+      if (isDummyMode()) {
+        if (selectedBooks.length === 0) {
+          // 선택된 책이 없으면 임의로 책들 선택
+          const allBooks = Object.values(bookData)
+          const numBooks = Math.min(5, allBooks.length)
+          const randomBooks = allBooks
+            .sort(() => Math.random() - 0.5)
+            .slice(0, numBooks)
+          selectedBookTitles = randomBooks.map(book => book.title)
+          console.log(`🔧 더미 모드: ${selectedBookTitles.length}개 임의 도서 선택`)
+        } else {
+          // 선택된 책이 있으면 제목들을 수집 (필터링된 데이터나 전체 데이터에서)
+          for (const bookId of selectedBooks) {
+            // 먼저 필터링된 데이터에서 찾기
+            let currentBook = filteredBooks.find(b => b.bookId === bookId)
+            if (!currentBook) {
+              // 필터링된 데이터에 없으면 전체 데이터에서 찾기
+              currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+            }
+            if (currentBook) {
+              selectedBookTitles.push(currentBook.title)
+            } else {
+              // 책을 찾지 못했으면 bookId를 제목으로 사용 (더미 데이터용)
+              console.warn(`⚠️ 도서를 찾지 못함: ${bookId}, 더미 제목으로 사용`)
+              selectedBookTitles.push(`도서 ${bookId}`)
+            }
+          }
+        }
+      } else {
+        // 일반 모드: 선택된 도서 제목 수집 (전체 데이터에서 찾기)
+        for (const bookId of selectedBooks) {
+          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+          if (currentBook) {
+            selectedBookTitles.push(currentBook.title)
+          }
         }
       }
-      
+
       setLoadingProgress(5)
       setLoadingStatus(`${selectedBookTitles.length}개 도서 선택 완료`)
-      
+
       // 진행률 콜백 함수
       const progressCallback = (progress: number, status: string) => {
         setLoadingProgress(progress)
         setLoadingStatus(status)
       }
-      
+
+      console.log(`🔍 선택된 도서들:`, selectedBooks)
+      console.log(`📚 수집된 제목들:`, selectedBookTitles)
+      console.log(`🎯 더미 모드:`, isDummyMode())
+      console.log(`📈 bookData 상태:`, {
+        isEmpty: Object.keys(bookData).length === 0,
+        totalBooks: Object.keys(bookData).length,
+        sampleBook: Object.values(bookData)[0]
+      })
+
+      // 선택된 도서들의 상세 정보 확인
+      console.log('🔍 선택된 도서 상세 정보:')
+      console.log('📋 bookData 구조 확인:', {
+        keys: Object.keys(bookData).slice(0, 5),
+        firstBook: Object.values(bookData)[0]
+      })
+
+      selectedBooks.forEach((bookId, index) => {
+        const book = Object.values(bookData).find(b => b.bookId === bookId)
+        const directAccess = bookData[bookId] // 직접 접근도 시도
+        console.log(`${index + 1}. ID: ${bookId}`)
+        console.log(`   - find() 결과: ${!!book}, 제목: ${book?.title || 'N/A'}`)
+        console.log(`   - 직접 접근: ${!!directAccess}, 제목: ${directAccess?.title || 'N/A'}`)
+        console.log(`   - bookId 속성: ${book?.bookId || directAccess?.bookId || 'N/A'}`)
+      })
+
       // 최적화된 차트 데이터 로딩 사용
       const chartData = await loadChartDataForBooks(
         selectedBookTitles,
@@ -307,7 +382,7 @@ export default function BookSalesPage() {
         availableFiles,
         progressCallback
       )
-      
+
       if (chartData.length === 0) {
         alert('선택된 기간에 해당하는 도서 데이터가 없습니다.')
         return
@@ -431,6 +506,35 @@ export default function BookSalesPage() {
     return point.toLocaleString('ko-KR')
   }
 
+  // 핫키워드 추출 함수
+  const extractHotKeywords = (bookData: BookSalesData, limit: number = 10): string[] => {
+    const wordCount: { [key: string]: number } = {}
+    const stopWords = ['완벽', '가이드', '실전', '프로젝트', '개발', '프론트엔드', '백엔드', '데이터', '분석', '기초', '입문', '마스터', '활용', '실무', '심화', '대비', '준비', '시작', '기본', '이해', '학습', '스터디', '스터디', '코딩', '프로그래밍', '웹', '모바일', '서버', '클라이언트', '풀스택', '데브옵스', '클라우드', '인공지능', '머신러닝', '딥러닝']
+
+    // 모든 도서명에서 단어 추출
+    Object.values(bookData).forEach(book => {
+      const title = book.title.toLowerCase()
+
+      // 특수문자 제거 및 공백으로 분리
+      const words = title
+        .replace(/[^\w\s가-힣]/g, ' ') // 특수문자 제거 (한글 포함)
+        .split(/\s+/)
+        .filter(word => word.length >= 2) // 2글자 이상만
+        .filter(word => !stopWords.includes(word)) // 불용어 제외
+        .filter(word => !/^\d+$/.test(word)) // 숫자만 있는 단어 제외
+
+      words.forEach(word => {
+        wordCount[word] = (wordCount[word] || 0) + 1
+      })
+    })
+
+    // 빈도수 기준으로 정렬하여 상위 키워드 반환
+    return Object.entries(wordCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, limit)
+      .map(([word]) => word)
+  }
+
   // 페이지네이션 헬퍼 함수들
   const totalPages = Math.ceil(filteredBooks.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -441,6 +545,12 @@ export default function BookSalesPage() {
     setCurrentPage(page)
     // 페이지 변경 시 스크롤을 맨 위로 이동
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleItemsPerPageChange = (value: string) => {
+    const newItemsPerPage = parseInt(value)
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // 행 개수 변경 시 첫 페이지로 이동
   }
 
   // 도서 정보 복사 함수
@@ -492,6 +602,20 @@ export default function BookSalesPage() {
           onChange={(e) => handleBookSelection(row.bookId, e.target.checked)}
           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
+      ),
+      headerRender: () => (
+        <div className="flex items-center gap-2">
+          <span>선택</span>
+          {selectedBooks.length > 0 && (
+            <button
+              onClick={handleClearAllSelections}
+              className="text-xs text-red-600 hover:text-red-800 hover:underline font-medium"
+              title="전체 선택 해제"
+            >
+              해제
+            </button>
+          )}
+        </div>
       )
     },
     {
@@ -514,21 +638,36 @@ export default function BookSalesPage() {
       label: '도서명',
       sortable: true,
       render: (value: string, row: any) => (
-        <div>
-          <a 
-            href={row.url || '#'} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="font-medium text-slate-900 line-clamp-2 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
-            onClick={(e) => {
-              if (!row.url) {
-                e.preventDefault()
-              }
-            }}
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="flex-1 min-w-0">
+            <a
+              href={row.url || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-slate-900 line-clamp-2 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+              onClick={(e) => {
+                if (!row.url) {
+                  e.preventDefault()
+                }
+              }}
+            >
+              {value}
+            </a>
+            <p className="text-xs text-slate-500 mt-1 truncate">{row.author.join(', ')}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => copyBookInfo(row)}
+            className="h-6 w-6 p-0 hover:bg-slate-100 flex-shrink-0"
+            disabled={copiedBookId === row.bookId}
           >
-            {value}
-          </a>
-          <p className="text-xs text-slate-500 mt-1">{row.author.join(', ')}</p>
+            {copiedBookId === row.bookId ? (
+              <Check className="w-3 h-3 text-green-600" />
+            ) : (
+              <Copy className="w-3 h-3 text-slate-400" />
+            )}
+          </Button>
         </div>
       )
     },
@@ -568,32 +707,6 @@ export default function BookSalesPage() {
         <span className="text-sm text-slate-600">{value}</span>
       )
     },
-    {
-      key: 'copy',
-      label: '정보복사',
-      sortable: false,
-      render: (value: any, row: any) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => copyBookInfo(row)}
-          className="h-7 px-2 text-xs"
-          disabled={copiedBookId === row.bookId}
-        >
-          {copiedBookId === row.bookId ? (
-            <>
-              <Check className="w-3 h-3 mr-1" />
-              복사됨
-            </>
-          ) : (
-            <>
-              <Copy className="w-3 h-3 mr-1" />
-              복사
-            </>
-          )}
-        </Button>
-      )
-    }
   ]
 
   if (adminLoading) {
@@ -698,22 +811,32 @@ export default function BookSalesPage() {
                   <CardTitle className="text-sm font-medium">일별 데이터 개요</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{overview.totalBooks}</div>
-                      <div className="text-xs text-slate-600">총 도서 수</div>
+                  <div className="space-y-4">
+                    {/* 기존 메트릭스 */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{overview.totalBooks}</div>
+                        <div className="text-xs text-slate-600">총 도서 수</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{formatSalesPoint(overview.totalSalesPoints)}</div>
+                        <div className="text-xs text-slate-600">총 판매지수</div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{overview.publisherCount}</div>
-                      <div className="text-xs text-slate-600">출판사 수</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{formatSalesPoint(overview.totalSalesPoints)}</div>
-                      <div className="text-xs text-slate-600">총 판매지수</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{overview.averageRank}</div>
-                      <div className="text-xs text-slate-600">평균 순위</div>
+
+                    {/* 핫키워드 섹션 */}
+                    <div className="border-t pt-4">
+                      <div className="text-sm font-medium text-slate-700 mb-2">🔥 핫 키워드 TOP 10</div>
+                      <div className="flex flex-wrap gap-1">
+                        {extractHotKeywords(bookData, 10).map((keyword, index) => (
+                          <span
+                            key={keyword}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 rounded-full border border-blue-200"
+                          >
+                            {index + 1}. {keyword}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -778,7 +901,7 @@ export default function BookSalesPage() {
                     <Select 
                       value={chartPeriod.toString()} 
                       onValueChange={(value) => setChartPeriod(parseInt(value) as 30 | 60 | 120 | 180)}
-                      disabled={selectedBooks.length === 0}
+                      disabled={loadingChart || (!isDummyMode() && selectedBooks.length === 0)}
                     >
                       <SelectTrigger className="w-[80px] h-8">
                         <SelectValue />
@@ -794,7 +917,7 @@ export default function BookSalesPage() {
 
                   <Button 
                     onClick={generateChart}
-                    disabled={loadingChart || selectedBooks.length === 0}
+                    disabled={loadingChart || (!isDummyMode() && selectedBooks.length === 0)}
                     size="sm"
                     className="flex items-center gap-2"
                   >
@@ -857,8 +980,19 @@ export default function BookSalesPage() {
                       totalItems={filteredBooks.length}
                       itemsPerPage={itemsPerPage}
                     />
-                    <div className="text-sm text-slate-500">
-                      페이지당 {itemsPerPage}건
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm text-slate-500">
+                        페이지당 {itemsPerPage}건
+                      </div>
+                      <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                        <SelectTrigger className="w-[80px] h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10개</SelectItem>
+                          <SelectItem value="20">20개</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -872,7 +1006,7 @@ export default function BookSalesPage() {
                               key={column.key}
                               className="text-left py-2 px-4 font-medium text-slate-600"
                             >
-                              {column.label}
+                              {column.headerRender ? column.headerRender() : column.label}
                             </th>
                           ))}
                         </tr>
@@ -961,20 +1095,26 @@ export default function BookSalesPage() {
                         />
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
-                          const currentBook = filteredBooks.find(b => b.bookId === bookId)
-                          if (!currentBook) return null
-                          
-                          const shortTitle = currentBook.title.length > 20 
+                          // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
+                          // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
+                          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          if (!currentBook) {
+                            console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
+                            console.warn(`📋 bookData 샘플:`, Object.values(bookData).slice(0, 2))
+                            return null
+                          }
+
+                          const shortTitle = currentBook.title.length > 20
                             ? currentBook.title.substring(0, 20) + '...'
                             : currentBook.title
-                          
+
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
-                          
+
                           return (
                             <Line
                               key={bookId}
                               type="monotone"
-                              dataKey={shortTitle}
+                              dataKey={currentBook.title} // 원래 제목을 dataKey로 사용
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
@@ -1032,20 +1172,26 @@ export default function BookSalesPage() {
                         />
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
-                          const currentBook = filteredBooks.find(b => b.bookId === bookId)
-                          if (!currentBook) return null
-                          
-                          const shortTitle = currentBook.title.length > 20 
+                          // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
+                          // console.log(`🔎 차트 렌더링 - bookId: ${bookId}, bookData 크기: ${Object.keys(bookData).length}`)
+                          const currentBook = Object.values(bookData).find(b => b.bookId === bookId)
+                          if (!currentBook) {
+                            console.warn(`⚠️ 선택된 책을 찾을 수 없음: ${bookId}`)
+                            console.warn(`📋 bookData 샘플:`, Object.values(bookData).slice(0, 2))
+                            return null
+                          }
+
+                          const shortTitle = currentBook.title.length > 20
                             ? currentBook.title.substring(0, 20) + '...'
                             : currentBook.title
-                          
+
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
-                          
+
                           return (
                             <Line
                               key={bookId + '_rank'}
                               type="monotone"
-                              dataKey={`${shortTitle}_rank`}
+                              dataKey={`${currentBook.title}_rank`} // 원래 제목을 dataKey로 사용
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}

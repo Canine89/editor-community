@@ -88,6 +88,7 @@ export function generateDummyBookData(count: number = 100): BookSalesData {
     const publishDate = new Date(2020 + Math.floor(Math.random() * 4), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1)
     
     data[bookId] = {
+      bookId, // bookId 속성 추가
       title: bookTitles[Math.floor(Math.random() * bookTitles.length)] + (i > 34 ? ` (${Math.floor(i/35) + 1}판)` : ''),
       author: authors[Math.floor(Math.random() * authors.length)],
       publisher: publishers[Math.floor(Math.random() * publishers.length)],
