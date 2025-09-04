@@ -46,6 +46,7 @@ export default function Header() {
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool },
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
+    { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText },
     ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
   ]
 
