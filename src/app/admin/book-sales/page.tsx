@@ -46,6 +46,10 @@ export default function BookSalesPage() {
   const [availableFiles, setAvailableFiles] = useState<BookSalesFileInfo[]>([])
   const [selectedPublisher, setSelectedPublisher] = useState('all')
   const [publishers, setPublishers] = useState<string[]>([])
+  const [selectedBooks, setSelectedBooks] = useState<string[]>([])
+  const [showChart, setShowChart] = useState(false)
+  const [chartData, setChartData] = useState<any[]>([])
+  const [loadingChart, setLoadingChart] = useState(false)
 
   useEffect(() => {
     // 임시로 모든 관리자가 접근 가능하도록 설정
@@ -119,6 +123,69 @@ export default function BookSalesPage() {
   const handleDateChange = (filename: string) => {
     setSelectedDate(filename)
     loadDataForDate(filename)
+    // 날짜 변경 시 그래프 숨기기
+    setShowChart(false)
+    setSelectedBooks([])
+  }
+
+  const handleBookSelection = (bookId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedBooks(prev => [...prev, bookId])
+    } else {
+      setSelectedBooks(prev => prev.filter(id => id !== bookId))
+    }
+  }
+
+  const generateChart = async () => {
+    if (selectedBooks.length === 0) {
+      alert('그래프를 보려면 최소 1개의 도서를 선택해주세요.')
+      return
+    }
+
+    setLoadingChart(true)
+    try {
+      // 모든 파일의 데이터를 로드
+      const allFilenames = availableFiles.map(f => f.filename)
+      const multiData = await loadMultipleBookSalesData(allFilenames)
+      
+      // 선택된 도서들의 추이 데이터 생성
+      const trends = []
+      
+      for (const bookId of selectedBooks) {
+        const currentBook = filteredBooks.find(b => b.bookId === bookId)
+        if (!currentBook) continue
+        
+        const trend = {
+          bookTitle: currentBook.title,
+          data: []
+        }
+        
+        // 각 날짜별로 해당 도서의 판매지수 찾기
+        for (const [dateKey, data] of Object.entries(multiData)) {
+          const bookInDate = Object.values(data).find((book: any) => 
+            book.title === currentBook.title && book.publisher === currentBook.publisher
+          )
+          
+          if (bookInDate) {
+            trend.data.push({
+              date: dateKey,
+              salesPoint: (bookInDate as any).sales_point,
+              rank: (bookInDate as any).rank
+            })
+          }
+        }
+        
+        trends.push(trend)
+      }
+      
+      setChartData(trends)
+      setShowChart(true)
+    } catch (error) {
+      console.error('Failed to generate chart:', error)
+      alert('그래프 생성 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingChart(false)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -130,6 +197,19 @@ export default function BookSalesPage() {
   }
 
   const columns = [
+    {
+      key: 'select',
+      label: '선택',
+      sortable: false,
+      render: (value: any, row: any) => (
+        <input
+          type="checkbox"
+          checked={selectedBooks.includes(row.bookId)}
+          onChange={(e) => handleBookSelection(row.bookId, e.target.checked)}
+          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+      )
+    },
     {
       key: 'rank',
       label: '순위',
@@ -316,27 +396,85 @@ export default function BookSalesPage() {
           </CardContent>
         </Card>
 
-        {/* 베스트셀러 현황 */}
-        {overview?.topBook && (
+        {/* 그래프 보기 섹션 */}
+        {selectedBooks.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                이 날의 베스트셀러
+                <BarChart3 className="w-4 h-4" />
+                선택된 도서 ({selectedBooks.length}권)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                <div>
-                  <h3 className="font-medium text-slate-900">{overview.topBook.title}</h3>
-                  <p className="text-sm text-slate-600">순위: {overview.topBook.rank}위</p>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-slate-600">
+                  {selectedBooks.length}권의 도서가 선택되었습니다. 판매지수 추이를 확인해보세요.
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-blue-600">
-                    {formatSalesPoint(overview.topBook.salesPoint)}
+                <Button 
+                  onClick={generateChart}
+                  disabled={loadingChart}
+                  className="flex items-center gap-2"
+                >
+                  {loadingChart ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      처리중...
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="w-4 h-4" />
+                      그래프 보기
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 차트 표시 섹션 */}
+        {showChart && chartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                판매지수 추이 비교
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {chartData.map((bookTrend, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h4 className="font-medium text-slate-900 mb-3">{bookTrend.bookTitle}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {bookTrend.data.map((dataPoint: any, pointIndex: number) => (
+                        <div key={pointIndex} className="bg-slate-50 p-3 rounded">
+                          <div className="text-xs text-slate-600 mb-1">
+                            {dataPoint.date.replace('yes24_', '').replace('.json', '').replace('_', '-')}
+                          </div>
+                          <div className="text-lg font-semibold text-blue-600">
+                            {formatSalesPoint(dataPoint.salesPoint)}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {dataPoint.rank}위
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-600">판매점수</div>
-                </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowChart(false)
+                    setSelectedBooks([])
+                    setChartData([])
+                  }}
+                >
+                  닫기
+                </Button>
               </div>
             </CardContent>
           </Card>
