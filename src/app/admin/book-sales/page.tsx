@@ -25,6 +25,16 @@ import {
   BarChart3
 } from 'lucide-react'
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts'
+import {
   getBookSalesFiles,
   loadBookSalesData,
   loadMultipleBookSalesData,
@@ -148,48 +158,48 @@ export default function BookSalesPage() {
       const allFilenames = availableFiles.map(f => f.filename)
       const multiData = await loadMultipleBookSalesData(allFilenames)
       
-      // 선택된 도서들의 추이 데이터 생성
-      const trends: Array<{
-        bookTitle: string;
-        data: Array<{
-          date: string;
-          salesPoint: number;
-          rank: number;
-        }>;
-      }> = []
+      // 차트용 데이터 생성 - 날짜별로 모든 선택된 도서의 판매지수를 포함
+      const dateMap: { [date: string]: any } = {}
+      const selectedBookTitles: string[] = []
       
+      // 선택된 도서 정보 수집
       for (const bookId of selectedBooks) {
         const currentBook = filteredBooks.find(b => b.bookId === bookId)
         if (!currentBook) continue
+        selectedBookTitles.push(currentBook.title)
+      }
+      
+      // 모든 날짜에 대해 선택된 도서들의 데이터 수집
+      for (const [dateKey, data] of Object.entries(multiData)) {
+        const formatDate = dateKey.replace('yes24_', '').replace('.json', '').replace('_', '-')
+        const chartEntry: any = { date: formatDate }
         
-        const trend = {
-          bookTitle: currentBook.title,
-          data: [] as Array<{
-            date: string;
-            salesPoint: number;
-            rank: number;
-          }>
-        }
-        
-        // 각 날짜별로 해당 도서의 판매지수 찾기
-        for (const [dateKey, data] of Object.entries(multiData)) {
+        for (const bookId of selectedBooks) {
+          const currentBook = filteredBooks.find(b => b.bookId === bookId)
+          if (!currentBook) continue
+          
           const bookInDate = Object.values(data).find((book: any) => 
             book.title === currentBook.title && book.publisher === currentBook.publisher
           )
           
           if (bookInDate) {
-            trend.data.push({
-              date: dateKey,
-              salesPoint: (bookInDate as any).sales_point,
-              rank: (bookInDate as any).rank
-            })
+            // 도서 제목을 키로 사용 (최대 20자로 제한)
+            const shortTitle = currentBook.title.length > 20 
+              ? currentBook.title.substring(0, 20) + '...'
+              : currentBook.title
+            chartEntry[shortTitle] = (bookInDate as any).sales_point
           }
         }
         
-        trends.push(trend)
+        dateMap[formatDate] = chartEntry
       }
       
-      setChartData(trends)
+      // 날짜순으로 정렬
+      const sortedChartData = Object.values(dateMap).sort((a, b) => 
+        a.date.localeCompare(b.date)
+      )
+      
+      setChartData(sortedChartData)
       setShowChart(true)
     } catch (error) {
       console.error('Failed to generate chart:', error)
@@ -453,27 +463,50 @@ export default function BookSalesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {chartData.map((bookTrend, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <h4 className="font-medium text-slate-900 mb-3">{bookTrend.bookTitle}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {bookTrend.data.map((dataPoint: any, pointIndex: number) => (
-                        <div key={pointIndex} className="bg-slate-50 p-3 rounded">
-                          <div className="text-xs text-slate-600 mb-1">
-                            {dataPoint.date.replace('yes24_', '').replace('.json', '').replace('_', '-')}
-                          </div>
-                          <div className="text-lg font-semibold text-blue-600">
-                            {formatSalesPoint(dataPoint.salesPoint)}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {dataPoint.rank}위
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="w-full h-[400px] mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                      fontSize={12}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => formatSalesPoint(value)}
+                      fontSize={12}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [formatSalesPoint(Number(value)), name]}
+                      labelFormatter={(label) => `날짜: ${label}`}
+                    />
+                    <Legend />
+                    {selectedBooks.map((bookId, index) => {
+                      const currentBook = filteredBooks.find(b => b.bookId === bookId)
+                      if (!currentBook) return null
+                      
+                      const shortTitle = currentBook.title.length > 20 
+                        ? currentBook.title.substring(0, 20) + '...'
+                        : currentBook.title
+                      
+                      const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+                      
+                      return (
+                        <Line
+                          key={bookId}
+                          type="monotone"
+                          dataKey={shortTitle}
+                          stroke={colors[index % colors.length]}
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      )
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
               <div className="mt-4 pt-4 border-t flex justify-end">
                 <Button 
