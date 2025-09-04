@@ -418,7 +418,7 @@ export default function BookSalesPage() {
     return point.toLocaleString('ko-KR')
   }
 
-  const columns = [
+  const columns: any[] = [
     {
       key: 'select',
       label: '선택',
@@ -561,7 +561,7 @@ export default function BookSalesPage() {
                 className="flex items-center gap-2"
               >
                 <BarChart3 className="w-4 h-4" />
-                날짜별 통계
+                출판사 분석
               </Button>
             </div>
 
@@ -576,13 +576,13 @@ export default function BookSalesPage() {
             )}
 
 
-            {/* 날짜별 통계 모드 */}
+            {/* 출판사 분석 모드 */}
             {viewMode === 'date-specific' && (
               <DatePicker
                 date={selectedDateForStats}
                 onDateChange={handleDateForStatsChange}
                 availableDates={availableDates}
-                placeholder="통계를 볼 날짜를 선택하세요"
+                placeholder="분석할 날짜를 선택하세요"
               />
             )}
           </CardContent>
@@ -662,46 +662,17 @@ export default function BookSalesPage() {
 
         {/* 도서 목록 테이블 - 일별 조회 모드에서만 표시 */}
         {viewMode === 'daily' && (
-          <DataTable
-            title="도서 판매 현황"
-            data={filteredBooks}
-            columns={columns}
-            loading={loading}
-            searchPlaceholder="도서명, 저자, 출판사 검색..."
-            emptyMessage="검색 결과가 없습니다"
-          />
-        )}
-
-        {/* 그래프 보기 섹션 - 테이블 아래 위치 */}
-        {viewMode === 'daily' && (
-          <Card className="transition-all duration-300 ease-in-out">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                선택된 도서 ({selectedBooks.length}권)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div 
-                className={`transition-all duration-300 ease-in-out ${
-                  selectedBooks.length > 0 
-                    ? 'opacity-100 transform translate-y-0' 
-                    : 'opacity-50 transform translate-y-2'
-                }`}
-                style={{ 
-                  minHeight: selectedBooks.length > 0 ? 'auto' : '120px',
-                  pointerEvents: selectedBooks.length > 0 ? 'auto' : 'none'
-                }}
-              >
-                <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>도서 판매 현황</CardTitle>
+                <div className="flex items-center gap-3">
+                  {/* 선택된 도서 수 표시 */}
                   <div className="text-sm text-slate-600">
-                    {selectedBooks.length > 0 
-                      ? `${selectedBooks.length}권의 도서가 선택되었습니다. 판매지수와 순위 추이를 확인해보세요.`
-                      : '도서를 선택하면 차트 생성 옵션이 표시됩니다.'
-                    }
+                    선택된 도서: <span className="font-medium text-blue-600">{selectedBooks.length}권</span>
                   </div>
                   
-                  {/* 차트 기간 선택 - 도서가 선택되었을 때만 활성화 */}
+                  {/* 차트 컨트롤 */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">차트 기간:</span>
                     <Select 
@@ -709,7 +680,7 @@ export default function BookSalesPage() {
                       onValueChange={(value) => setChartPeriod(parseInt(value) as 30 | 60 | 120 | 180)}
                       disabled={selectedBooks.length === 0}
                     >
-                      <SelectTrigger className="w-[120px]">
+                      <SelectTrigger className="w-[80px] h-8">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -720,125 +691,98 @@ export default function BookSalesPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div className="space-y-3">
-                    {/* 프로그레스 바 (로딩 중일 때만 표시) */}
-                    {loadingChart && (
-                      <div className="w-full space-y-2 animate-fadeIn">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">{loadingStatus}</span>
-                          <span className="font-medium">{loadingProgress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-                            style={{ width: `${loadingProgress}%` }}
-                          />
-                        </div>
-                      </div>
+
+                  <Button 
+                    onClick={generateChart}
+                    disabled={loadingChart || selectedBooks.length === 0}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    {loadingChart ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        처리중...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-3 h-3" />
+                        그래프 보기
+                      </>
                     )}
-                    
-                    <div className="flex justify-end">
-                      <Button 
-                        onClick={generateChart}
-                        disabled={loadingChart || selectedBooks.length === 0}
-                        className="flex items-center gap-2 transition-all duration-200"
-                      >
-                        {loadingChart ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            처리중...
-                          </>
-                        ) : (
-                          <>
-                            <BarChart3 className="w-4 h-4" />
-                            그래프 보기 ({chartPeriod}일)
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
+                  </Button>
                 </div>
               </div>
+              
+              {/* 프로그레스 바 (로딩 중일 때만 표시) */}
+              {loadingChart && (
+                <div className="w-full space-y-2 animate-fadeIn mt-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{loadingStatus}</span>
+                    <span className="font-medium">{loadingProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${loadingProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+            
+            <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="flex space-x-4">
+                        {columns.map((_, j) => (
+                          <div key={j} className="h-4 bg-slate-200 rounded flex-1"></div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredBooks.length === 0 ? (
+                <div className="text-center py-8 text-slate-600">
+                  검색 결과가 없습니다
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        {columns.map((column) => (
+                          <th
+                            key={column.key}
+                            className="text-left py-3 px-4 font-medium text-slate-600"
+                          >
+                            {column.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredBooks.map((row, index) => (
+                        <tr key={index} className="border-b hover:bg-slate-50">
+                          {columns.map((column) => (
+                            <td key={column.key} className="py-2 px-4">
+                              {column.render
+                                ? column.render(row[column.key] as any, row as any)
+                                : String(row[column.key])
+                              }
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* 출판사 순위 그래프 섹션 */}
-        {viewMode === 'daily' && (
-          <Card className="transition-all duration-300 ease-in-out">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                출판사 순위 분석
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-slate-600">
-                  기간별 출판사 판매지수 추이를 확인할 수 있습니다.
-                </div>
-                
-                {/* 차트 기간 선택 */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">분석 기간:</span>
-                  <Select 
-                    value={publisherRankingPeriod.toString()} 
-                    onValueChange={(value) => setPublisherRankingPeriod(parseInt(value) as 30 | 60 | 90 | 120)}
-                  >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30일</SelectItem>
-                      <SelectItem value="60">60일</SelectItem>
-                      <SelectItem value="90">90일</SelectItem>
-                      <SelectItem value="120">120일</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-3">
-                  {/* 프로그레스 바 (로딩 중일 때만 표시) */}
-                  {loadingPublisherRanking && (
-                    <div className="w-full space-y-2 animate-fadeIn">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">{loadingStatus}</span>
-                        <span className="font-medium">{loadingProgress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full transition-all duration-300 ease-out"
-                          style={{ width: `${loadingProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={generatePublisherRanking}
-                      disabled={loadingPublisherRanking}
-                      className="flex items-center gap-2 transition-all duration-200"
-                    >
-                      {loadingPublisherRanking ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          분석중...
-                        </>
-                      ) : (
-                        <>
-                          <BarChart3 className="w-4 h-4" />
-                          출판사 순위 분석 ({publisherRankingPeriod}일)
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* 차트 표시 섹션 - 판매지수와 순위 그래프 모두 표시 */}
         <div 
@@ -1090,7 +1034,7 @@ export default function BookSalesPage() {
           )}
         </div>
 
-        {/* 날짜별 통계 개요 */}
+        {/* 출판사 분석 개요 */}
         {viewMode === 'date-specific' && selectedDateForStats && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 날짜 개요 */}
@@ -1098,7 +1042,7 @@ export default function BookSalesPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium">
-                    날짜별 개요 ({selectedDateForStats.toLocaleDateString('ko-KR')})
+                    일별 개요 ({selectedDateForStats.toLocaleDateString('ko-KR')})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1160,7 +1104,7 @@ export default function BookSalesPage() {
           </div>
         )}
 
-        {/* 날짜별 출판사 통계 테이블 */}
+        {/* 출판사별 상세 통계 테이블 */}
         {viewMode === 'date-specific' && dateStatsData.publishers.length > 0 && (
           <Card>
             <CardHeader>
