@@ -70,7 +70,8 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     { icon: MessageSquare, label: '커뮤니티 관리', href: '/admin/community' },
     { icon: Briefcase, label: '구인구직 관리', href: '/admin/jobs' },
     { icon: Users, label: '사용자 관리', href: '/admin/users' },
-    ...(isEmployee || isMaster ? [{ icon: BookOpen, label: '도서 판매 데이터', href: '/admin/book-sales' }] : []),
+    // 임시로 모든 관리자가 도서 판매 데이터를 볼 수 있도록 설정 (나중에 권한 적용 후 수정)
+    { icon: BookOpen, label: '도서 판매 데이터', href: '/admin/book-sales' },
   ]
 
   return (
