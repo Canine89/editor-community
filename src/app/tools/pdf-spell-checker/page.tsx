@@ -29,9 +29,9 @@ import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 
-// PDF.js worker 설정
+// PDF.js worker 설정 - 안정적인 CDN 사용
 if (typeof window !== 'undefined') {
-  GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`
+  GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs'
 }
 
 interface CorrectionPair {
@@ -97,9 +97,18 @@ export default function PDFSpellCheckerPage() {
   }
 
   const extractTextFromPDF = async (file: File): Promise<PDFPageContent[]> => {
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await getDocument({ data: arrayBuffer }).promise
-    const pages: PDFPageContent[] = []
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const loadingTask = getDocument({ 
+        data: arrayBuffer,
+        // 추가 옵션으로 호환성 개선
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.4.168/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.4.168/standard_fonts/',
+      })
+      
+      const pdf = await loadingTask.promise
+      const pages: PDFPageContent[] = []
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
@@ -145,6 +154,10 @@ export default function PDFSpellCheckerPage() {
     }
 
     return pages
+    } catch (error) {
+      console.error('PDF 텍스트 추출 오류:', error)
+      throw new Error(`PDF 파일 처리 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    }
   }
 
   const handlePDFFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +184,10 @@ export default function PDFSpellCheckerPage() {
       })
     } catch (error) {
       console.error('PDF 파일 로드 오류:', error)
-      setError('PDF 파일을 읽는데 실패했습니다. 파일이 손상되었을 수 있습니다.')
+      const errorMessage = error instanceof Error 
+        ? `PDF 파일 로드 실패: ${error.message}` 
+        : 'PDF 파일을 읽는데 실패했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
+      setError(errorMessage)
       setPdfFile(null)
       setPdfDoc(null)
     } finally {
