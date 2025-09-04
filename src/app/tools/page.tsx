@@ -10,7 +10,8 @@ import {
   Wrench,
   ArrowRight,
   FileCheck,
-  PenTool
+  PenTool,
+  FileSearch
 } from 'lucide-react'
 
 const tools = [
@@ -39,6 +40,15 @@ const tools = [
     icon: FileText,
     href: '/tools/word-corrector',
     color: 'bg-blue-500',
+    available: true
+  },
+  {
+    id: 'pdf-spell-checker',
+    title: 'PDF 맞춤법 검사기',
+    description: 'PDF 문서의 여백을 제외한 본문에서 맞춤법을 검사하고 교정 사항 확인',
+    icon: FileSearch,
+    href: '/tools/pdf-spell-checker',
+    color: 'bg-orange-500',
     available: true
   },
   {
