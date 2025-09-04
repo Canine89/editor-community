@@ -48,10 +48,8 @@ interface CorrectionMatch {
 }
 
 interface MarginSettings {
-  top: number
-  bottom: number
-  left: number
-  right: number
+  vertical: number    // 상하 여백 (mm)
+  horizontal: number  // 좌우 여백 (mm)
 }
 
 interface PDFPageContent {
@@ -74,10 +72,8 @@ export default function PDFSpellCheckerPage() {
   const [corrections, setCorrections] = useState<CorrectionPair[]>([])
   const [matches, setMatches] = useState<CorrectionMatch[]>([])
   const [margins, setMargins] = useState<MarginSettings>({
-    top: 72,    // 1인치 = 72pt
-    bottom: 72,
-    left: 72,
-    right: 72
+    vertical: 25,    // 기본 25mm (약 1인치)
+    horizontal: 25   // 기본 25mm (약 1인치)
   })
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
@@ -93,6 +89,11 @@ export default function PDFSpellCheckerPage() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // mm를 pt로 변환 (1mm = 2.834645669pt)
+  const mmToPt = (mm: number): number => {
+    return mm * 2.834645669
   }
 
   const extractTextFromPDF = async (file: File): Promise<PDFPageContent[]> => {
@@ -118,11 +119,17 @@ export default function PDFSpellCheckerPage() {
           fullText += text + ' '
 
           // 여백 검사 - PDF 좌표계는 좌하단이 (0,0)
+          // mm를 pt로 변환하여 사용
+          const leftMarginPt = mmToPt(margins.horizontal)
+          const rightMarginPt = mmToPt(margins.horizontal)
+          const bottomMarginPt = mmToPt(margins.vertical)
+          const topMarginPt = mmToPt(margins.vertical)
+          
           const isInMargin = 
-            x < margins.left || 
-            x > (viewport.width - margins.right) ||
-            y < margins.bottom || 
-            y > (viewport.height - margins.top)
+            x < leftMarginPt || 
+            x > (viewport.width - rightMarginPt) ||
+            y < bottomMarginPt || 
+            y > (viewport.height - topMarginPt)
 
           if (!isInMargin) {
             filteredText += text + ' '
@@ -180,7 +187,51 @@ export default function PDFSpellCheckerPage() {
     if (pdfFile && !isProcessing) {
       setIsProcessing(true)
       try {
-        const pages = await extractTextFromPDF(pdfFile)
+        // 새로운 여백 설정으로 텍스트 재추출
+        const arrayBuffer = await pdfFile.arrayBuffer()
+        const pdf = await getDocument({ data: arrayBuffer }).promise
+        const pages: PDFPageContent[] = []
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum)
+          const textContent = await page.getTextContent()
+          const viewport = page.getViewport({ scale: 1.0 })
+
+          let fullText = ''
+          let filteredText = ''
+
+          textContent.items.forEach((item: any) => {
+            if ('str' in item && 'transform' in item) {
+              const text = item.str
+              const [, , , , x, y] = item.transform
+              
+              fullText += text + ' '
+
+              // 새로운 여백 설정으로 검사
+              const leftMarginPt = mmToPt(newMargins.horizontal)
+              const rightMarginPt = mmToPt(newMargins.horizontal)
+              const bottomMarginPt = mmToPt(newMargins.vertical)
+              const topMarginPt = mmToPt(newMargins.vertical)
+              
+              const isInMargin = 
+                x < leftMarginPt || 
+                x > (viewport.width - rightMarginPt) ||
+                y < bottomMarginPt || 
+                y > (viewport.height - topMarginPt)
+
+              if (!isInMargin) {
+                filteredText += text + ' '
+              }
+            }
+          })
+
+          pages.push({
+            pageNumber: pageNum,
+            content: filteredText.trim(),
+            originalContent: fullText.trim()
+          })
+        }
+
         setPdfDoc(prev => prev ? { ...prev, pages } : null)
       } catch (error) {
         console.error('텍스트 재추출 오류:', error)
@@ -653,63 +704,46 @@ export default function PDFSpellCheckerPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-purple-600" />
-                2단계: 여백 설정 (pt 단위)
+                2단계: 여백 설정 (mm 단위)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="marginTop">상단 여백</Label>
+                  <Label htmlFor="marginVertical">상하 여백</Label>
                   <Input
-                    id="marginTop"
+                    id="marginVertical"
                     type="number"
-                    value={margins.top}
-                    onChange={(e) => handleMarginChange('top', Number(e.target.value))}
+                    value={margins.vertical}
+                    onChange={(e) => handleMarginChange('vertical', Number(e.target.value))}
                     className="text-center"
                     min="0"
-                    max="200"
+                    max="100"
+                    step="1"
                   />
+                  <p className="text-xs text-slate-500 mt-1">상단과 하단에 동일하게 적용</p>
                 </div>
                 <div>
-                  <Label htmlFor="marginBottom">하단 여백</Label>
+                  <Label htmlFor="marginHorizontal">좌우 여백</Label>
                   <Input
-                    id="marginBottom"
+                    id="marginHorizontal"
                     type="number"
-                    value={margins.bottom}
-                    onChange={(e) => handleMarginChange('bottom', Number(e.target.value))}
+                    value={margins.horizontal}
+                    onChange={(e) => handleMarginChange('horizontal', Number(e.target.value))}
                     className="text-center"
                     min="0"
-                    max="200"
+                    max="100"
+                    step="1"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="marginLeft">좌측 여백</Label>
-                  <Input
-                    id="marginLeft"
-                    type="number"
-                    value={margins.left}
-                    onChange={(e) => handleMarginChange('left', Number(e.target.value))}
-                    className="text-center"
-                    min="0"
-                    max="200"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="marginRight">우측 여백</Label>
-                  <Input
-                    id="marginRight"
-                    type="number"
-                    value={margins.right}
-                    onChange={(e) => handleMarginChange('right', Number(e.target.value))}
-                    className="text-center"
-                    min="0"
-                    max="200"
-                  />
+                  <p className="text-xs text-slate-500 mt-1">좌측과 우측에 동일하게 적용</p>
                 </div>
               </div>
-              <p className="text-xs text-slate-600 mt-2">
-                1인치 = 72pt | 기본값(72pt)은 일반적인 문서 여백입니다
-              </p>
+              <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600">
+                  <strong>참고:</strong> 기본값 25mm는 일반적인 문서 여백입니다. 
+                  여백 영역의 텍스트(머리글, 바닥글, 페이지 번호 등)는 검사에서 제외됩니다.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -848,7 +882,7 @@ export default function PDFSpellCheckerPage() {
             <h3 className="font-semibold text-slate-900 mb-3">💡 사용법</h3>
             <ul className="space-y-2 text-sm text-slate-700">
               <li>• PDF 파일(.pdf)과 Excel 파일(.xlsx, .xls)을 각각 업로드하세요</li>
-              <li>• 상하좌우 여백값을 설정하여 머리글, 바닥글 등을 제외할 수 있습니다</li>
+              <li>• 상하/좌우 여백값(mm)을 설정하여 머리글, 바닥글 등을 제외할 수 있습니다</li>
               <li>• Excel 파일의 A열에는 '틀린 표현', B열에는 '올바른 표현'을 입력하세요</li>
               <li>• 분석 결과에서 페이지별로 수정 사항을 확인할 수 있습니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 파일이 외부로 전송되지 않습니다</li>
