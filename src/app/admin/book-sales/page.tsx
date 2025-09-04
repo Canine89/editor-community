@@ -373,6 +373,12 @@ export default function BookSalesPage() {
 
       setChartData(chartData)
       setShowChart(true)
+
+      console.log('🎨 차트 표시 상태:', {
+        showChart: true,
+        chartDataLength: chartData.length,
+        hasSelectedBooks: selectedBooks.length > 0
+      })
     } catch (error) {
       console.error('Failed to generate chart:', error)
       alert('그래프 생성 중 오류가 발생했습니다.')
@@ -1036,6 +1042,10 @@ export default function BookSalesPage() {
         >
           {showChart && chartData.length > 0 && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              {/* 디버깅: 차트 컨테이너 렌더링 확인 */}
+              <div style={{backgroundColor: 'yellow', padding: '10px', margin: '10px 0'}}>
+                🚨 디버깅: 차트 컨테이너가 렌더링됨! showChart={showChart.toString()}, chartData.length={chartData.length}
+              </div>
               {/* 판매지수 그래프 */}
               <Card>
                 <CardHeader>
