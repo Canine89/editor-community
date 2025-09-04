@@ -630,27 +630,60 @@ const getOptimalSampling = (totalFiles: number, daysBefore: number) => {
   return { sampleEvery: 4, maxPoints: 45 } // Very long periods
 }
 
-// Enhanced book title matching with pre-compiled regex
+// 개선된 북 타이틀 매칭 시스템
 const createBookMatcher = (bookTitles: string[]) => {
-  const matchers = bookTitles.map(title => ({
-    exact: title,
-    shortTitle: title.length > 20 ? title.substring(0, 20) + '...' : title,
-    // Pre-compile regex for faster matching
-    regex: new RegExp(title.split('').map(char => 
-      /[.*+?^${}()|[\]\\]/.test(char) ? '\\' + char : char
-    ).join('.*'), 'i')
-  }))
-  
-  return (bookTitle: string) => {
-    for (const matcher of matchers) {
-      if (bookTitle === matcher.exact || 
-          bookTitle.includes(matcher.exact) || 
-          matcher.exact.includes(bookTitle) ||
-          matcher.regex.test(bookTitle)) {
-        return matcher.shortTitle
-      }
+  // 안전한 키 생성 함수
+  const createSafeKey = (title: string) => {
+    // 길이 제한 (최대 50자)
+    let safeTitle = title.length > 50 ? title.substring(0, 50).trim() : title
+    
+    // 특수문자는 그대로 유지 (한글, 영문, 숫자, 공백, 일부 특수문자)
+    safeTitle = safeTitle.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣()[\].,!?:-]/g, '')
+    
+    return safeTitle.trim() || title.substring(0, 20) // 빈 문자열 방지
+  }
+
+  const matchers = bookTitles.map(title => {
+    const safeKey = createSafeKey(title)
+    return {
+      originalTitle: title,
+      safeKey: safeKey,
+      searchKey: title.substring(0, 30) // 검색용 짧은 키
     }
-    return null
+  })
+  
+  return {
+    // 매칭된 안전한 키 반환
+    getSafeKey: (bookTitle: string) => {
+      // 1. 정확한 매칭
+      let matcher = matchers.find(m => m.originalTitle === bookTitle)
+      if (matcher) return matcher.safeKey
+      
+      // 2. 부분 매칭 (앞 30자)
+      const searchKey = bookTitle.substring(0, 30)
+      matcher = matchers.find(m => 
+        m.searchKey.includes(searchKey) || 
+        searchKey.includes(m.searchKey)
+      )
+      if (matcher) return matcher.safeKey
+      
+      // 3. 포함 관계 매칭
+      matcher = matchers.find(m => 
+        bookTitle.includes(m.originalTitle) || 
+        m.originalTitle.includes(bookTitle)
+      )
+      
+      return matcher ? matcher.safeKey : null
+    },
+    
+    // 디버깅을 위한 매칭 정보
+    getMatchingInfo: () => {
+      return matchers.map(m => ({
+        original: m.originalTitle,
+        safe: m.safeKey,
+        search: m.searchKey
+      }))
+    }
   }
 }
 
@@ -659,9 +692,9 @@ interface ProgressCallback {
   (progress: number, status: string): void
 }
 
-// Optimized chart data loading with advanced performance techniques and multi-tier caching
+// fake_isbn 기반으로 도서를 매칭하는 차트 데이터 로딩
 export const loadChartDataForBooks = async (
-  bookTitles: string[],
+  selectedBooks: { title: string; fakeIsbn: string }[],
   daysBefore: number,
   availableFiles: BookSalesFileInfo[],
   progressCallback?: ProgressCallback
@@ -672,16 +705,17 @@ export const loadChartDataForBooks = async (
       progressCallback?.(5, '개발 모드: 가짜 데이터 생성 중...')
       await new Promise(resolve => setTimeout(resolve, 500))
 
+      const bookTitles = selectedBooks.map(book => book.title)
       const dummyData = generateDummyChartDataForBooks(bookTitles, daysBefore, progressCallback)
 
       // 더미 데이터가 비어있으면 최소한의 데이터라도 생성
-      if (dummyData.length === 0 && bookTitles.length > 0) {
+      if (dummyData.length === 0 && selectedBooks.length > 0) {
         const fallbackData = [{
           date: new Date().toISOString().split('T')[0],
-          ...bookTitles.reduce((acc, title, index) => {
-            if (title && typeof title === 'string' && title.trim()) {
-              acc[title.trim()] = 100 + (index * 50)
-              acc[`${title.trim()}_rank`] = index + 1
+          ...selectedBooks.reduce((acc, book, index) => {
+            if (book.title && typeof book.title === 'string' && book.title.trim()) {
+              acc[book.title.trim()] = 100 + (index * 50)
+              acc[`${book.title.trim()}_rank`] = index + 1
             }
             return acc
           }, {} as any)
@@ -694,7 +728,8 @@ export const loadChartDataForBooks = async (
 
     // 🚀 Enhanced caching: Check if chart data is already cached
     progressCallback?.(5, '캐시 확인 중...')
-    const cachedChartData = getChartDataFromCache(bookTitles, daysBefore)
+    const fakeIsbns = selectedBooks.map(book => book.fakeIsbn)
+    const cachedChartData = getChartDataFromCache(fakeIsbns, daysBefore)
     if (cachedChartData && cachedChartData.length > 0) {
       progressCallback?.(100, `캐시에서 로드 완료! (${cachedChartData.length}개 데이터 포인트)`)
       return cachedChartData
@@ -725,7 +760,14 @@ export const loadChartDataForBooks = async (
     progressCallback?.(15, `${relevantFiles.length}개 파일 로딩 시작`)
 
     const chartDataMap: { [date: string]: any } = {}
-    const bookMatcher = createBookMatcher(bookTitles)
+    
+    // fake_isbn을 키로 하는 도서 매핑 생성
+    const isbnToBookMap = new Map<string, { title: string; fakeIsbn: string }>()
+    selectedBooks.forEach(book => {
+      isbnToBookMap.set(book.fakeIsbn, book)
+    })
+    
+    console.log('📚 매칭 대상 도서 (fake_isbn 기반):', Array.from(isbnToBookMap.entries()))
 
     // 🚀 Enhanced parallel processing with intelligent batch sizing
     const optimalBatchSize = Math.min(30, Math.max(8, Math.ceil(relevantFiles.length / 4))) // Larger batches for better performance
@@ -764,15 +806,32 @@ export const loadChartDataForBooks = async (
           }
 
           const chartEntry: any = { date: file.date }
+          let matchedCount = 0
 
-          // Optimized book matching
+          // fake_isbn 기반 매칭 로직
           Object.values(data).forEach((book: any) => {
-            const matchedTitle = bookMatcher(book.title)
-            if (matchedTitle) {
-              chartEntry[matchedTitle] = book.sales_point
-              chartEntry[`${matchedTitle}_rank`] = book.rank
+            const bookFakeIsbn = book.fake_isbn?.toString()
+            if (bookFakeIsbn && isbnToBookMap.has(bookFakeIsbn)) {
+              const bookInfo = isbnToBookMap.get(bookFakeIsbn)!
+              const safeTitle = bookInfo.title.length > 30 ? 
+                bookInfo.title.substring(0, 30).trim() : 
+                bookInfo.title
+              
+              chartEntry[safeTitle] = book.sales_point
+              chartEntry[`${safeTitle}_rank`] = book.rank
+              matchedCount++
             }
           })
+
+          // 매칭 결과 로깅
+          if (matchedCount > 0) {
+            console.log(`📈 ${file.date}: ${matchedCount}권 매칭 완료`)
+          } else {
+            console.warn(`⚠️ ${file.date}: 매칭된 도서 없음`)
+            console.log('📋 해당 날짜 도서 fake_isbn 목록:', 
+              Object.values(data).slice(0, 5).map((book: any) => book.fake_isbn)
+            )
+          }
 
           return { date: file.date, entry: chartEntry }
         } catch (error) {
@@ -808,7 +867,7 @@ export const loadChartDataForBooks = async (
 
     // 🚀 Save to cache for future requests
     if (sortedChartData.length > 0) {
-      saveChartDataToCache(bookTitles, daysBefore, sortedChartData)
+      saveChartDataToCache(fakeIsbns, daysBefore, sortedChartData)
     }
 
     progressCallback?.(100, `완료! ${sortedChartData.length}개 데이터 포인트 로딩`)

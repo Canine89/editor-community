@@ -290,9 +290,9 @@ export default function BookSalesPage() {
     setLoadingStatus('준비 중...')
     
     try {
-      let selectedBookTitles: string[] = []
+      let selectedBookInfo: { title: string; fakeIsbn: string }[] = []
 
-      // 선택된 도서 제목 수집
+      // 선택된 도서 정보 수집 (fake_isbn 포함)
       for (const bookId of selectedBooks) {
         let currentBook = null
 
@@ -305,14 +305,12 @@ export default function BookSalesPage() {
         }
 
         if (currentBook) {
-          selectedBookTitles.push(currentBook.title)
+          selectedBookInfo.push({
+            title: currentBook.title,
+            fakeIsbn: currentBook.fake_isbn.toString()
+          })
         } else {
-          // 실제 데이터에서는 키 자체가 의미가 있을 수 있으므로 그대로 사용
-          if (!isDummyMode() && bookData[bookId]) {
-            selectedBookTitles.push(bookData[bookId].title)
-          } else {
-            selectedBookTitles.push(`도서 ${bookId}`)
-          }
+          console.warn(`⚠️ 도서를 찾을 수 없습니다: ${bookId}`)
         }
       }
 
@@ -323,11 +321,16 @@ export default function BookSalesPage() {
         const randomBooks = allBooks
           .sort(() => Math.random() - 0.5)
           .slice(0, numBooks)
-        selectedBookTitles = randomBooks.map(book => book.title)
+        selectedBookInfo = randomBooks.map(book => ({
+          title: book.title,
+          fakeIsbn: book.fake_isbn.toString()
+        }))
       }
 
       setLoadingProgress(5)
-      setLoadingStatus(`${selectedBookTitles.length}개 도서 선택 완료`)
+      setLoadingStatus(`${selectedBookInfo.length}개 도서 선택 완료`)
+
+      console.log('📚 선택된 도서 정보:', selectedBookInfo)
 
       // 진행률 콜백 함수
       const progressCallback = (progress: number, status: string) => {
@@ -335,24 +338,38 @@ export default function BookSalesPage() {
         setLoadingStatus(status)
       }
 
-      // 최적화된 차트 데이터 로딩 사용
+      // fake_isbn 기반 차트 데이터 로딩
       const chartData = await loadChartDataForBooks(
-        selectedBookTitles,
+        selectedBookInfo,
         chartPeriod,
         availableFiles,
         progressCallback
       )
 
       if (chartData.length === 0) {
-        alert('선택된 기간에 해당하는 도서 데이터가 없습니다.')
+        console.warn('차트 데이터가 비어있습니다.')
+        alert(`선택된 기간(${chartPeriod}일)에 해당하는 도서 데이터가 없습니다.\n\n확인사항:\n- 선택된 도서가 해당 기간에 판매 데이터가 있는지 확인\n- 기간을 늘려서 다시 시도해보세요`)
         return
       }
 
+      console.log('✅ 차트 데이터 생성 성공:', chartData.length, '개 데이터 포인트')
+      console.log('📊 차트 데이터 샘플:', chartData[0])
+      
       setChartData(chartData)
       setShowChart(true)
     } catch (error) {
-      console.error('Failed to generate chart:', error)
-      alert('그래프 생성 중 오류가 발생했습니다.')
+      console.error('❌ 그래프 생성 실패:', error)
+      let errorMessage = '그래프 생성 중 오류가 발생했습니다.'
+      
+      if (error instanceof Error) {
+        if (error.message.includes('fake_isbn')) {
+          errorMessage = '도서 데이터 매칭 중 오류가 발생했습니다.\n다른 도서를 선택해서 시도해보세요.'
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '데이터 로딩 중 네트워크 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.'
+        }
+      }
+      
+      alert(errorMessage)
     } finally {
       setLoadingChart(false)
       setLoadingProgress(0)
@@ -465,6 +482,7 @@ export default function BookSalesPage() {
   const formatSalesPoint = (point: number) => {
     return point.toLocaleString('ko-KR')
   }
+
 
   // 핫키워드 추출 함수
   const extractHotKeywords = (bookData: BookSalesData, limit: number = 10): string[] => {
@@ -1047,7 +1065,11 @@ export default function BookSalesPage() {
                           fontSize={12}
                         />
                         <Tooltip 
-                          formatter={(value, name) => [formatSalesPoint(Number(value)), String(name)]}
+                          formatter={(value, name) => {
+                            const formattedValue = formatSalesPoint(Number(value))
+                            const formattedName = typeof name === 'string' ? name : String(name)
+                            return [formattedValue, formattedName]
+                          }}
                           labelFormatter={(label) => {
                             const date = new Date(label)
                             return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
@@ -1067,20 +1089,35 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
+                            console.warn(`⚠️ 선택된 도서를 찾을 수 없습니다: ${bookId}`)
                             return null
                           }
 
-                          // 차트 데이터에서 사용되는 실제 키 찾기 (제목이 축약되었을 수 있음)
+                          // 간단한 제목 기반 매칭 (fake_isbn으로 이미 정확히 매칭되었으므로)
                           const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'date' && !key.endsWith('_rank')) : []
-                          const matchedKey = chartDataKeys.find(key => 
-                            key === currentBook.title || 
-                            key.includes(currentBook.title.substring(0, 15)) ||
-                            currentBook.title.includes(key)
-                          )
+                          
+                          // 제목의 앞 30자를 기준으로 매칭 (book-sales.ts에서 사용한 로직과 동일)
+                          const safeTitle = currentBook.title.length > 30 ? 
+                            currentBook.title.substring(0, 30).trim() : 
+                            currentBook.title
+                          
+                          let matchedKey = chartDataKeys.find(key => key === safeTitle)
+                          
+                          // 부분 매칭 (더 유연한 매칭)
+                          if (!matchedKey) {
+                            matchedKey = chartDataKeys.find(key => 
+                              key.includes(safeTitle.substring(0, 20)) || 
+                              safeTitle.includes(key)
+                            )
+                          }
 
                           if (!matchedKey) {
+                            console.warn(`⚠️ 판매지수 차트: "${currentBook.title}" 매칭 실패`)
+                            console.log('📋 사용 가능한 차트 키:', chartDataKeys.slice(0, 5))
                             return null
                           }
+
+                          console.log(`✅ 판매지수 매칭: "${currentBook.title}" → "${matchedKey}"`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -1088,7 +1125,7 @@ export default function BookSalesPage() {
                             <Line
                               key={bookId}
                               type="monotone"
-                              dataKey={matchedKey} // 실제 차트 데이터에서 매칭된 키 사용
+                              dataKey={matchedKey}
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
@@ -1138,7 +1175,12 @@ export default function BookSalesPage() {
                           domain={['dataMin - 5', 'dataMax + 5']}
                         />
                         <Tooltip 
-                          formatter={(value, name) => [`${value}위`, String(name).replace('_rank', '')]}
+                          formatter={(value, name) => {
+                            const formattedValue = `${value}위`
+                            const safeName = typeof name === 'string' ? name : String(name)
+                            const formattedName = safeName.replace('_rank', '')
+                            return [formattedValue, formattedName]
+                          }}
                           labelFormatter={(label) => {
                             const date = new Date(label)
                             return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
@@ -1158,21 +1200,39 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
+                            console.warn(`⚠️ 선택된 도서를 찾을 수 없습니다 (순위): ${bookId}`)
                             return null
                           }
 
-                          // 차트 데이터에서 사용되는 실제 순위 키 찾기
+                          // 간단한 제목 기반 순위 키 매칭 (fake_isbn으로 이미 정확히 매칭되었으므로)
                           const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key.endsWith('_rank')) : []
-                          const matchedRankKey = chartDataKeys.find(key => {
+                          
+                          // 제목의 앞 30자를 기준으로 매칭
+                          const safeTitle = currentBook.title.length > 30 ? 
+                            currentBook.title.substring(0, 30).trim() : 
+                            currentBook.title
+                          
+                          let matchedRankKey = chartDataKeys.find(key => {
                             const titlePart = key.replace('_rank', '')
-                            return titlePart === currentBook.title || 
-                              titlePart.includes(currentBook.title.substring(0, 15)) ||
-                              currentBook.title.includes(titlePart)
+                            return titlePart === safeTitle
                           })
+                          
+                          // 부분 매칭
+                          if (!matchedRankKey) {
+                            matchedRankKey = chartDataKeys.find(key => {
+                              const titlePart = key.replace('_rank', '')
+                              return titlePart.includes(safeTitle.substring(0, 20)) || 
+                                safeTitle.includes(titlePart)
+                            })
+                          }
 
                           if (!matchedRankKey) {
+                            console.warn(`⚠️ 순위 차트: "${currentBook.title}" 매칭 실패`)
+                            console.log('📋 사용 가능한 순위 키:', chartDataKeys.slice(0, 5))
                             return null
                           }
+
+                          console.log(`✅ 순위 매칭: "${currentBook.title}" → "${matchedRankKey}"`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
@@ -1180,7 +1240,7 @@ export default function BookSalesPage() {
                             <Line
                               key={bookId + '_rank'}
                               type="monotone"
-                              dataKey={matchedRankKey} // 실제 차트 데이터에서 매칭된 순위 키 사용
+                              dataKey={matchedRankKey}
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
@@ -1253,7 +1313,11 @@ export default function BookSalesPage() {
                           fontSize={12}
                         />
                         <Tooltip 
-                          formatter={(value, name) => [formatSalesPoint(Number(value)), String(name)]}
+                          formatter={(value, name) => {
+                            const formattedValue = formatSalesPoint(Number(value))
+                            const formattedName = typeof name === 'string' ? name : String(name)
+                            return [formattedValue, formattedName]
+                          }}
                           labelFormatter={(label) => {
                             const date = new Date(label)
                             return `날짜: ${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
