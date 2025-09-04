@@ -1077,7 +1077,7 @@ export default function BookSalesPage() {
                         />
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
-                          // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
+                          // 선택된 모든 책을 전체 데이터에서 찾기
                           let currentBook = null
 
                           if (isDummyMode()) {
@@ -1089,47 +1089,28 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
-                            console.warn(`⚠️ 선택된 도서를 찾을 수 없습니다: ${bookId}`)
+                            console.warn(`⚠️ [${index}] 선택된 도서를 찾을 수 없습니다: ${bookId}`)
                             return null
                           }
 
-                          // 간단한 제목 기반 매칭 (fake_isbn으로 이미 정확히 매칭되었으므로)
-                          const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'date' && !key.endsWith('_rank')) : []
-                          
-                          // 제목의 앞 30자를 기준으로 매칭 (book-sales.ts에서 사용한 로직과 동일)
-                          const safeTitle = currentBook.title.length > 30 ? 
-                            currentBook.title.substring(0, 30).trim() : 
-                            currentBook.title
-                          
-                          let matchedKey = chartDataKeys.find(key => key === safeTitle)
-                          
-                          // 부분 매칭 (더 유연한 매칭)
-                          if (!matchedKey) {
-                            matchedKey = chartDataKeys.find(key => 
-                              key.includes(safeTitle.substring(0, 20)) || 
-                              safeTitle.includes(key)
-                            )
-                          }
+                          // fake_isbn을 직접 키로 사용 (완벽하게 유일한 값)
+                          const fakeIsbn = currentBook.fake_isbn.toString()
+                          const dataKey = fakeIsbn
 
-                          if (!matchedKey) {
-                            console.warn(`⚠️ 판매지수 차트: "${currentBook.title}" 매칭 실패`)
-                            console.log('📋 사용 가능한 차트 키:', chartDataKeys.slice(0, 5))
-                            return null
-                          }
-
-                          console.log(`✅ 판매지수 매칭: "${currentBook.title}" → "${matchedKey}"`)
+                          console.log(`✅ [${index}] 판매지수: "${currentBook.title}" → 키: ${dataKey}`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
                           return (
                             <Line
-                              key={bookId}
+                              key={`sales_${fakeIsbn}_${index}`}
                               type="monotone"
-                              dataKey={matchedKey}
+                              dataKey={dataKey}
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
                               activeDot={{ r: 6 }}
+                              name={currentBook.title.length > 25 ? currentBook.title.substring(0, 25) + '...' : currentBook.title}
                             />
                           )
                         })}
@@ -1188,7 +1169,7 @@ export default function BookSalesPage() {
                         />
                         <Legend />
                         {selectedBooks.map((bookId, index) => {
-                          // 선택된 모든 책을 전체 데이터에서 찾기 (필터링과 무관하게)
+                          // 선택된 모든 책을 전체 데이터에서 찾기
                           let currentBook = null
 
                           if (isDummyMode()) {
@@ -1200,51 +1181,28 @@ export default function BookSalesPage() {
                           }
 
                           if (!currentBook) {
-                            console.warn(`⚠️ 선택된 도서를 찾을 수 없습니다 (순위): ${bookId}`)
+                            console.warn(`⚠️ [${index}] 선택된 도서를 찾을 수 없습니다 (순위): ${bookId}`)
                             return null
                           }
 
-                          // 간단한 제목 기반 순위 키 매칭 (fake_isbn으로 이미 정확히 매칭되었으므로)
-                          const chartDataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key.endsWith('_rank')) : []
-                          
-                          // 제목의 앞 30자를 기준으로 매칭
-                          const safeTitle = currentBook.title.length > 30 ? 
-                            currentBook.title.substring(0, 30).trim() : 
-                            currentBook.title
-                          
-                          let matchedRankKey = chartDataKeys.find(key => {
-                            const titlePart = key.replace('_rank', '')
-                            return titlePart === safeTitle
-                          })
-                          
-                          // 부분 매칭
-                          if (!matchedRankKey) {
-                            matchedRankKey = chartDataKeys.find(key => {
-                              const titlePart = key.replace('_rank', '')
-                              return titlePart.includes(safeTitle.substring(0, 20)) || 
-                                safeTitle.includes(titlePart)
-                            })
-                          }
+                          // fake_isbn을 직접 순위 키로 사용 (완벽하게 유일한 값)
+                          const fakeIsbn = currentBook.fake_isbn.toString()
+                          const rankDataKey = `${fakeIsbn}_rank`
 
-                          if (!matchedRankKey) {
-                            console.warn(`⚠️ 순위 차트: "${currentBook.title}" 매칭 실패`)
-                            console.log('📋 사용 가능한 순위 키:', chartDataKeys.slice(0, 5))
-                            return null
-                          }
-
-                          console.log(`✅ 순위 매칭: "${currentBook.title}" → "${matchedRankKey}"`)
+                          console.log(`✅ [${index}] 순위: "${currentBook.title}" → 키: ${rankDataKey}`)
 
                           const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
                           return (
                             <Line
-                              key={bookId + '_rank'}
+                              key={`rank_${fakeIsbn}_${index}`}
                               type="monotone"
-                              dataKey={matchedRankKey}
+                              dataKey={rankDataKey}
                               stroke={colors[index % colors.length]}
                               strokeWidth={2}
                               dot={{ r: 4 }}
                               activeDot={{ r: 6 }}
+                              name={currentBook.title.length > 25 ? currentBook.title.substring(0, 25) + '...' : currentBook.title}
                             />
                           )
                         })}

@@ -11,9 +11,9 @@ import {
 
 const isProductionMode = () => !isDummyMode()
 
-// 개발 모드용 가짜 차트 데이터 생성 함수
+// 개발 모드용 가짜 차트 데이터 생성 함수 - fake_isbn 기반
 const generateDummyChartDataForBooks = (
-  bookTitles: string[],
+  selectedBooks: { title: string; fakeIsbn: string }[],
   daysBefore: number,
   progressCallback?: (progress: number, status: string) => void
 ): any[] => {
@@ -31,20 +31,21 @@ const generateDummyChartDataForBooks = (
 
     const entry: any = { date: dateString }
 
-    bookTitles.forEach((title, index) => {
-      // 제목이 유효한지 확인
-      if (!title || typeof title !== 'string' || title.trim() === '') {
-        console.warn(`⚠️ Invalid book title: ${title}, skipping...`)
+    selectedBooks.forEach((book, index) => {
+      // fake_isbn이 유효한지 확인
+      if (!book.fakeIsbn || !book.title) {
+        console.warn(`⚠️ Invalid book data:`, book)
         return
       }
 
-      const cleanTitle = title.trim()
+      const fakeIsbn = book.fakeIsbn
       const baseValue = 500 + (index * 100) // 각 도서별 기본 판매지수
       const variation = Math.random() * 200 - 100 // -100 ~ +100 범위의 변동
       const salesPoint = Math.max(50, Math.round(baseValue + variation))
 
-      entry[cleanTitle] = salesPoint
-      entry[`${cleanTitle}_rank`] = Math.floor(Math.random() * 100) + 1 // 1~100위 랜덤
+      // fake_isbn을 키로 사용
+      entry[fakeIsbn] = salesPoint
+      entry[`${fakeIsbn}_rank`] = Math.floor(Math.random() * 100) + 1 // 1~100위 랜덤
 
     })
 
@@ -705,17 +706,16 @@ export const loadChartDataForBooks = async (
       progressCallback?.(5, '개발 모드: 가짜 데이터 생성 중...')
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      const bookTitles = selectedBooks.map(book => book.title)
-      const dummyData = generateDummyChartDataForBooks(bookTitles, daysBefore, progressCallback)
+      const dummyData = generateDummyChartDataForBooks(selectedBooks, daysBefore, progressCallback)
 
       // 더미 데이터가 비어있으면 최소한의 데이터라도 생성
       if (dummyData.length === 0 && selectedBooks.length > 0) {
         const fallbackData = [{
           date: new Date().toISOString().split('T')[0],
           ...selectedBooks.reduce((acc, book, index) => {
-            if (book.title && typeof book.title === 'string' && book.title.trim()) {
-              acc[book.title.trim()] = 100 + (index * 50)
-              acc[`${book.title.trim()}_rank`] = index + 1
+            if (book.fakeIsbn && book.title) {
+              acc[book.fakeIsbn] = 100 + (index * 50)
+              acc[`${book.fakeIsbn}_rank`] = index + 1
             }
             return acc
           }, {} as any)
@@ -808,17 +808,13 @@ export const loadChartDataForBooks = async (
           const chartEntry: any = { date: file.date }
           let matchedCount = 0
 
-          // fake_isbn 기반 매칭 로직
+          // fake_isbn 기반 매칭 로직 - fake_isbn을 직접 키로 사용
           Object.values(data).forEach((book: any) => {
             const bookFakeIsbn = book.fake_isbn?.toString()
             if (bookFakeIsbn && isbnToBookMap.has(bookFakeIsbn)) {
-              const bookInfo = isbnToBookMap.get(bookFakeIsbn)!
-              const safeTitle = bookInfo.title.length > 30 ? 
-                bookInfo.title.substring(0, 30).trim() : 
-                bookInfo.title
-              
-              chartEntry[safeTitle] = book.sales_point
-              chartEntry[`${safeTitle}_rank`] = book.rank
+              // fake_isbn을 직접 키로 사용 (제목이 아닌)
+              chartEntry[bookFakeIsbn] = book.sales_point
+              chartEntry[`${bookFakeIsbn}_rank`] = book.rank
               matchedCount++
             }
           })
