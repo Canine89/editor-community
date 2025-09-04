@@ -72,11 +72,15 @@ export default function BookSalesPage() {
   const [loadingStatus, setLoadingStatus] = useState('')
   
   // 기간별 조회 관련 state
-  const [viewMode, setViewMode] = useState<'daily' | 'period'>('daily')
+  const [viewMode, setViewMode] = useState<'daily' | 'period' | 'date-specific'>('daily')
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(30)
   const [periodOverview, setPeriodOverview] = useState<PeriodOverview | null>(null)
   const [periodPublishers, setPeriodPublishers] = useState<any[]>([])
   const [loadingPeriod, setLoadingPeriod] = useState(false)
+  
+  // 특정 날짜 통계 관련 state
+  const [selectedDateForStats, setSelectedDateForStats] = useState<Date>()
+  const [dateStatsData, setDateStatsData] = useState<{overview: any, publishers: any[]}>({overview: null, publishers: []})
 
   useEffect(() => {
     if (!adminLoading && canViewBookSalesValue) {
@@ -208,17 +212,67 @@ export default function BookSalesPage() {
     }
   }
 
-  const handleViewModeChange = (mode: 'daily' | 'period') => {
+  const loadDateSpecificStats = async (date: Date) => {
+    setLoadingPeriod(true)
+    try {
+      // 선택된 날짜에 해당하는 파일 찾기
+      const dateString = date.toISOString().split('T')[0] // YYYY-MM-DD 형식
+      const targetFile = availableFiles.find(file => file.date === dateString)
+      
+      if (targetFile) {
+        const data = await loadBookSalesData(targetFile.filename)
+        const overview = getDailySalesOverview(data, dateString)
+        const publisherStats = getPublisherStats(data)
+        
+        setDateStatsData({
+          overview,
+          publishers: publisherStats
+        })
+        
+        // 특정 날짜 조회 시에는 책 목록을 숨김
+        setFilteredBooks([])
+        setPublishers([])
+      } else {
+        alert('선택한 날짜의 데이터가 없습니다.')
+        setDateStatsData({overview: null, publishers: []})
+      }
+    } catch (error) {
+      console.error('Failed to load date specific stats:', error)
+      alert('날짜별 통계 로드 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingPeriod(false)
+    }
+  }
+
+  const handleViewModeChange = (mode: 'daily' | 'period' | 'date-specific') => {
     setViewMode(mode)
     setShowChart(false)
     setSelectedBooks([])
     
     if (mode === 'period') {
       loadPeriodData(selectedPeriod)
+    } else if (mode === 'date-specific') {
+      // 날짜별 통계 모드: 최신 날짜로 초기 설정
+      if (availableFiles.length > 0 && !selectedDateForStats) {
+        const latestDate = new Date(availableFiles[availableFiles.length - 1].date)
+        setSelectedDateForStats(latestDate)
+        loadDateSpecificStats(latestDate)
+      } else if (selectedDateForStats) {
+        loadDateSpecificStats(selectedDateForStats)
+      }
     } else {
       // 일별 조회 모드로 돌아갈 때는 기존 날짜 데이터 다시 로드
       if (selectedFilename) {
         loadDataForDate(selectedFilename)
+      }
+    }
+  }
+
+  const handleDateForStatsChange = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDateForStats(date)
+      if (viewMode === 'date-specific') {
+        loadDateSpecificStats(date)
       }
     }
   }
@@ -342,7 +396,7 @@ export default function BookSalesPage() {
     },
     {
       key: 'sales_point',
-      label: '판매점수',
+      label: '판매지수',
       sortable: true,
       render: (value: number) => (
         <div className="text-right">
@@ -420,7 +474,7 @@ export default function BookSalesPage() {
             <CardTitle className="text-sm font-medium">조회 모드</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 mb-4">
+            <div className="flex gap-3 mb-4 flex-wrap">
               <Button 
                 variant={viewMode === 'daily' ? 'default' : 'outline'}
                 onClick={() => handleViewModeChange('daily')}
@@ -436,6 +490,14 @@ export default function BookSalesPage() {
               >
                 <TrendingUp className="w-4 h-4" />
                 기간별 통계
+              </Button>
+              <Button 
+                variant={viewMode === 'date-specific' ? 'default' : 'outline'}
+                onClick={() => handleViewModeChange('date-specific')}
+                className="flex items-center gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                날짜별 통계
               </Button>
             </div>
 
@@ -463,6 +525,16 @@ export default function BookSalesPage() {
                 </SelectContent>
               </Select>
             )}
+
+            {/* 날짜별 통계 모드 */}
+            {viewMode === 'date-specific' && (
+              <DatePicker
+                date={selectedDateForStats}
+                onDateChange={handleDateForStatsChange}
+                availableDates={availableDates}
+                placeholder="통계를 볼 날짜를 선택하세요"
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -484,7 +556,7 @@ export default function BookSalesPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">{formatSalesPoint(overview.totalSalesPoints)}</div>
-                  <div className="text-xs text-slate-600">총 판매점수</div>
+                  <div className="text-xs text-slate-600">총 판매지수</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-orange-600">{overview.averageRank}</div>
@@ -521,11 +593,11 @@ export default function BookSalesPage() {
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-purple-600">{formatSalesPoint(periodOverview.totalSalesPoints)}</div>
-                        <div className="text-xs text-slate-600">총 판매점수</div>
+                        <div className="text-xs text-slate-600">총 판매지수</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-orange-600">{formatSalesPoint(periodOverview.averageDailySales)}</div>
-                        <div className="text-xs text-slate-600">일평균 판매점수</div>
+                        <div className="text-xs text-slate-600">일평균 판매지수</div>
                       </div>
                     </div>
                   )}
@@ -537,7 +609,7 @@ export default function BookSalesPage() {
             {periodOverview && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">판매점수 상위 10개 출판사</CardTitle>
+                  <CardTitle className="text-sm font-medium">판매지수 상위 10개 출판사</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {loadingPeriod ? (
@@ -817,7 +889,7 @@ export default function BookSalesPage() {
                       <tr className="border-b">
                         <th className="text-left py-3 px-2 font-medium">순위</th>
                         <th className="text-left py-3 px-2 font-medium">출판사</th>
-                        <th className="text-right py-3 px-2 font-medium">총 판매점수</th>
+                        <th className="text-right py-3 px-2 font-medium">총 판매지수</th>
                         <th className="text-right py-3 px-2 font-medium">도서 수</th>
                         <th className="text-right py-3 px-2 font-medium">평균 가격</th>
                         <th className="text-right py-3 px-2 font-medium">평균 순위</th>
@@ -825,6 +897,130 @@ export default function BookSalesPage() {
                     </thead>
                     <tbody>
                       {periodPublishers.slice(0, 20).map((publisher, index) => (
+                        <tr key={publisher.name} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="py-3 px-2">
+                            <Badge 
+                              variant={index < 3 ? 'default' : index < 10 ? 'secondary' : 'outline'}
+                              className="w-8 h-6 justify-center text-xs"
+                            >
+                              {index + 1}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2 font-medium">{publisher.name}</td>
+                          <td className="py-3 px-2 text-right font-mono text-blue-600">
+                            {formatSalesPoint(publisher.totalSalesPoints)}
+                          </td>
+                          <td className="py-3 px-2 text-right">{publisher.bookCount}권</td>
+                          <td className="py-3 px-2 text-right">{formatPrice(publisher.averagePrice)}</td>
+                          <td className="py-3 px-2 text-right">{publisher.averageRank}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 날짜별 통계 개요 */}
+        {viewMode === 'date-specific' && selectedDateForStats && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 날짜 개요 */}
+            {dateStatsData.overview && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">
+                    날짜별 개요 ({selectedDateForStats.toLocaleDateString('ko-KR')})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingPeriod ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{dateStatsData.overview.totalBooks}</div>
+                        <div className="text-xs text-slate-600">총 도서 수</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{dateStatsData.overview.publisherCount}</div>
+                        <div className="text-xs text-slate-600">출판사 수</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{formatSalesPoint(dateStatsData.overview.totalSalesPoints)}</div>
+                        <div className="text-xs text-slate-600">총 판매지수</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">{dateStatsData.overview.averageRank}</div>
+                        <div className="text-xs text-slate-600">평균 순위</div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 최고 판매 도서 */}
+            {dateStatsData.overview && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">최고 판매지수 도서</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingPeriod ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                        <div className="font-medium text-slate-800 mb-2">{dateStatsData.overview.topBook.title}</div>
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-slate-600">순위: {dateStatsData.overview.topBook.rank}위</div>
+                          <div className="text-lg font-bold text-blue-600">
+                            {formatSalesPoint(dateStatsData.overview.topBook.salesPoint)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* 날짜별 출판사 통계 테이블 */}
+        {viewMode === 'date-specific' && dateStatsData.publishers.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">
+                출판사별 상세 통계 ({selectedDateForStats?.toLocaleDateString('ko-KR')})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingPeriod ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-3 px-2 font-medium">순위</th>
+                        <th className="text-left py-3 px-2 font-medium">출판사</th>
+                        <th className="text-right py-3 px-2 font-medium">총 판매지수</th>
+                        <th className="text-right py-3 px-2 font-medium">도서 수</th>
+                        <th className="text-right py-3 px-2 font-medium">평균 가격</th>
+                        <th className="text-right py-3 px-2 font-medium">평균 순위</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dateStatsData.publishers.slice(0, 20).map((publisher, index) => (
                         <tr key={publisher.name} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="py-3 px-2">
                             <Badge 
