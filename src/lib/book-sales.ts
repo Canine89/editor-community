@@ -12,7 +12,7 @@ export const getBookSalesFiles = async (): Promise<BookSalesFileInfo[]> => {
     const { data: files, error } = await supabase.storage
       .from('book-sales-data')
       .list('', {
-        limit: 100,
+        limit: 500,
         offset: 0,
         sortBy: { column: 'name', order: 'asc' }
       })
@@ -255,4 +255,104 @@ export const getBooksByRankRange = (data: BookSalesData, minRank: number, maxRan
     .filter(([_, book]) => book.rank >= minRank && book.rank <= maxRank)
     .map(([bookId, book]) => ({ bookId, ...book }))
     .sort((a, b) => a.rank - b.rank)
+}
+
+// Get files within date range (days before today)
+export const getFilesInDateRange = async (daysBefore: number): Promise<BookSalesFileInfo[]> => {
+  try {
+    const allFiles = await getBookSalesFiles()
+    const today = new Date()
+    const targetDate = new Date(today)
+    targetDate.setDate(today.getDate() - daysBefore)
+    
+    return allFiles.filter(file => {
+      const fileDate = new Date(file.date)
+      return fileDate >= targetDate && fileDate <= today
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // 최신 순 정렬
+  } catch (error) {
+    console.error('Error getting files in date range:', error)
+    return []
+  }
+}
+
+// Load data for specific period (30, 60, 90, 120 days)
+export const loadDataForPeriod = async (daysBefore: number): Promise<{[date: string]: BookSalesData}> => {
+  try {
+    const filesInRange = await getFilesInDateRange(daysBefore)
+    const filenames = filesInRange.map(f => f.filename)
+    
+    return await loadMultipleBookSalesData(filenames)
+  } catch (error) {
+    console.error(`Error loading data for ${daysBefore} days:`, error)
+    return {}
+  }
+}
+
+// Calculate period overview statistics
+export const getPeriodOverview = (periodData: {[date: string]: BookSalesData}) => {
+  let totalSalesPoints = 0
+  const publisherSalesMap: {[publisher: string]: number} = {}
+  let totalDays = 0
+  
+  Object.values(periodData).forEach(dailyData => {
+    if (Object.keys(dailyData).length > 0) {
+      totalDays++
+      Object.values(dailyData).forEach(book => {
+        totalSalesPoints += book.sales_point
+        publisherSalesMap[book.publisher] = (publisherSalesMap[book.publisher] || 0) + book.sales_point
+      })
+    }
+  })
+  
+  // Top 10 publishers by sales points
+  const topPublishers = Object.entries(publisherSalesMap)
+    .map(([publisher, salesPoints]) => ({ publisher, salesPoints }))
+    .sort((a, b) => b.salesPoints - a.salesPoints)
+    .slice(0, 10)
+  
+  return {
+    totalDays,
+    totalSalesPoints,
+    topPublishers,
+    averageDailySales: totalDays > 0 ? Math.round(totalSalesPoints / totalDays) : 0,
+    publisherCount: Object.keys(publisherSalesMap).length
+  }
+}
+
+// Get aggregated publisher stats for period
+export const getPublisherStatsForPeriod = (periodData: {[date: string]: BookSalesData}) => {
+  const publisherMap: {[key: string]: {
+    totalSales: number, 
+    bookCount: number, 
+    totalPrices: number,
+    totalRanks: number,
+    books: Set<string> // 중복 제거를 위한 Set
+  }} = {}
+  
+  Object.values(periodData).forEach(dailyData => {
+    Object.values(dailyData).forEach(book => {
+      if (!publisherMap[book.publisher]) {
+        publisherMap[book.publisher] = {
+          totalSales: 0,
+          bookCount: 0,
+          totalPrices: 0,
+          totalRanks: 0,
+          books: new Set()
+        }
+      }
+      
+      publisherMap[book.publisher].totalSales += book.sales_point
+      publisherMap[book.publisher].totalPrices += book.right_price
+      publisherMap[book.publisher].totalRanks += book.rank
+      publisherMap[book.publisher].books.add(book.title) // 도서명으로 중복 제거
+    })
+  })
+  
+  return Object.entries(publisherMap).map(([publisher, stats]) => ({
+    name: publisher,
+    bookCount: stats.books.size, // 실제 유니크 도서 수
+    totalSalesPoints: stats.totalSales,
+    averagePrice: stats.books.size > 0 ? Math.round(stats.totalPrices / stats.books.size) : 0,
+    averageRank: stats.books.size > 0 ? Math.round(stats.totalRanks / stats.books.size) : 0
+  })).sort((a, b) => b.totalSalesPoints - a.totalSalesPoints)
 }

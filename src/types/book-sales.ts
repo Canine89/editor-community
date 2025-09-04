@@ -56,3 +56,13 @@ export interface DailySalesOverview {
   topBook: {title: string, rank: number, salesPoint: number}
   publisherCount: number
 }
+
+export interface PeriodOverview {
+  totalDays: number
+  totalSalesPoints: number
+  topPublishers: {publisher: string, salesPoints: number}[]
+  averageDailySales: number
+  publisherCount: number
+}
+
+export type PeriodType = 30 | 60 | 90 | 120
