@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ArrowLeft,
   Upload,
@@ -577,123 +576,97 @@ export default function PDFSpellCheckerPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Tabs defaultValue="0" className="w-full">
-                <TabsList className="grid w-full grid-cols-auto gap-1 h-auto p-1 max-h-32 overflow-y-auto">
-                  {pdfDoc?.pages.map((page, index) => {
-                    const pageMatches = matches.filter(m => m.pageIndex === index)
-                    // 매치가 있거나 텍스트가 있는 페이지만 표시
-                    if (pageMatches.length === 0 && !page.content?.trim()) return null
-                    
-                    return (
-                      <TabsTrigger 
-                        key={index} 
-                        value={index.toString()}
-                        className="flex items-center gap-2 px-3 py-2"
-                      >
-                        페이지 {page.pageNumber}
-                        {pageMatches.length > 0 && (
-                          <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-                            {pageMatches.length}
-                          </Badge>
-                        )}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
-                
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {pdfDoc?.pages.map((page, index) => {
                   const pageMatches = matches.filter(m => m.pageIndex === index)
-                  // 매치가 있거나 텍스트가 있는 페이지만 표시 (TabsList와 동일한 조건)
+                  // 매치가 있거나 텍스트가 있는 페이지만 표시
                   if (pageMatches.length === 0 && !page.content?.trim()) return null
 
                   return (
-                    <TabsContent key={index} value={index.toString()}>
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg">
-                              페이지 {page.pageNumber}
-                            </CardTitle>
+                    <Card key={index}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm text-slate-600">
+                            페이지 {page.pageNumber}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            {pageMatches.length > 0 && (
+                              <Badge variant="secondary" className="bg-red-100 text-red-800">
+                                {pageMatches.length}개 수정
+                              </Badge>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => copyPage(index)}
-                              className="h-8 px-3 text-sm"
+                              className="h-7 px-2 text-xs"
                             >
                               {copiedPages.has(index) ? (
                                 <>
-                                  <Check className="w-4 h-4 mr-2 text-green-600" />
+                                  <Check className="w-3 h-3 mr-1 text-green-600" />
                                   복사됨
                                 </>
                               ) : (
                                 <>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  교정 텍스트 복사
+                                  <Copy className="w-3 h-3 mr-1" />
+                                  복사
                                 </>
                               )}
                             </Button>
                           </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="text-sm leading-relaxed mb-4 p-4 bg-slate-50 rounded-lg max-h-96 overflow-y-auto">
-                            {page.content ? (
-                              highlightText(page.content, matches, index)
-                            ) : (
-                              <div className="text-slate-500 italic p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <div className="font-medium text-yellow-800 mb-2">⚠️ 텍스트 추출 문제 발생</div>
-                                <div className="text-sm space-y-1">
-                                  <div>원본 텍스트 길이: <span className="font-medium">{page.originalContent?.length || 0}자</span></div>
-                                  <div>필터링된 텍스트 길이: <span className="font-medium">{page.content?.length || 0}자</span></div>
-                                  <div>현재 여백 설정: 상하 {margins.vertical}mm, 좌우 {margins.horizontal}mm</div>
-                                  {page.originalContent && page.originalContent.length > 0 ? (
-                                    <div className="mt-3 p-2 bg-white rounded border">
-                                      <div className="text-xs text-slate-600 mb-1">원본 텍스트 샘플 (처음 200자):</div>
-                                      <div className="text-xs font-mono text-slate-800 max-h-20 overflow-y-auto">
-                                        {page.originalContent.substring(0, 200)}
-                                        {page.originalContent.length > 200 && '...'}
-                                      </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="text-sm leading-relaxed mb-4 p-4 bg-slate-50 rounded-lg max-h-80 overflow-y-auto">
+                          {page.content ? (
+                            highlightText(page.content, matches, index)
+                          ) : (
+                            <div className="text-slate-500 italic p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <div className="font-medium text-yellow-800 mb-2">⚠️ 텍스트 추출 문제 발생</div>
+                              <div className="text-sm space-y-1">
+                                <div>원본 텍스트 길이: <span className="font-medium">{page.originalContent?.length || 0}자</span></div>
+                                <div>필터링된 텍스트 길이: <span className="font-medium">{page.content?.length || 0}자</span></div>
+                                <div>현재 여백 설정: 상하 {margins.vertical}mm, 좌우 {margins.horizontal}mm</div>
+                                {page.originalContent && page.originalContent.length > 0 ? (
+                                  <div className="mt-3 p-2 bg-white rounded border">
+                                    <div className="text-xs text-slate-600 mb-1">원본 텍스트 샘플 (처음 200자):</div>
+                                    <div className="text-xs font-mono text-slate-800 max-h-20 overflow-y-auto">
+                                      {page.originalContent.substring(0, 200)}
+                                      {page.originalContent.length > 200 && '...'}
                                     </div>
-                                  ) : (
-                                    <div className="text-red-600 font-medium">원본 텍스트 자체가 추출되지 않았습니다.</div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <Separator className="my-4" />
-                          
-                          <div className="space-y-2">
-                            {pageMatches.length > 0 ? (
-                              <>
-                                <div className="text-sm font-medium text-slate-600 mb-2">수정 사항:</div>
-                                {pageMatches.map((match, matchIndex) => (
-                                  <div key={matchIndex} className="flex items-center gap-2 text-sm">
-                                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
-                                      {match.original}
-                                    </span>
-                                    <span>→</span>
-                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
-                                      {match.corrected}
-                                    </span>
                                   </div>
-                                ))}
-                              </>
-                            ) : (
-                              <div className="text-sm text-slate-600 bg-blue-50 p-3 rounded-lg">
-                                <div className="font-medium text-blue-800 mb-1">이 페이지에 수정 사항이 없습니다</div>
-                                <div className="text-xs text-blue-700">
-                                  텍스트는 정상적으로 추출되었지만 Excel 데이터와 일치하는 교정 항목이 없습니다.
-                                </div>
+                                ) : (
+                                  <div className="text-red-600 font-medium">원본 텍스트 자체가 추출되지 않았습니다.</div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {pageMatches.length > 0 && (
+                          <>
+                            <Separator className="my-4" />
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-slate-600 mb-2">수정 사항:</div>
+                              {pageMatches.map((match, matchIndex) => (
+                                <div key={matchIndex} className="flex items-center gap-2 text-sm">
+                                  <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
+                                    {match.original}
+                                  </span>
+                                  <span>→</span>
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
+                                    {match.corrected}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
                   )
                 })}
-              </Tabs>
+              </div>
             )}
           </div>
         </div>
