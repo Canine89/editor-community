@@ -58,6 +58,7 @@ interface PDFPageData {
   highResCanvas?: string // 고해상도 base64 이미지 데이터 (크게 보기용)
   isLoading?: boolean
   isLoadingHighRes?: boolean
+  sourceFile?: string // 페이지의 원본 파일명 (메인 파일 또는 추가된 파일)
 }
 
 interface PDFInfo {
@@ -237,8 +238,7 @@ export default function PDFEditorPage() {
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([])
   const [isMerging, setIsMerging] = useState(false)
   const [insertPosition, setInsertPosition] = useState<'end' | number>('end')
-  const [mergedPreview, setMergedPreview] = useState<PDFPageData[] | null>(null)
-  const [mergedPdfData, setMergedPdfData] = useState<Uint8Array | null>(null)
+  const [originalFileCache, setOriginalFileCache] = useState<Map<string, File>>(new Map())
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -358,6 +358,9 @@ export default function PDFEditorPage() {
     setPages([])
 
     try {
+      // 원본 파일을 캐시에 저장
+      setOriginalFileCache(new Map([[file.name, file]]))
+      
       const arrayBuffer = await file.arrayBuffer()
       
       // PDF-lib으로 기본 정보 가져오기
@@ -379,11 +382,12 @@ export default function PDFEditorPage() {
       
       const pdf = await loadingTask.promise
 
-      // 초기 페이지 데이터 생성 (로딩 상태)
+      // 초기 페이지 데이터 생성 (로딩 상태) - sourceFile 속성 추가
       const initialPages: PDFPageData[] = Array.from({ length: totalPages }, (_, index) => ({
         id: `page-${index + 1}`,
         pageNumber: index + 1,
-        isLoading: true
+        isLoading: true,
+        sourceFile: file.name
       }))
 
       setPages(initialPages)
@@ -552,142 +556,95 @@ export default function PDFEditorPage() {
     setAdditionalFiles(files => files.filter((_, i) => i !== index))
   }
 
-  const previewMergedPDF = async () => {
+  const insertAdditionalPages = async () => {
     if (!selectedFile || additionalFiles.length === 0) return
 
     setIsMerging(true)
     setError('')
 
     try {
-      // 메인 PDF 문서 생성
-      const mergedPdf = await PDFDocument.create()
+      // 원본 파일들을 캐시에 저장
+      const newCache = new Map(originalFileCache)
+      if (!newCache.has(selectedFile.name)) {
+        newCache.set(selectedFile.name, selectedFile)
+      }
       
-      // 현재 편집된 페이지들을 메인 PDF에 추가
-      const mainArrayBuffer = await selectedFile.arrayBuffer()
-      const mainPdfDoc = await PDFDocument.load(mainArrayBuffer)
+      // 추가 파일들을 캐시에 저장하고 페이지 데이터 생성
+      const additionalPagesData: PDFPageData[] = []
       
-      // 추가 파일들의 페이지들을 미리 준비
-      const additionalPages = []
-      for (const file of additionalFiles) {
+      for (let fileIndex = 0; fileIndex < additionalFiles.length; fileIndex++) {
+        const file = additionalFiles[fileIndex]
+        newCache.set(file.name, file)
+        
         const arrayBuffer = await file.arrayBuffer()
-        const pdfDoc = await PDFDocument.load(arrayBuffer)
-        const pageCount = pdfDoc.getPageCount()
-        const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
-        const copiedPages = await mergedPdf.copyPages(pdfDoc, pageIndices)
-        additionalPages.push(...copiedPages)
+        const loadingTask = getDocument({ 
+          data: arrayBuffer,
+          cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
+          cMapPacked: true
+        })
+        const pdf = await loadingTask.promise
+        const pageCount = pdf.numPages
+
+        // 각 파일의 페이지들을 PDFPageData로 변환 (로딩 상태)
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+          additionalPagesData.push({
+            id: `additional-${fileIndex}-${pageIndex + 1}`,
+            pageNumber: pageIndex + 1,
+            isLoading: true,
+            sourceFile: file.name
+          })
+        }
+
+        // 썸네일을 비동기적으로 생성
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+          generatePageThumbnail(pdf, pageIndex).then(canvas => {
+            const pageId = `additional-${fileIndex}-${pageIndex + 1}`
+            setPages(prevPages => 
+              prevPages.map(page => 
+                page.id === pageId 
+                  ? { ...page, canvas: canvas || undefined, isLoading: false }
+                  : page
+              )
+            )
+          })
+        }
       }
 
-      // 삽입 위치에 따라 병합
+      // 원본 파일 캐시 업데이트
+      setOriginalFileCache(newCache)
+
+      // 메인 페이지 배열에 sourceFile 추가 (기존 페이지들)
+      const updatedMainPages = pages.map(page => ({
+        ...page,
+        sourceFile: page.sourceFile || selectedFile.name
+      }))
+
+      // 삽입 위치에 따라 페이지 배열 업데이트
+      let newPages: PDFPageData[]
       if (insertPosition === 'end') {
-        // 맨 끝에 추가 (기존 로직)
-        const mainPageIndices = pages.map((_, index) => index)
-        const mainPages = await mergedPdf.copyPages(mainPdfDoc, mainPageIndices)
-        mainPages.forEach(page => mergedPdf.addPage(page))
-        additionalPages.forEach(page => mergedPdf.addPage(page))
+        // 맨 끝에 추가
+        newPages = [...updatedMainPages, ...additionalPagesData]
       } else {
         // 지정된 위치에 삽입
         const insertAfterIndex = insertPosition as number
-        
-        // 삽입 위치까지의 페이지들 추가
-        for (let i = 0; i <= insertAfterIndex; i++) {
-          const [copiedPage] = await mergedPdf.copyPages(mainPdfDoc, [i])
-          mergedPdf.addPage(copiedPage)
-        }
-        
-        // 추가 파일들의 페이지들 삽입
-        additionalPages.forEach(page => mergedPdf.addPage(page))
-        
-        // 나머지 페이지들 추가
-        for (let i = insertAfterIndex + 1; i < pages.length; i++) {
-          const [copiedPage] = await mergedPdf.copyPages(mainPdfDoc, [i])
-          mergedPdf.addPage(copiedPage)
-        }
+        newPages = [
+          ...updatedMainPages.slice(0, insertAfterIndex + 1),
+          ...additionalPagesData,
+          ...updatedMainPages.slice(insertAfterIndex + 1)
+        ]
       }
 
-      // 병합된 PDF 바이트 데이터 저장 (나중에 다운로드용)
-      const mergedPdfBytes = await mergedPdf.save()
-      setMergedPdfData(mergedPdfBytes)
-
-      // 병합된 PDF의 미리보기 생성
-      const mergedArrayBuffer = new ArrayBuffer(mergedPdfBytes.length)
-      const view = new Uint8Array(mergedArrayBuffer)
-      view.set(mergedPdfBytes)
+      setPages(newPages)
       
-      const loadingTask = getDocument({ 
-        data: mergedArrayBuffer,
-        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
-        cMapPacked: true
-      })
-      
-      const pdf = await loadingTask.promise
-      const totalPages = pdf.numPages
-
-      // 초기 페이지 데이터 생성 (로딩 상태)
-      const initialMergedPages: PDFPageData[] = Array.from({ length: totalPages }, (_, index) => ({
-        id: `merged-page-${index + 1}`,
-        pageNumber: index + 1,
-        isLoading: true
-      }))
-
-      setMergedPreview(initialMergedPages)
-
-      // 썸네일을 비동기적으로 생성
-      const thumbnailPromises = Array.from({ length: totalPages }, async (_, index) => {
-        const canvas = await generatePageThumbnail(pdf, index)
-        return { index, canvas }
-      })
-
-      // 썸네일이 생성되는대로 업데이트
-      thumbnailPromises.forEach(async (promise) => {
-        const { index, canvas } = await promise
-        setMergedPreview(prevPages => 
-          prevPages ? prevPages.map(page => 
-            page.pageNumber === index + 1 
-              ? { ...page, canvas: canvas || undefined, isLoading: false }
-              : page
-          ) : null
-        )
-      })
+      // 추가 파일 목록 초기화
+      setAdditionalFiles([])
+      setInsertPosition('end')
 
     } catch (error) {
-      console.error('PDF 병합 미리보기 오류:', error)
-      setError('PDF 병합 미리보기 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
+      console.error('PDF 페이지 삽입 오류:', error)
+      setError('PDF 페이지 삽입 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsMerging(false)
-    }
-  }
-
-  // 병합 미리보기 리셋
-  const resetMergedPreview = () => {
-    setMergedPreview(null)
-    setMergedPdfData(null)
-    setAdditionalFiles([])
-  }
-
-  // 최종 병합된 PDF 다운로드
-  const downloadMergedPDF = async () => {
-    if (!mergedPdfData || !selectedFile) return
-
-    try {
-      const blob = new Blob([mergedPdfData as any], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-
-      const link = document.createElement('a')
-      link.href = url
-      const positionText = insertPosition === 'end' ? 'end' : `after_page_${insertPosition + 1}`
-      link.download = `merged_${positionText}_${selectedFile.name}`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      URL.revokeObjectURL(url)
-      
-      // 병합 미리보기 상태 리셋
-      resetMergedPreview()
-
-    } catch (error) {
-      console.error('PDF 다운로드 오류:', error)
-      setError('PDF 다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -731,15 +688,32 @@ export default function PDFEditorPage() {
     setError('')
 
     try {
-      const arrayBuffer = await selectedFile.arrayBuffer()
-      const originalPdf = await PDFDocument.load(arrayBuffer)
       const newPdf = await PDFDocument.create()
-
+      
+      // 소스 파일별로 PDF 문서를 로드하여 캐시
+      const loadedPdfs = new Map<string, any>()
+      
       // 페이지 순서대로 복사
       for (const page of pages) {
+        const sourceFileName = page.sourceFile || selectedFile.name
+        
+        // 해당 소스 파일의 PDF 문서가 아직 로드되지 않았으면 로드
+        if (!loadedPdfs.has(sourceFileName)) {
+          const sourceFile = originalFileCache.get(sourceFileName)
+          if (!sourceFile) {
+            throw new Error(`소스 파일을 찾을 수 없습니다: ${sourceFileName}`)
+          }
+          
+          const arrayBuffer = await sourceFile.arrayBuffer()
+          const originalPdf = await PDFDocument.load(arrayBuffer)
+          loadedPdfs.set(sourceFileName, originalPdf)
+        }
+        
+        const sourcePdf = loadedPdfs.get(sourceFileName)
+        
         // 원본 페이지 번호에서 1을 빼서 0-based 인덱스로 변환
         const pageIndex = page.pageNumber - 1
-        const [copiedPage] = await newPdf.copyPages(originalPdf, [pageIndex])
+        const [copiedPage] = await newPdf.copyPages(sourcePdf, [pageIndex])
         newPdf.addPage(copiedPage)
       }
 
@@ -747,9 +721,12 @@ export default function PDFEditorPage() {
       const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
 
-      // 파일명 생성
+      // 파일명 생성 (다중 파일이 포함된 경우 merged 표시)
+      const hasMultipleSources = new Set(pages.map(page => page.sourceFile || selectedFile.name)).size > 1
       const baseName = selectedFile.name.replace('.pdf', '')
-      const editedFileName = `${baseName}_edited.pdf`
+      const editedFileName = hasMultipleSources 
+        ? `${baseName}_merged_edited.pdf`
+        : `${baseName}_edited.pdf`
 
       // 다운로드
       const link = document.createElement('a')
@@ -1040,19 +1017,19 @@ export default function PDFEditorPage() {
                       {additionalFiles.length > 0 && (
                         <div className="flex gap-3 pt-2">
                           <Button
-                            onClick={previewMergedPDF}
+                            onClick={insertAdditionalPages}
                             disabled={isMerging}
                             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
                           >
                             {isMerging ? (
                               <>
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                병합 중...
+                                삽입 중...
                               </>
                             ) : (
                               <>
-                                <Eye className="w-4 h-4" />
-                                PDF 병합 미리보기
+                                <Move className="w-4 h-4" />
+                                페이지 삽입하기
                               </>
                             )}
                           </Button>
@@ -1144,91 +1121,6 @@ export default function PDFEditorPage() {
             </Card>
           )}
 
-          {/* 병합 미리보기 결과 */}
-          {mergedPreview && (
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-green-600" />
-                    병합된 PDF 미리보기
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-600">
-                      총 {mergedPreview.length}페이지
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={resetMergedPreview}
-                      className="text-slate-600"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      다시 병합
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-green-800 text-sm">
-                      <Info className="w-4 h-4" />
-                      <span>병합된 결과를 확인하고 필요시 페이지 순서를 조정할 수 있습니다</span>
-                    </div>
-                  </div>
-
-                  {/* TODO: 여기에 droppable 기능을 가진 페이지 그리드 추가 */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {mergedPreview.map((page, index) => (
-                      <div key={page.id} className="relative">
-                        <div className="relative group rounded-lg bg-white border-2 border-green-300 transition-all duration-200 hover:border-green-400 shadow-sm hover:shadow-md">
-                          {/* 페이지 번호 */}
-                          <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
-                            {page.pageNumber}
-                          </div>
-                          
-                          {/* 페이지 이미지 */}
-                          <div className="w-full h-48 flex items-center justify-center p-4">
-                            {page.isLoading ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-xs text-slate-500">로딩 중...</span>
-                              </div>
-                            ) : page.canvas ? (
-                              <img 
-                                src={page.canvas} 
-                                alt={`병합된 페이지 ${page.pageNumber}`}
-                                className="max-w-full max-h-full object-contain"
-                              />
-                            ) : (
-                              <div className="text-slate-400">
-                                <FileText className="w-8 h-8 mx-auto mb-2" />
-                                <span className="text-xs">미리보기 없음</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 최종 다운로드 버튼 */}
-                  <div className="flex justify-center pt-4">
-                    <Button
-                      onClick={downloadMergedPDF}
-                      disabled={!mergedPdfData}
-                      size="lg"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Download className="w-5 h-5 mr-2" />
-                      병합된 PDF 다운로드
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* 오류 메시지 */}
           {error && (
@@ -1297,7 +1189,7 @@ export default function PDFEditorPage() {
               <li>• 페이지를 드래그하여 순서를 자유롭게 변경할 수 있습니다</li>
               <li>• <strong>다중 선택 모드:</strong> 여러 페이지를 선택한 후 그 중 하나를 드래그하면 선택된 모든 페이지가 함께 이동됩니다</li>
               <li>• 눈 버튼으로 페이지를 크게 보거나 삭제 버튼으로 제거할 수 있습니다</li>
-              <li>• <strong>PDF 병합 미리보기:</strong> 여러 PDF를 먼저 미리보기로 확인한 후 페이지 순서를 조정하고 다운로드할 수 있습니다</li>
+              <li>• <strong>PDF 병합:</strong> 여러 PDF 파일의 페이지를 메인 편집기에 삽입하여 하나의 통합된 환경에서 편집할 수 있습니다</li>
               <li>• 편집이 완료되면 새로운 PDF 파일로 다운로드됩니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 안전합니다</li>
             </ul>
