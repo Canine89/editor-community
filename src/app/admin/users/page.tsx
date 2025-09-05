@@ -266,19 +266,40 @@ export default function AdminUsersPage() {
         })
       } else {
         // user_role 컬럼이 있는 경우 - 새로운 시스템 사용
-        const { error } = await (supabase as any).rpc('update_user_role', {
-          user_uuid: selectedUser.id,
-          new_role: selectedNewRole,
-          reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`
-        })
+        try {
+          const { error } = await (supabase as any).rpc('update_user_role', {
+            user_uuid: selectedUser.id,
+            new_role: selectedNewRole,
+            reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`
+          })
 
-        if (error) throw error
+          if (error) throw error
 
-        const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
-        setMessage({ 
-          type: 'success', 
-          text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다.` 
-        })
+          const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
+          setMessage({ 
+            type: 'success', 
+            text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다.` 
+          })
+        } catch (rpcError) {
+          console.warn('RPC 함수 오류, 직접 업데이트 시도:', rpcError)
+          
+          // RPC 함수가 없거나 오류가 있을 경우 직접 업데이트
+          const { error: directError } = await (supabase as any)
+            .from('profiles')
+            .update({ 
+              user_role: selectedNewRole,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', selectedUser.id)
+
+          if (directError) throw directError
+
+          const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
+          setMessage({ 
+            type: 'success', 
+            text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다. (직접 업데이트)`
+          })
+        }
       }
       
       await logAdminActivity('change_user_role', 'user', selectedUser.id, {

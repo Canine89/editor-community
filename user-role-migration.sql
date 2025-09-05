@@ -71,12 +71,12 @@ BEGIN
         VALUES (
             user_uuid, 
             CASE old_role 
-                WHEN 'premium' THEN 'premium'::text
-                ELSE 'free'::text
+                WHEN 'premium' THEN 'premium'::membership_tier
+                ELSE 'free'::membership_tier
             END,
             CASE new_role 
-                WHEN 'premium' THEN 'premium'::text
-                ELSE 'free'::text
+                WHEN 'premium' THEN 'premium'::membership_tier
+                ELSE 'free'::membership_tier
             END,
             COALESCE(reason, '역할 변경: ' || old_role || ' → ' || new_role),
             NOW()
