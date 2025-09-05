@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,7 +46,7 @@ interface DocumentInfo {
   paragraphs: string[]
 }
 
-export default function WordCorrectorPage() {
+function WordCorrectorContent() {
   const [wordFile, setWordFile] = useState<File | null>(null)
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [wordDoc, setWordDoc] = useState<DocumentInfo | null>(null)
@@ -788,5 +789,18 @@ export default function WordCorrectorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function WordCorrectorPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      requirePremium={true} 
+      featureName="워드 교정 도구"
+      fallbackMessage="워드 교정 도구는 프리미엄 회원 전용 기능입니다. AI 기반 고급 문서 교정 기능을 이용하려면 프리미엄으로 업그레이드하세요."
+    >
+      <WordCorrectorContent />
+    </AuthRequired>
   )
 }

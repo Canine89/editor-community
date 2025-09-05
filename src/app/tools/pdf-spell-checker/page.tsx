@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,7 +65,7 @@ interface PDFInfo {
   pages: PDFPageContent[]
 }
 
-export default function PDFSpellCheckerPage() {
+function PDFSpellCheckerContent() {
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [pdfDoc, setPdfDoc] = useState<PDFInfo | null>(null)
@@ -932,5 +933,18 @@ export default function PDFSpellCheckerPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PDFSpellCheckerPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      requirePremium={true} 
+      featureName="PDF 맞춤법 검사기"
+      fallbackMessage="PDF 맞춤법 검사기는 프리미엄 회원 전용 기능입니다. AI 기반 고급 교정 기능을 이용하려면 프리미엄으로 업그레이드하세요."
+    >
+      <PDFSpellCheckerContent />
+    </AuthRequired>
   )
 }

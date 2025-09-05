@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAdmin } from '@/hooks/useAdmin'
+import { useMembership } from '@/hooks/useMembership'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -30,12 +31,15 @@ import {
   ChevronDown,
   Shield,
   BarChart3,
-  Edit3
+  Edit3,
+  Crown,
+  Zap
 } from 'lucide-react'
 
 export default function Header() {
   const { user, signOut } = useAuth()
   const { canAccessAdminPages, canViewBookSales, isEmployee, isMaster } = useAdmin()
+  const { tier, canAccessPremiumFeatures, loading } = useMembership()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
@@ -142,6 +146,12 @@ export default function Header() {
                       <span>사용자 관리</span>
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/membership" className="flex items-center">
+                      <Crown className="mr-2 h-4 w-4" />
+                      <span>회원 등급 관리</span>
+                    </Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -154,9 +164,32 @@ export default function Header() {
                 {/* 웰컴 메시지 */}
                 <div className="hidden md:flex items-center space-x-3 mr-4">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">
-                      환영합니다!
-                    </p>
+                    <div className="flex items-center justify-end gap-2 mb-1">
+                      <p className="text-sm font-medium text-slate-900">
+                        환영합니다!
+                      </p>
+                      {!loading && (
+                        <Badge 
+                          variant={tier === 'premium' ? 'default' : 'secondary'}
+                          className={tier === 'premium' 
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
+                            : 'text-xs'
+                          }
+                        >
+                          {tier === 'premium' ? (
+                            <>
+                              <Crown className="h-3 w-3 mr-1" />
+                              PREMIUM
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-3 w-3 mr-1" />
+                              FREE
+                            </>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-600">
                       {user.user_metadata?.full_name || user.email}
                     </p>
@@ -178,9 +211,32 @@ export default function Header() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {user.user_metadata?.full_name || '사용자'}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium leading-none">
+                            {user.user_metadata?.full_name || '사용자'}
+                          </p>
+                          {!loading && (
+                            <Badge 
+                              variant={tier === 'premium' ? 'default' : 'secondary'}
+                              className={tier === 'premium' 
+                                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
+                                : 'text-xs'
+                              }
+                            >
+                              {tier === 'premium' ? (
+                                <>
+                                  <Crown className="h-3 w-3 mr-1" />
+                                  PREMIUM
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  FREE
+                                </>
+                              )}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs leading-none text-muted-foreground">
                           {user.email}
                         </p>
@@ -304,6 +360,14 @@ export default function Header() {
                       >
                         <User className="h-4 w-4" />
                         <span>사용자 관리</span>
+                      </Link>
+                      <Link
+                        href="/admin/membership"
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Crown className="h-4 w-4" />
+                        <span>회원 등급 관리</span>
                       </Link>
                     </div>
                   )}
