@@ -284,15 +284,12 @@ export default function PDFEditorPage() {
       ...page,
       displayPageNumber: index + 1
     }))
-    // 개발 모드에서만 할당 결과 로그
-    if (process.env.NODE_ENV === 'development') {
-      console.log('displayPageNumber 할당 결과:', result.map(p => ({ 
-        id: p.id, 
-        pageNumber: p.pageNumber, 
-        displayPageNumber: p.displayPageNumber, 
-        sourceFile: p.sourceFile?.substring(0, 20) + '...' 
-      })))
-    }
+    // 할당 결과 상세 로그
+    console.log('=== displayPageNumber 할당 결과 ===')
+    result.forEach((p, idx) => {
+      console.log(`${idx + 1}. ID: ${p.id}, pageNumber: ${p.pageNumber}, displayPageNumber: ${p.displayPageNumber}, sourceFile: ${p.sourceFile?.substring(0, 15)}...`)
+    })
+    console.log('=== 할당 완료 ===')
     return result
   }, [])
 
@@ -484,8 +481,21 @@ export default function PDFEditorPage() {
     // 드래그되는 페이지의 현재 displayPageNumber 보존
     const draggedPage = pages.find(page => page.id === draggedPageId)
     if (draggedPage) {
+      const currentIndex = pages.findIndex(page => page.id === draggedPageId)
+      const calculatedNumber = currentIndex + 1
       const originalNumber = draggedPage.displayPageNumber || draggedPage.pageNumber
-      setDraggedPageOriginalNumber(originalNumber)
+      
+      // 디버깅 로그
+      console.log(`드래그 시작 - 페이지 ID: ${draggedPageId}`)
+      console.log(`- currentIndex: ${currentIndex}`)
+      console.log(`- calculatedNumber: ${calculatedNumber}`) 
+      console.log(`- displayPageNumber: ${draggedPage.displayPageNumber}`)
+      console.log(`- pageNumber: ${draggedPage.pageNumber}`)
+      console.log(`- sourceFile: ${draggedPage.sourceFile}`)
+      console.log(`- 최종 사용할 번호: ${calculatedNumber} (인덱스 기반)`)
+      
+      // 인덱스 기반으로 안전하게 계산
+      setDraggedPageOriginalNumber(calculatedNumber)
     }
   }, [pages])
 
