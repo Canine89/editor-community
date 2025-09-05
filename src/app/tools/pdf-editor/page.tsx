@@ -713,7 +713,7 @@ export default function PDFEditorPage() {
                         src={viewLargePage.highResCanvas} 
                         alt={`페이지 ${viewLargePage.pageNumber} 고해상도`}
                         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
-                        style={{ maxWidth: '72%', maxHeight: '72%' }}
+                        style={{ maxWidth: '58%', maxHeight: '58%' }}
                       />
                     </div>
                   ) : viewLargePage.canvas ? (
@@ -722,7 +722,7 @@ export default function PDFEditorPage() {
                         src={viewLargePage.canvas} 
                         alt={`페이지 ${viewLargePage.pageNumber}`}
                         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
-                        style={{ maxWidth: '72%', maxHeight: '72%' }}
+                        style={{ maxWidth: '58%', maxHeight: '58%' }}
                       />
                     </div>
                   ) : (
