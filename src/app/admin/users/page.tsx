@@ -142,14 +142,14 @@ export default function AdminUsersPage() {
         // 권한 정보가 있는 사용자들의 맵 생성
         const adminUsersMap = new Map()
         if (profilesData && !profilesError) {
-          profilesData.forEach(user => {
+          profilesData.forEach((user: any) => {
             const permissions = Array.isArray(user.admin_permissions) ? user.admin_permissions : [user.admin_permissions]
-            const activePermissions = permissions.filter(p => p.is_active)
+            const activePermissions = permissions.filter((p: any) => p.is_active)
             
             let userRole = 'user'
-            if (activePermissions.some(p => p.permission_type === 'master')) {
+            if (activePermissions.some((p: any) => p.permission_type === 'master')) {
               userRole = 'master'
-            } else if (activePermissions.some(p => p.permission_type === 'goldenrabbit_employee')) {
+            } else if (activePermissions.some((p: any) => p.permission_type === 'goldenrabbit_employee')) {
               userRole = 'employee'
             } else if (user.membership_tier === 'premium') {
               userRole = 'premium'
