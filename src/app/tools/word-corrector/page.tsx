@@ -456,23 +456,6 @@ export default function WordCorrectorPage() {
                         <div className="text-sm leading-relaxed">
                           {highlightText(paragraph, matches, index)}
                         </div>
-                        
-                        <Separator className="my-4" />
-                        
-                        <div className="space-y-2">
-                          <div className="text-xs font-medium text-slate-600 mb-2">수정 사항:</div>
-                          {paragraphMatches.map((match, matchIndex) => (
-                            <div key={matchIndex} className="flex items-center gap-2 text-sm">
-                              <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
-                                {match.original}
-                              </span>
-                              <span>→</span>
-                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
-                                {match.corrected}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
                       </CardContent>
                     </Card>
                   )

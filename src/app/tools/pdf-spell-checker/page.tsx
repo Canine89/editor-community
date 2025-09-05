@@ -654,26 +654,6 @@ export default function PDFSpellCheckerPage() {
                             </div>
                           )}
                         </div>
-                        
-                        {pageMatches.length > 0 && (
-                          <>
-                            <Separator className="my-4" />
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-slate-600 mb-2">수정 사항:</div>
-                              {pageMatches.map((match, matchIndex) => (
-                                <div key={matchIndex} className="flex items-center gap-2 text-sm">
-                                  <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
-                                    {match.original}
-                                  </span>
-                                  <span>→</span>
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
-                                    {match.corrected}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
                       </CardContent>
                     </Card>
                   )
