@@ -306,11 +306,19 @@ export default function PDFSpellCheckerPage() {
         for (let i = 0; i < data.length; i++) {
           const row = data[i]
           if (row && row[0] && row[1] && row[0].toString().trim() && row[1].toString().trim()) {
-            correctionPairs.push({
-              wrong: row[0].toString().trim(),
-              correct: row[1].toString().trim()
-            })
-            sheetPairs++
+            const wrong = row[0].toString().trim()
+            const correct = row[1].toString().trim()
+            
+            // 동일한 값은 제외하여 무한 루프 방지
+            if (wrong !== correct) {
+              correctionPairs.push({
+                wrong,
+                correct
+              })
+              sheetPairs++
+            } else {
+              console.log(`동일한 값 제외: "${wrong}" → "${correct}"`)
+            }
           }
         }
         console.log(`시트 '${sheetName}'에서 ${sheetPairs}개 교정 쌍 추출`)
