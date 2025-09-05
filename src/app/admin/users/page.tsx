@@ -246,6 +246,20 @@ export default function AdminUsersPage() {
             .eq('user_id', selectedUser.id)
         }
 
+        // membership_history에 기록 (enum 타입에 맞게 변환)
+        const fromTier = selectedUser.user_role === 'premium' ? 'premium' : 'free'
+        const toTier = selectedNewRole === 'premium' ? 'premium' : 'free'
+        
+        await (supabase as any)
+          .from('membership_history')
+          .insert({
+            user_id: selectedUser.id,
+            from_tier: fromTier,
+            to_tier: toTier,
+            reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`,
+            created_at: new Date().toISOString()
+          })
+
         setMessage({ 
           type: 'success', 
           text: `${selectedUser.email}의 역할이 변경되었습니다. (기존 시스템)` 
