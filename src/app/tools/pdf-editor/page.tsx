@@ -66,15 +66,12 @@ interface PDFInfo {
   fileSize: string
 }
 
-// 삽입 위치 인디케이터 컴포넌트 (빨간 세로선으로 간단히 표시)
-function DropIndicator({ isActive }: { isActive: boolean }) {
-  if (!isActive) return null
-  
+// 페이지 좌우측 삽입 인디케이터
+function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-      {/* 빨간 세로선 */}
-      <div className="w-1 h-full bg-red-500 shadow-lg animate-pulse"></div>
-    </div>
+    <div className={`absolute top-0 bottom-0 w-1 bg-red-500 shadow-lg animate-pulse z-30 ${
+      position === 'before' ? '-left-2' : '-right-2'
+    }`}></div>
   )
 }
 
@@ -199,6 +196,7 @@ export default function PDFEditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<{ pageId: string, position: 'before' | 'after' } | null>(null)
   const [viewLargePage, setViewLargePage] = useState<PDFPageData | null>(null)
 
   const sensors = useSensors(
@@ -360,7 +358,19 @@ export default function PDFEditorPage() {
   }
 
   const handleDragOver = (event: DragOverEvent) => {
-    setOverId(event.over?.id as string || null)
+    const overId = event.over?.id as string
+    setOverId(overId || null)
+    
+    if (overId && activeId && activeId !== overId) {
+      const activeIndex = pages.findIndex(p => p.id === activeId)
+      const overIndex = pages.findIndex(p => p.id === overId)
+      
+      // 드래그하는 페이지가 target 페이지보다 앞에 있으면 오른쪽에, 뒤에 있으면 왼쪽에 표시
+      const position = activeIndex < overIndex ? 'after' : 'before'
+      setDropPosition({ pageId: overId, position })
+    } else {
+      setDropPosition(null)
+    }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -377,6 +387,7 @@ export default function PDFEditorPage() {
 
     setActiveId(null)
     setOverId(null)
+    setDropPosition(null)
   }
 
   const deletePage = (pageId: string) => {
@@ -577,11 +588,9 @@ export default function PDFEditorPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {pages.map((page, index) => (
                           <div key={page.id} className="relative">
-                            {/* 드롭 인디케이터 - 드래그 중일 때만 표시 */}
-                            {activeId && activeId !== page.id && overId === page.id && (
-                              <div className="absolute -inset-2 z-10">
-                                <DropIndicator isActive={true} />
-                              </div>
+                            {/* 삽입 위치 인디케이터 - 페이지 좌우에 표시 */}
+                            {dropPosition && dropPosition.pageId === page.id && (
+                              <InsertionIndicator position={dropPosition.position} />
                             )}
                             <SortablePage
                               page={page}
