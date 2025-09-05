@@ -1,0 +1,263 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useMembership } from '@/hooks/useMembership'
+import { createClient } from '@/lib/supabase'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { 
+  User, 
+  Mail, 
+  Calendar,
+  Crown, 
+  Zap,
+  ArrowLeft,
+  Shield
+} from 'lucide-react'
+import Link from 'next/link'
+import { AuthRequired } from '@/components/auth/AuthRequired'
+
+interface UserProfile {
+  id: string
+  email: string
+  full_name: string | null
+  membership_tier: 'free' | 'premium'
+  created_at: string
+  updated_at: string
+}
+
+export default function ProfilePage() {
+  const { user } = useAuth()
+  const { tier, canAccessPremiumFeatures, loading: membershipLoading } = useMembership()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (user) {
+      loadProfile()
+    }
+  }, [user])
+
+  const loadProfile = async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, membership_tier, created_at, updated_at')
+        .eq('id', user.id)
+        .single()
+
+      if (error) throw error
+      setProfile(data)
+    } catch (error) {
+      console.error('프로필 로드 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading || membershipLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  return (
+    <AuthRequired>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* 헤더 */}
+          <div className="flex items-center gap-4 mb-8">
+            <Button variant="outline" size="icon" asChild>
+              <Link href="/">
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <User className="w-6 h-6 text-blue-600" />
+                내 프로필
+              </h1>
+              <p className="text-slate-600">계정 정보와 멤버십 현황을 확인하세요</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 기본 정보 */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    기본 정보
+                  </CardTitle>
+                  <CardDescription>
+                    계정의 기본 정보입니다
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {profile?.full_name || '이름 없음'}
+                      </h3>
+                      <p className="text-slate-600">{profile?.email}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium text-slate-700">이메일</span>
+                      </div>
+                      <span className="text-sm text-slate-900">{profile?.email}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm font-medium text-slate-700">가입일</span>
+                      </div>
+                      <span className="text-sm text-slate-900">
+                        {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('ko-KR') : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 멤버십 정보 */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="w-5 h-5 text-amber-600" />
+                    멤버십 현황
+                  </CardTitle>
+                  <CardDescription>
+                    현재 멤버십 등급과 혜택
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="text-center">
+                    <Badge 
+                      variant={tier === 'premium' ? 'default' : 'secondary'}
+                      className={tier === 'premium' 
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-lg px-4 py-2' 
+                        : 'text-lg px-4 py-2'
+                      }
+                    >
+                      {tier === 'premium' ? (
+                        <>
+                          <Crown className="h-4 w-4 mr-2" />
+                          PREMIUM
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          FREE
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-slate-900">현재 혜택</h4>
+                    {tier === 'premium' ? (
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          PDF 추출기 무제한 사용
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          워드 교정 도구 이용
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          PDF 맞춤법 검사기 이용
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          우선 고객 지원
+                        </li>
+                      </ul>
+                    ) : (
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          PDF 워터마크 도구
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          PDF 편집기 기본 기능
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-slate-300 rounded-full"></div>
+                          <span className="line-through">프리미엄 도구</span>
+                        </li>
+                      </ul>
+                    )}
+                  </div>
+
+                  {tier === 'free' && (
+                    <>
+                      <Separator />
+                      <div className="text-center">
+                        <p className="text-sm text-slate-600 mb-3">
+                          더 많은 기능을 원하시나요?
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          프리미엄 업그레이드는 관리자에게 문의하세요
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* 추가 정보 */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-green-600" />
+                계정 보안
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-slate-900">계정 상태</h4>
+                  <p className="text-sm text-slate-600">계정이 정상적으로 활성화되어 있습니다</p>
+                </div>
+                <Badge variant="outline" className="text-green-600 border-green-600">
+                  활성
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </AuthRequired>
+  )
+}

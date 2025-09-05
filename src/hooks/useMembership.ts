@@ -80,25 +80,3 @@ export async function logPremiumUsage(
   }
 }
 
-// 회원 등급 업그레이드 (관리자용)
-export async function upgradeMembership(
-  userId: string,
-  newTier: MembershipTier,
-  reason?: string
-) {
-  const supabase = createClient()
-
-  try {
-    const { error } = await (supabase as any).rpc('update_membership_tier', {
-      user_uuid: userId,
-      new_tier: newTier,
-      reason: reason || '수동 업그레이드'
-    })
-
-    if (error) throw error
-    return { success: true }
-  } catch (error) {
-    console.error('회원 등급 업그레이드 오류:', error)
-    return { success: false, error }
-  }
-}
