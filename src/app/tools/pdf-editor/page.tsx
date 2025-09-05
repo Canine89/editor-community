@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo, memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,7 +76,7 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode }: {
+const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId }: {
   page: PDFPageData
   onDelete: () => void
   onViewLarge: () => void
@@ -85,6 +85,8 @@ function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelec
   isSelected?: boolean
   onToggleSelect?: (event: React.MouseEvent) => void
   isMultiSelectMode?: boolean
+  selectedPages?: Set<string>
+  activeId?: string | null
 }) {
   const {
     attributes,
@@ -96,26 +98,36 @@ function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelec
   } = useSortable({ id: page.id })
 
   const actualIsDragging = isDragging || sortableIsDragging
+  
+  // 다중 선택된 그룹이 드래그되고 있는지 확인
+  const isGroupDragging = activeId && selectedPages && selectedPages.size > 0 && 
+                         selectedPages.has(activeId) && selectedPages.has(page.id) && !actualIsDragging
 
-  const style = {
+  const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
     transition: actualIsDragging ? 'none' : transition,
-    opacity: actualIsDragging ? 0.3 : 1,
-    scale: actualIsDragging ? 1.05 : 1,
-    zIndex: actualIsDragging ? 50 : 1,
-  }
+    opacity: actualIsDragging ? 0.3 : isGroupDragging ? 0.7 : 1,
+    scale: actualIsDragging ? 1.05 : isGroupDragging ? 1.02 : 1,
+    zIndex: actualIsDragging ? 50 : isGroupDragging ? 10 : 1,
+  }), [transform, transition, actualIsDragging, isGroupDragging])
 
-  const containerClasses = `
-    relative group rounded-lg bg-white transition-all duration-200
-    ${actualIsDragging ? 
-      'border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100' : 
-      isSelected ?
-        'border-2 border-purple-400 bg-purple-50 shadow-lg ring-2 ring-purple-200' :
-        isOver ? 
-          'border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200' :
-          'border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+  const containerClasses = useMemo(() => {
+    let classes = 'relative group rounded-lg bg-white transition-all duration-200'
+    
+    if (actualIsDragging) {
+      classes += ' border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100'
+    } else if (isGroupDragging) {
+      classes += ' border-2 border-purple-500 bg-purple-100 shadow-xl ring-3 ring-purple-300 animate-pulse'
+    } else if (isSelected) {
+      classes += ' border-2 border-purple-400 bg-purple-50 shadow-lg ring-2 ring-purple-200'
+    } else if (isOver) {
+      classes += ' border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200'
+    } else {
+      classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
     }
-  `.trim()
+    
+    return classes
+  }, [actualIsDragging, isGroupDragging, isSelected, isOver])
 
   return (
     <div 
@@ -206,7 +218,7 @@ function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelec
       </div>
     </div>
   )
-}
+})
 
 export default function PDFEditorPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -232,6 +244,18 @@ export default function PDFEditorPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // 페이지 ID → 인덱스 맵핑 (성능 최적화)
+  const pageIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    pages.forEach((page, index) => {
+      map.set(page.id, index)
+    })
+    return map
+  }, [pages])
+
+  // SortableContext용 아이템 ID 배열 (메모이제이션)
+  const sortableItems = useMemo(() => pages.map(page => page.id), [pages])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
@@ -379,43 +403,80 @@ export default function PDFEditorPage() {
     }
   }
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const draggedPageId = event.active.id as string
+    setActiveId(draggedPageId)
     setOverId(null)
-  }
+  }, [])
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     const overId = event.over?.id as string
     setOverId(overId || null)
     
     if (overId && activeId && activeId !== overId) {
-      const activeIndex = pages.findIndex(p => p.id === activeId)
-      const overIndex = pages.findIndex(p => p.id === overId)
+      const activeIndex = pageIndexMap.get(activeId) ?? -1
+      const overIndex = pageIndexMap.get(overId) ?? -1
       
-      // 드래그하는 페이지가 target 페이지보다 앞에 있으면 오른쪽에, 뒤에 있으면 왼쪽에 표시
-      const position = activeIndex < overIndex ? 'after' : 'before'
-      setDropPosition({ pageId: overId, position })
+      if (activeIndex !== -1 && overIndex !== -1) {
+        // 드래그하는 페이지가 target 페이지보다 앞에 있으면 오른쪽에, 뒤에 있으면 왼쪽에 표시
+        const position = activeIndex < overIndex ? 'after' : 'before'
+        setDropPosition({ pageId: overId, position })
+      }
     } else {
       setDropPosition(null)
     }
-  }
+  }, [activeId, pageIndexMap])
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
+    const draggedPageId = active.id as string
 
-    if (active.id !== over?.id) {
+    if (active.id !== over?.id && over?.id) {
       setPages((items) => {
-        const oldIndex = items.findIndex(item => item.id === active.id)
-        const newIndex = items.findIndex(item => item.id === over?.id)
+        const oldIndex = pageIndexMap.get(draggedPageId) ?? -1
+        const newIndex = pageIndexMap.get(over.id as string) ?? -1
         
-        return arrayMove(items, oldIndex, newIndex)
+        if (oldIndex === -1 || newIndex === -1) return items
+
+        // 다중 선택된 페이지들이 있고, 드래그한 페이지가 선택된 경우
+        if (selectedPages.size > 0 && selectedPages.has(draggedPageId)) {
+          // 선택된 페이지들을 원래 순서대로 정렬
+          const selectedPagesList = items
+            .filter(page => selectedPages.has(page.id))
+            .sort((a, b) => {
+              const aIndex = pageIndexMap.get(a.id) ?? 0
+              const bIndex = pageIndexMap.get(b.id) ?? 0
+              return aIndex - bIndex
+            })
+          
+          // 선택되지 않은 페이지들
+          const unselectedPages = items.filter(page => !selectedPages.has(page.id))
+          
+          // 새로운 위치 계산 (선택된 페이지들을 제거한 후의 인덱스)
+          let adjustedNewIndex = newIndex
+          for (const page of selectedPagesList) {
+            const pageIndex = pageIndexMap.get(page.id) ?? 0
+            if (pageIndex < newIndex) {
+              adjustedNewIndex--
+            }
+          }
+          
+          // 선택된 페이지들을 새로운 위치에 삽입
+          const result = [...unselectedPages]
+          result.splice(adjustedNewIndex, 0, ...selectedPagesList)
+          
+          return result
+        } else {
+          // 단일 페이지 이동 (기존 로직)
+          return arrayMove(items, oldIndex, newIndex)
+        }
       })
     }
 
     setActiveId(null)
     setOverId(null)
     setDropPosition(null)
-  }
+  }, [pageIndexMap, selectedPages])
 
   const deletePage = (pageId: string) => {
     setPages(pages => pages.filter(page => page.id !== pageId))
@@ -942,7 +1003,7 @@ export default function PDFEditorPage() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                   >
-                    <SortableContext items={pages.map(page => page.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {pages.map((page, index) => (
                           <div key={page.id} className="relative">
@@ -959,11 +1020,52 @@ export default function PDFEditorPage() {
                               isSelected={selectedPages.has(page.id)}
                               onToggleSelect={(event) => togglePageSelection(page.id, event)}
                               isMultiSelectMode={isMultiSelectMode}
+                              selectedPages={selectedPages}
+                              activeId={activeId}
                             />
                           </div>
                         ))}
                       </div>
                     </SortableContext>
+                    
+                    {/* 드래그 오버레이 - 다중 선택 정보 표시 */}
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="relative">
+                          {/* 메인 드래그 카드 */}
+                          <div className="bg-white border-2 border-blue-400 rounded-lg shadow-2xl ring-4 ring-blue-100 opacity-90">
+                            {(() => {
+                              const draggedPage = pages.find(p => p.id === activeId)
+                              return draggedPage ? (
+                                <div className="w-40 h-48 p-4">
+                                  {draggedPage.canvas ? (
+                                    <img 
+                                      src={draggedPage.canvas} 
+                                      alt={`페이지 ${draggedPage.pageNumber}`}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                      <FileText className="w-8 h-8" />
+                                    </div>
+                                  )}
+                                  <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                                    {draggedPage.pageNumber}
+                                  </div>
+                                </div>
+                              ) : null
+                            })()}
+                          </div>
+                          
+                          {/* 다중 선택 카운터 */}
+                          {selectedPages.size > 0 && selectedPages.has(activeId) && (
+                            <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+                              {selectedPages.size}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </DragOverlay>
                   </DndContext>
                 </div>
               </CardContent>
@@ -1035,7 +1137,9 @@ export default function PDFEditorPage() {
             <ul className="space-y-2 text-sm text-slate-700">
               <li>• PDF 파일을 업로드하면 모든 페이지의 미리보기가 생성됩니다</li>
               <li>• 페이지를 드래그하여 순서를 자유롭게 변경할 수 있습니다</li>
+              <li>• <strong>다중 선택 모드:</strong> 여러 페이지를 선택한 후 그 중 하나를 드래그하면 선택된 모든 페이지가 함께 이동됩니다</li>
               <li>• 눈 버튼으로 페이지를 크게 보거나 삭제 버튼으로 제거할 수 있습니다</li>
+              <li>• PDF 병합 기능으로 여러 PDF를 하나로 합칠 수 있습니다 (삽입 위치 선택 가능)</li>
               <li>• 편집이 완료되면 새로운 PDF 파일로 다운로드됩니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 안전합니다</li>
             </ul>
