@@ -106,7 +106,7 @@ export default function Header() {
                       {tool.isPremium && (
                         <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs ml-2">
                           <Crown className="h-3 w-3 mr-1" />
-                          프리미엄
+                          P
                         </Badge>
                       )}
                     </Link>
@@ -330,7 +330,7 @@ export default function Header() {
                         {tool.isPremium && (
                           <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs">
                             <Crown className="h-3 w-3 mr-1" />
-                            프리미엄
+                            P
                           </Badge>
                         )}
                       </Link>
