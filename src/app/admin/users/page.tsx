@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAdmin } from '@/hooks/useAdmin'
+import { useRole, UserRole, logAdminActivity } from '@/hooks/useRole'
+import { createClient } from '@/lib/supabase'
 import AdminLayout from '@/components/admin/AdminLayout'
-import DataTable from '@/components/admin/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -23,15 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Users,
   Shield,
-  Plus,
-  Minus,
   Calendar,
   Mail,
   User,
-  Crown
+  Crown,
+  Building,
+  Edit3,
+  Search,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react'
 
 interface AdminUser {
@@ -41,377 +46,338 @@ interface AdminUser {
   avatar_url: string
   created_at: string
   last_sign_in_at: string
-  permissions: Array<{
-    id: string
-    permission_type: 'master' | 'community_admin' | 'jobs_admin' | 'users_admin'
-    granted_at: string
-  }>
+  user_role: UserRole
 }
 
-const permissionTypes = [
-  { value: 'community_admin', label: '커뮤니티 관리자', color: 'bg-blue-500' },
-  { value: 'jobs_admin', label: '구인구직 관리자', color: 'bg-green-500' },
-  { value: 'users_admin', label: '사용자 관리자', color: 'bg-purple-500' },
-  { value: 'goldenrabbit_employee', label: '골든래빗 임직원', color: 'bg-orange-500' },
-  { value: 'master', label: '마스터 관리자', color: 'bg-red-500' },
+const roleTypes = [
+  { 
+    value: 'user' as UserRole, 
+    label: '일반 사용자', 
+    color: 'bg-slate-500',
+    icon: User,
+    description: '기본 기능만 사용 가능'
+  },
+  { 
+    value: 'premium' as UserRole, 
+    label: '프리미엄 사용자', 
+    color: 'bg-amber-500',
+    icon: Crown,
+    description: '프리미엄 기능 사용 가능'
+  },
+  { 
+    value: 'employee' as UserRole, 
+    label: '골든래빗 임직원', 
+    color: 'bg-orange-500',
+    icon: Building,
+    description: '프리미엄 + 도서 데이터 접근'
+  },
+  { 
+    value: 'master' as UserRole, 
+    label: '마스터 관리자', 
+    color: 'bg-red-500',
+    icon: Shield,
+    description: '모든 기능 + 관리자 권한'
+  },
 ]
 
 export default function AdminUsersPage() {
-  const { isAdmin, isMaster, getAllUsers, grantPermission, revokePermission, logActivity } = useAdmin()
+  const { canAccessAdminPages } = useRole()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
-  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
-  const [permissionAction, setPermissionAction] = useState<'grant' | 'revoke'>('grant')
-  const [selectedPermissionType, setSelectedPermissionType] = useState<string>('')
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
+  const [selectedNewRole, setSelectedNewRole] = useState<UserRole>('user')
   const [processing, setProcessing] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all')
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  
+  const supabase = createClient()
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canAccessAdminPages) {
       loadUsers()
-      logActivity('view_admin_users')
+      logAdminActivity('view_admin_users')
     }
-  }, [isAdmin])
+  }, [canAccessAdminPages])
 
   const loadUsers = async () => {
     try {
-      const data = await getAllUsers()
-      setUsers(data)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, user_role')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('사용자 조회 실패:', error)
+        return
+      }
+
+      setUsers(data || [])
     } catch (error) {
-      console.error('Failed to load users:', error)
+      console.error('사용자 로드 오류:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGrantPermission = (user: AdminUser) => {
+  const handleRoleChange = (user: AdminUser) => {
     setSelectedUser(user)
-    setPermissionAction('grant')
-    setSelectedPermissionType('')
-    setPermissionDialogOpen(true)
+    setSelectedNewRole(user.user_role)
+    setRoleDialogOpen(true)
   }
 
-  const handleRevokePermission = (user: AdminUser, permissionType: string) => {
-    setSelectedUser(user)
-    setPermissionAction('revoke')
-    setSelectedPermissionType(permissionType)
-    setPermissionDialogOpen(true)
-  }
-
-  const confirmPermissionAction = async () => {
-    if (!selectedUser || !selectedPermissionType) return
+  const updateUserRole = async () => {
+    if (!selectedUser || selectedUser.user_role === selectedNewRole) {
+      setRoleDialogOpen(false)
+      return
+    }
 
     setProcessing(true)
-    try {
-      let success = false
-      if (permissionAction === 'grant') {
-        success = await grantPermission(selectedUser.id, selectedPermissionType as any)
-      } else {
-        success = await revokePermission(selectedUser.id, selectedPermissionType as any)
-      }
+    setMessage(null)
 
-      if (success) {
-        await loadUsers() // Reload to get updated permissions
-        setPermissionDialogOpen(false)
-        setSelectedUser(null)
-        setSelectedPermissionType('')
-      }
+    try {
+      const { error } = await (supabase as any).rpc('update_user_role', {
+        user_uuid: selectedUser.id,
+        new_role: selectedNewRole,
+        reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`
+      })
+
+      if (error) throw error
+
+      const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
+      setMessage({ 
+        type: 'success', 
+        text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다.` 
+      })
+      
+      await logAdminActivity('change_user_role', 'user', selectedUser.id, {
+        from_role: selectedUser.user_role,
+        to_role: selectedNewRole
+      })
+      
+      // 데이터 새로고침
+      await loadUsers()
     } catch (error) {
-      console.error('Failed to manage permission:', error)
+      console.error('역할 변경 오류:', error)
+      setMessage({ type: 'error', text: '역할 변경에 실패했습니다.' })
     } finally {
       setProcessing(false)
+      setRoleDialogOpen(false)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '없음'
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const getRoleInfo = (role: UserRole) => {
+    return roleTypes.find(r => r.value === role) || roleTypes[0]
   }
 
-  const getPermissionInfo = (type: string) => {
-    return permissionTypes.find(p => p.value === type) || { label: type, color: 'bg-gray-500' }
-  }
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = searchTerm === '' || 
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesRole = filterRole === 'all' || user.user_role === filterRole
+    
+    return matchesSearch && matchesRole
+  })
 
-  const getAvailablePermissions = (user: AdminUser) => {
-    const userPermissions = (user.permissions || []).map(p => p.permission_type)
-    return permissionTypes.filter(p => !userPermissions.includes(p.value as any))
-  }
-
-  const columns = [
-    {
-      key: 'email',
-      label: '사용자',
-      sortable: true,
-      render: (value: string, row: AdminUser) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="font-medium text-slate-900">{row.full_name || '이름 없음'}</p>
-            <p className="text-xs text-slate-500">{value}</p>
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'permissions',
-      label: '권한',
-      render: (value: AdminUser['permissions'], row: AdminUser) => (
-        <div className="flex flex-wrap gap-1">
-          {(!value || value.length === 0) ? (
-            <Badge variant="outline" className="text-xs">일반 사용자</Badge>
-          ) : (
-            value.map((perm) => (
-              <Badge
-                key={perm.id}
-                variant="secondary"
-                className={`text-xs ${getPermissionInfo(perm.permission_type).color} text-white`}
-              >
-                {perm.permission_type === 'master' && <Crown className="w-3 h-3 mr-1" />}
-                {getPermissionInfo(perm.permission_type).label}
-              </Badge>
-            ))
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'created_at',
-      label: '가입일',
-      sortable: true,
-      render: (value: string) => (
-        <div className="flex items-center gap-1">
-          <Calendar className="w-3 h-3 text-slate-500" />
-          <span className="text-sm">{formatDate(value)}</span>
-        </div>
-      )
-    },
-    {
-      key: 'last_sign_in_at',
-      label: '최근 로그인',
-      sortable: true,
-      render: (value: string) => (
-        <div className="flex items-center gap-1">
-          <Calendar className="w-3 h-3 text-slate-500" />
-          <span className="text-sm">{formatDate(value)}</span>
-        </div>
-      )
-    }
-  ]
-
-  const actions = isMaster ? [
-    {
-      label: '권한 부여',
-      icon: Plus,
-      onClick: handleGrantPermission,
-      variant: 'ghost' as const,
-      className: 'text-green-600 hover:text-green-700'
-    }
-  ] : []
-
-  const stats = {
-    total: users.length,
-    admins: users.filter(u => (u.permissions || []).length > 0).length,
-    masters: users.filter(u => (u.permissions || []).some(p => p.permission_type === 'master')).length,
-    regular: users.filter(u => (u.permissions || []).length === 0).length
+  // 권한 체크
+  if (!canAccessAdminPages) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <Card className="max-w-md mx-auto text-center">
+          <CardHeader>
+            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <Shield className="h-6 w-6 text-red-600" />
+            </div>
+            <CardTitle>접근 권한 없음</CardTitle>
+            <CardDescription>
+              마스터 관리자만 접근할 수 있는 페이지입니다.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <AdminLayout title="사용자 관리" description="사용자 정보 및 관리자 권한 관리">
+    <AdminLayout title="사용자 및 역할 관리">
       <div className="space-y-6">
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">전체 사용자</CardTitle>
-              <Users className="h-4 w-4 text-slate-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">관리자</CardTitle>
-              <Shield className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.admins}</div>
-              <p className="text-xs text-slate-600">
-                전체의 {stats.total > 0 ? Math.round((stats.admins / stats.total) * 100) : 0}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">마스터 관리자</CardTitle>
-              <Crown className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.masters}</div>
-              <p className="text-xs text-slate-600">
-                최고 권한 보유자
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">일반 사용자</CardTitle>
-              <User className="h-4 w-4 text-slate-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.regular}</div>
-              <p className="text-xs text-slate-600">
-                관리자 권한 없음
-              </p>
-            </CardContent>
-          </Card>
+        {/* 헤더 */}
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Users className="w-6 h-6 text-blue-600" />
+            사용자 및 역할 관리
+          </h1>
+          <p className="text-slate-600">모든 사용자의 역할을 통합 관리하세요</p>
         </div>
 
-        {!isMaster && (
-          <Card className="bg-orange-50 border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-sm text-orange-800 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                권한 제한
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-orange-700">
-                사용자 권한 관리는 마스터 관리자만 수행할 수 있습니다.
-              </p>
-            </CardContent>
-          </Card>
+        {/* 알림 메시지 */}
+        {message && (
+          <Alert className={`${message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
+            {message.type === 'error' ? (
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            ) : (
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            )}
+            <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+              {message.text}
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* Users Table */}
-        <DataTable
-          title="사용자 목록"
-          data={users}
-          columns={columns}
-          actions={actions}
-          loading={loading}
-          searchPlaceholder="이름, 이메일 검색..."
-          emptyMessage="등록된 사용자가 없습니다"
-        />
-
-        {/* Permission Management Dialog */}
-        <Dialog open={permissionDialogOpen} onOpenChange={setPermissionDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>
-                {permissionAction === 'grant' ? '권한 부여' : '권한 해제'}
-              </DialogTitle>
-              <DialogDescription>
-                {permissionAction === 'grant' 
-                  ? '사용자에게 관리자 권한을 부여합니다.'
-                  : '사용자의 관리자 권한을 해제합니다.'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            {selectedUser && (
-              <div className="py-4">
-                <div className="bg-slate-50 p-4 rounded-lg mb-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        {selectedUser.full_name || '이름 없음'}
-                      </p>
-                      <p className="text-sm text-slate-600">{selectedUser.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-slate-700 mb-2">현재 권한:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {(!selectedUser.permissions || selectedUser.permissions.length === 0) ? (
-                        <Badge variant="outline" className="text-xs">일반 사용자</Badge>
-                      ) : (
-                        selectedUser.permissions.map((perm) => (
-                          <div key={perm.id} className="flex items-center gap-1">
-                            <Badge
-                              variant="secondary"
-                              className={`text-xs ${getPermissionInfo(perm.permission_type).color} text-white`}
-                            >
-                              {perm.permission_type === 'master' && <Crown className="w-3 h-3 mr-1" />}
-                              {getPermissionInfo(perm.permission_type).label}
-                            </Badge>
-                            {permissionAction === 'grant' && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                onClick={() => handleRevokePermission(selectedUser, perm.permission_type)}
-                              >
-                                <Minus className="w-3 h-3" />
-                              </Button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+        {/* 필터 및 검색 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">사용자 목록</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Label htmlFor="search">사용자 검색</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="search"
+                    placeholder="이메일 또는 이름으로 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="filter">역할 필터</Label>
+                <Select value={filterRole} onValueChange={(value: UserRole | 'all') => setFilterRole(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    {roleTypes.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                {permissionAction === 'grant' && (
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">
-                      부여할 권한 선택:
-                    </label>
-                    <Select value={selectedPermissionType} onValueChange={setSelectedPermissionType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="권한을 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailablePermissions(selectedUser).map((permission) => (
-                          <SelectItem key={permission.value} value={permission.value}>
-                            <div className="flex items-center gap-2">
-                              {permission.value === 'master' && <Crown className="w-4 h-4 text-red-500" />}
-                              <span>{permission.label}</span>
+        {/* 사용자 목록 */}
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">
+                {searchTerm || filterRole !== 'all' ? '검색 결과가 없습니다.' : '사용자가 없습니다.'}
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredUsers.map((user) => {
+                  const roleInfo = getRoleInfo(user.user_role)
+                  const RoleIcon = roleInfo.icon
+
+                  return (
+                    <div key={user.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                            <User className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-slate-900">
+                                {user.full_name || '이름 없음'}
+                              </p>
+                              <Badge 
+                                variant="outline"
+                                className={`text-white text-xs ${roleInfo.color}`}
+                              >
+                                <RoleIcon className="h-3 w-3 mr-1" />
+                                {roleInfo.label}
+                              </Badge>
                             </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {permissionAction === 'revoke' && (
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <p className="text-sm text-red-800">
-                      <strong>{getPermissionInfo(selectedPermissionType).label}</strong> 권한을 해제하시겠습니까?
-                    </p>
-                  </div>
-                )}
+                            <p className="text-sm text-slate-600">{user.email}</p>
+                            <p className="text-xs text-slate-500">
+                              가입일: {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRoleChange(user)}
+                            className="flex items-center gap-1"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            역할 변경
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* 역할 변경 다이얼로그 */}
+        <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>사용자 역할 변경</DialogTitle>
+              <DialogDescription>
+                {selectedUser?.email}의 역할을 변경합니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="role-select">새로운 역할</Label>
+                <Select value={selectedNewRole} onValueChange={(value: UserRole) => setSelectedNewRole(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleTypes.map((role) => {
+                      const RoleIcon = role.icon
+                      return (
+                        <SelectItem key={role.value} value={role.value}>
+                          <div className="flex items-center gap-2">
+                            <RoleIcon className="h-4 w-4" />
+                            <span>{role.label}</span>
+                            <span className="text-xs text-slate-500">- {role.description}</span>
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setPermissionDialogOpen(false)}
+                onClick={() => setRoleDialogOpen(false)}
                 disabled={processing}
               >
                 취소
               </Button>
               <Button
-                onClick={confirmPermissionAction}
-                disabled={processing || (permissionAction === 'grant' && !selectedPermissionType)}
-                variant={permissionAction === 'revoke' ? "destructive" : "default"}
+                onClick={updateUserRole}
+                disabled={processing || selectedUser?.user_role === selectedNewRole}
               >
-                {processing ? '처리 중...' : (permissionAction === 'grant' ? '권한 부여' : '권한 해제')}
+                {processing ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : null}
+                역할 변경
               </Button>
             </DialogFooter>
           </DialogContent>

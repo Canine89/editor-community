@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { useMembership } from '@/hooks/useMembership'
+import { useRole, UserRole } from '@/hooks/useRole'
 import { createClient } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,8 @@ import {
   Crown, 
   Zap,
   ArrowLeft,
-  Shield
+  Shield,
+  Building
 } from 'lucide-react'
 import Link from 'next/link'
 import { AuthRequired } from '@/components/auth/AuthRequired'
@@ -24,14 +25,14 @@ interface UserProfile {
   id: string
   email: string
   full_name: string | null
-  membership_tier: 'free' | 'premium'
+  user_role: UserRole
   created_at: string
   updated_at: string
 }
 
 export default function ProfilePage() {
   const { user } = useAuth()
-  const { tier, canAccessPremiumFeatures, loading: membershipLoading } = useMembership()
+  const { role, canAccessPremiumFeatures, loading: roleLoading } = useRole()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   
@@ -50,7 +51,7 @@ export default function ProfilePage() {
       setLoading(true)
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, full_name, membership_tier, created_at, updated_at')
+        .select('id, email, full_name, user_role, created_at, updated_at')
         .eq('id', user.id)
         .single()
 
@@ -63,7 +64,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading || membershipLoading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -142,28 +143,38 @@ export default function ProfilePage() {
               </Card>
             </div>
 
-            {/* 멤버십 정보 */}
+            {/* 역할 정보 */}
             <div>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Crown className="w-5 h-5 text-amber-600" />
-                    멤버십 현황
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    사용자 역할
                   </CardTitle>
                   <CardDescription>
-                    현재 멤버십 등급과 혜택
+                    현재 역할과 권한
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="text-center">
                     <Badge 
-                      variant={tier === 'premium' ? 'default' : 'secondary'}
-                      className={tier === 'premium' 
+                      variant={role === 'user' ? 'secondary' : 'default'}
+                      className={role !== 'user'
                         ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-lg px-4 py-2' 
                         : 'text-lg px-4 py-2'
                       }
                     >
-                      {tier === 'premium' ? (
+                      {role === 'master' ? (
+                        <>
+                          <Shield className="h-4 w-4 mr-2" />
+                          MASTER
+                        </>
+                      ) : role === 'employee' ? (
+                        <>
+                          <Building className="h-4 w-4 mr-2" />
+                          EMPLOYEE
+                        </>
+                      ) : role === 'premium' ? (
                         <>
                           <Crown className="h-4 w-4 mr-2" />
                           PREMIUM
@@ -171,7 +182,7 @@ export default function ProfilePage() {
                       ) : (
                         <>
                           <Zap className="h-4 w-4 mr-2" />
-                          FREE
+                          USER
                         </>
                       )}
                     </Badge>
@@ -180,8 +191,42 @@ export default function ProfilePage() {
                   <Separator />
 
                   <div className="space-y-3">
-                    <h4 className="font-medium text-slate-900">현재 혜택</h4>
-                    {tier === 'premium' ? (
+                    <h4 className="font-medium text-slate-900">현재 권한</h4>
+                    {role === 'master' ? (
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          모든 프리미엄 기능 사용
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          도서 판매 데이터 접근
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          관리자 페이지 접근
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          사용자 역할 관리
+                        </li>
+                      </ul>
+                    ) : role === 'employee' ? (
+                      <ul className="space-y-2 text-sm text-slate-600">
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          모든 프리미엄 기능 사용
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          도서 판매 데이터 접근
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-slate-300 rounded-full"></div>
+                          <span className="line-through">관리자 페이지</span>
+                        </li>
+                      </ul>
+                    ) : role === 'premium' ? (
                       <ul className="space-y-2 text-sm text-slate-600">
                         <li className="flex items-center gap-2">
                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
@@ -212,13 +257,13 @@ export default function ProfilePage() {
                         </li>
                         <li className="flex items-center gap-2">
                           <div className="w-1.5 h-1.5 bg-slate-300 rounded-full"></div>
-                          <span className="line-through">프리미엄 도구</span>
+                          <span className="line-through">프리미엄 기능</span>
                         </li>
                       </ul>
                     )}
                   </div>
 
-                  {tier === 'free' && (
+                  {role === 'user' && (
                     <>
                       <Separator />
                       <div className="text-center">
@@ -226,7 +271,7 @@ export default function ProfilePage() {
                           더 많은 기능을 원하시나요?
                         </p>
                         <p className="text-xs text-slate-500">
-                          프리미엄 업그레이드는 관리자에게 문의하세요
+                          역할 업그레이드는 관리자에게 문의하세요
                         </p>
                       </div>
                     </>

@@ -796,7 +796,7 @@ export default function WordCorrectorPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
-      requirePremium={true} 
+      requireRole="premium" 
       featureName="워드 교정 도구"
       fallbackMessage="워드 교정 도구는 프리미엄 회원 전용 기능입니다. AI 기반 고급 문서 교정 기능을 이용하려면 프리미엄으로 업그레이드하세요."
     >

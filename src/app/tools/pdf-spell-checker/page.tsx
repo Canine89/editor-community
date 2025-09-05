@@ -940,7 +940,7 @@ export default function PDFSpellCheckerPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
-      requirePremium={true} 
+      requireRole="premium" 
       featureName="PDF 맞춤법 검사기"
       fallbackMessage="PDF 맞춤법 검사기는 프리미엄 회원 전용 기능입니다. AI 기반 고급 교정 기능을 이용하려면 프리미엄으로 업그레이드하세요."
     >

@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { useAdmin } from '@/hooks/useAdmin'
-import { useMembership } from '@/hooks/useMembership'
+import { useRole } from '@/hooks/useRole'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -33,13 +32,13 @@ import {
   BarChart3,
   Edit3,
   Crown,
-  Zap
+  Zap,
+  Building
 } from 'lucide-react'
 
 export default function Header() {
   const { user, signOut } = useAuth()
-  const { canAccessAdminPages, canViewBookSales, isEmployee, isMaster } = useAdmin()
-  const { tier, canAccessPremiumFeatures, loading } = useMembership()
+  const { role, canAccessPremiumFeatures, canViewBookSales, canAccessAdminPages, loading } = useRole()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
@@ -53,7 +52,7 @@ export default function Header() {
     { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: false },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
     { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
-    ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3, isPremium: false }] : []),
+    ...(canViewBookSales ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3, isPremium: false }] : []),
   ]
 
   return (
@@ -116,7 +115,7 @@ export default function Header() {
             </DropdownMenu>
 
             {/* 관리자 메뉴 */}
-            {canAccessAdminPages() && (
+            {canAccessAdminPages && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -154,12 +153,6 @@ export default function Header() {
                       <span>사용자 관리</span>
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/membership" className="flex items-center">
-                      <Crown className="mr-2 h-4 w-4" />
-                      <span>회원 등급 관리</span>
-                    </Link>
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -178,13 +171,23 @@ export default function Header() {
                       </p>
                       {!loading && (
                         <Badge 
-                          variant={tier === 'premium' ? 'default' : 'secondary'}
-                          className={tier === 'premium' 
+                          variant={role === 'user' ? 'secondary' : 'default'}
+                          className={role !== 'user'
                             ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
                             : 'text-xs'
                           }
                         >
-                          {tier === 'premium' ? (
+                          {role === 'master' ? (
+                            <>
+                              <Shield className="h-3 w-3 mr-1" />
+                              MASTER
+                            </>
+                          ) : role === 'employee' ? (
+                            <>
+                              <Building className="h-3 w-3 mr-1" />
+                              EMPLOYEE
+                            </>
+                          ) : role === 'premium' ? (
                             <>
                               <Crown className="h-3 w-3 mr-1" />
                               PREMIUM
@@ -192,7 +195,7 @@ export default function Header() {
                           ) : (
                             <>
                               <Zap className="h-3 w-3 mr-1" />
-                              FREE
+                              USER
                             </>
                           )}
                         </Badge>
@@ -225,13 +228,23 @@ export default function Header() {
                           </p>
                           {!loading && (
                             <Badge 
-                              variant={tier === 'premium' ? 'default' : 'secondary'}
-                              className={tier === 'premium' 
+                              variant={role === 'user' ? 'secondary' : 'default'}
+                              className={role !== 'user'
                                 ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
                                 : 'text-xs'
                               }
                             >
-                              {tier === 'premium' ? (
+                              {role === 'master' ? (
+                                <>
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  MASTER
+                                </>
+                              ) : role === 'employee' ? (
+                                <>
+                                  <Building className="h-3 w-3 mr-1" />
+                                  EMPLOYEE
+                                </>
+                              ) : role === 'premium' ? (
                                 <>
                                   <Crown className="h-3 w-3 mr-1" />
                                   PREMIUM
@@ -239,7 +252,7 @@ export default function Header() {
                               ) : (
                                 <>
                                   <Zap className="h-3 w-3 mr-1" />
-                                  FREE
+                                  USER
                                 </>
                               )}
                             </Badge>
@@ -338,7 +351,7 @@ export default function Header() {
                   </div>
 
                   {/* 모바일 관리자 메뉴 */}
-                  {canAccessAdminPages() && (
+                  {canAccessAdminPages && (
                     <div className="border-t pt-2 mt-2">
                       <p className="text-xs font-medium text-red-500 px-2 mb-2 flex items-center gap-1">
                         <Shield className="h-3 w-3" />
@@ -376,14 +389,6 @@ export default function Header() {
                       >
                         <User className="h-4 w-4" />
                         <span>사용자 관리</span>
-                      </Link>
-                      <Link
-                        href="/admin/membership"
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Crown className="h-4 w-4" />
-                        <span>회원 등급 관리</span>
                       </Link>
                     </div>
                   )}

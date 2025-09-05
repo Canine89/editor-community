@@ -390,7 +390,7 @@ export default function PDFExtractorPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
-      requirePremium={true} 
+      requireRole="premium" 
       featureName="PDF 추출기"
       fallbackMessage="PDF 추출기는 프리미엄 회원 전용 기능입니다. PDF 파일의 특정 페이지를 정밀하게 추출하는 고급 기능을 이용하려면 프리미엄으로 업그레이드하세요."
     >
