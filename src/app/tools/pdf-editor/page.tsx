@@ -108,6 +108,9 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
 
   // 추가 파일 여부 확인
   const isAdditionalFile = page.sourceFile && page.sourceFile !== mainFileName
+  
+  // 디버깅 로그
+  console.log(`Page ${page.id}: sourceFile="${page.sourceFile}", mainFileName="${mainFileName}", isAdditionalFile=${isAdditionalFile}, displayPageNumber=${page.displayPageNumber}`)
 
   const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
@@ -272,10 +275,12 @@ export default function PDFEditorPage() {
 
   // displayPageNumber를 순차적으로 할당하는 도우미 함수
   const assignDisplayPageNumbers = useCallback((pagesArray: PDFPageData[]): PDFPageData[] => {
-    return pagesArray.map((page, index) => ({
+    const result = pagesArray.map((page, index) => ({
       ...page,
       displayPageNumber: index + 1
     }))
+    console.log('displayPageNumber 할당 결과:', result.map(p => ({ id: p.id, pageNumber: p.pageNumber, displayPageNumber: p.displayPageNumber, sourceFile: p.sourceFile })))
+    return result
   }, [])
 
   // 페이지 ID → 인덱스 맵핑 (성능 최적화)
