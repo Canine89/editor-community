@@ -117,21 +117,33 @@ export default function WordCorrectorPage() {
     try {
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[firstSheetName]
-      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][]
-
-      // A열(틀린 것), B열(맞는 것) 추출
+      
+      // 모든 시트에서 교정 데이터 추출
       const correctionPairs: CorrectionPair[] = []
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i]
-        if (row && row[0] && row[1] && row[0].toString().trim() && row[1].toString().trim()) {
-          correctionPairs.push({
-            wrong: row[0].toString().trim(),
-            correct: row[1].toString().trim()
-          })
+      
+      console.log(`Excel 파일에서 ${workbook.SheetNames.length}개 시트 발견:`, workbook.SheetNames)
+      
+      workbook.SheetNames.forEach(sheetName => {
+        console.log(`시트 '${sheetName}' 처리 중...`)
+        const worksheet = workbook.Sheets[sheetName]
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][]
+
+        // A열(틀린 것), B열(맞는 것) 추출
+        let sheetPairs = 0
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i]
+          if (row && row[0] && row[1] && row[0].toString().trim() && row[1].toString().trim()) {
+            correctionPairs.push({
+              wrong: row[0].toString().trim(),
+              correct: row[1].toString().trim()
+            })
+            sheetPairs++
+          }
         }
-      }
+        console.log(`시트 '${sheetName}'에서 ${sheetPairs}개 교정 쌍 추출`)
+      })
+      
+      console.log(`총 ${correctionPairs.length}개 교정 쌍 로드됨`)
 
       if (correctionPairs.length === 0) {
         setError('Excel 파일의 A열(틀린 표현), B열(올바른 표현)에 데이터가 없습니다.')
@@ -576,7 +588,10 @@ export default function WordCorrectorPage() {
                           {excelFile?.name}
                         </p>
                         <p className="text-sm text-green-700">
-                          {corrections.length}개의 교정 규칙 로드 완료
+                          총 <strong>{corrections.length}개의 교정 규칙</strong> 로드 완료 (전체 시트 포함)
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          💡 모든 시트의 A열(틀린 표현)과 B열(올바른 표현)을 검색합니다
                         </p>
                       </div>
                     </div>
