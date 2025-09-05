@@ -29,7 +29,10 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+  DragOverlay
 } from '@dnd-kit/core'
 import {
   arrayMove,
@@ -60,11 +63,38 @@ interface PDFInfo {
   fileSize: string
 }
 
+// 삽입 위치 인디케이터 컴포넌트
+function DropIndicator({ isActive }: { isActive: boolean }) {
+  if (!isActive) return null
+  
+  return (
+    <div className="relative flex items-center justify-center h-full">
+      {/* 세로 삽입 라인 */}
+      <div className="absolute inset-y-0 left-1/2 w-1 bg-blue-500 transform -translate-x-1/2 animate-pulse rounded-full shadow-lg">
+        {/* 상단 원형 인디케이터 */}
+        <div className="absolute -top-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
+          <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
+        {/* 하단 원형 인디케이터 */}
+        <div className="absolute -bottom-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
+          <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
+      </div>
+      {/* 텍스트 */}
+      <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg z-10">
+        여기에 삽입
+      </div>
+    </div>
+  )
+}
+
 // 드래그 가능한 페이지 썸네일 컴포넌트
-function SortablePage({ page, onDelete, onDuplicate }: {
+function SortablePage({ page, onDelete, onDuplicate, isOver, isDragging }: {
   page: PDFPageData
   onDelete: () => void
   onDuplicate: () => void
+  isOver?: boolean
+  isDragging?: boolean
 }) {
   const {
     attributes,
@@ -72,31 +102,50 @@ function SortablePage({ page, onDelete, onDuplicate }: {
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging: sortableIsDragging
   } = useSortable({ id: page.id })
+
+  const actualIsDragging = isDragging || sortableIsDragging
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: actualIsDragging ? 'none' : transition,
+    opacity: actualIsDragging ? 0.3 : 1,
+    scale: actualIsDragging ? 1.05 : 1,
+    zIndex: actualIsDragging ? 50 : 1,
   }
+
+  const containerClasses = `
+    relative group rounded-lg bg-white transition-all duration-200
+    ${actualIsDragging ? 
+      'border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100' : 
+      isOver ? 
+        'border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200' :
+        'border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+    }
+  `.trim()
 
   return (
     <div 
       ref={setNodeRef}
       style={style}
-      className={`relative group border-2 border-slate-200 rounded-lg bg-white hover:border-blue-300 transition-colors ${
-        isDragging ? 'shadow-lg' : 'shadow-sm hover:shadow-md'
-      }`}
+      className={containerClasses}
     >
       {/* 드래그 핸들 */}
       <div 
         {...attributes}
         {...listeners}
-        className="absolute top-2 left-2 z-10 p-1 bg-white rounded border border-slate-300 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        className={`
+          absolute top-2 left-2 z-10 p-1 rounded border cursor-grab active:cursor-grabbing 
+          transition-all duration-200
+          ${actualIsDragging ? 
+            'bg-blue-500 border-blue-600 opacity-100' : 
+            'bg-white border-slate-300 opacity-0 group-hover:opacity-100'
+          }
+        `}
         title="드래그하여 순서 변경"
       >
-        <GripVertical className="w-4 h-4 text-slate-600" />
+        <GripVertical className={`w-4 h-4 ${actualIsDragging ? 'text-white' : 'text-slate-600'}`} />
       </div>
 
       {/* 페이지 번호 */}
@@ -158,6 +207,8 @@ export default function PDFEditorPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -274,6 +325,15 @@ export default function PDFEditorPage() {
     }
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+    setOverId(null)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    setOverId(event.over?.id as string || null)
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
@@ -285,6 +345,9 @@ export default function PDFEditorPage() {
         return arrayMove(items, oldIndex, newIndex)
       })
     }
+
+    setActiveId(null)
+    setOverId(null)
   }
 
   const deletePage = (pageId: string) => {
@@ -461,6 +524,8 @@ export default function PDFEditorPage() {
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext items={pages.map(page => page.id)} strategy={verticalListSortingStrategy}>
@@ -471,6 +536,8 @@ export default function PDFEditorPage() {
                             page={page}
                             onDelete={() => deletePage(page.id)}
                             onDuplicate={() => duplicatePage(page.id)}
+                            isOver={overId === page.id}
+                            isDragging={activeId === page.id}
                           />
                         ))}
                       </div>
