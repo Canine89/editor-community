@@ -239,33 +239,11 @@ export default function Header() {
                     {canAccessAdminPages && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-red-600 font-medium flex items-center gap-1">
-                          <Shield className="h-3 w-3" />
-                          관리자 메뉴
-                          <Badge variant="destructive" className="text-xs ml-1">ADMIN</Badge>
-                        </DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                          <Link href="/admin" className="flex items-center">
+                          <Link href="/admin" className="flex items-center text-red-600 font-medium">
                             <Shield className="mr-2 h-4 w-4" />
-                            <span>관리자 대시보드</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin/users" className="flex items-center">
-                            <User className="mr-2 h-4 w-4" />
-                            <span>사용자 관리</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin/community" className="flex items-center">
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            <span>커뮤니티 관리</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin/jobs" className="flex items-center">
-                            <Briefcase className="mr-2 h-4 w-4" />
-                            <span>구인구직 관리</span>
+                            <span>관리자 메뉴</span>
+                            <Badge variant="destructive" className="text-xs ml-2">ADMIN</Badge>
                           </Link>
                         </DropdownMenuItem>
                       </>
