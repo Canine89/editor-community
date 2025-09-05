@@ -227,12 +227,12 @@ export default function WordCorrectorPage() {
         result.push(
           <span
             key={`${paragraphIndex}-${index}`}
-            className="bg-red-100 text-red-800 px-1 rounded relative group"
-            title={`"${match.original}" → "${match.corrected}"`}
+            className="bg-green-100 text-green-800 px-1 rounded relative group"
+            title={`교정됨: "${match.original}" → "${match.corrected}"`}
           >
-            {match.original}
+            {match.corrected}
             <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-              → {match.corrected}
+              원래: {match.original}
             </span>
           </span>
         )
