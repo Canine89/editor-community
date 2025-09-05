@@ -147,8 +147,8 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
     return classes
   }, [actualIsDragging, isGroupDragging, isSelected, isOver, isAdditionalFile])
 
-  // 원본 정보 툴팁 텍스트
-  const tooltipText = isAdditionalFile && page.sourceFile && page.pageNumber 
+  // 원본 정보 툴팁 텍스트 - 모든 페이지에 적용
+  const tooltipText = page.sourceFile && page.pageNumber 
     ? `원본: ${page.sourceFile} ${page.pageNumber}페이지`
     : undefined
 
@@ -200,9 +200,11 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
         </div>
       )}
 
-      {/* 추가 파일 소스 배지 - 파일명과 원본 페이지 번호 표시 */}
-      {isAdditionalFile && page.sourceFile && (
-        <div className="absolute top-10 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full max-w-24 truncate"
+      {/* 소스 파일 배지 - 모든 페이지에 파일명과 원본 페이지 번호 표시 */}
+      {page.sourceFile && (
+        <div className={`absolute top-10 right-2 text-white text-xs px-2 py-1 rounded-full max-w-24 truncate ${
+          isAdditionalFile ? 'bg-green-600' : 'bg-slate-600'
+        }`}
              title={`소스: ${page.sourceFile} (원본 페이지 ${page.pageNumber})`}>
           {page.sourceFile.replace('.pdf', '').substring(0, 6)}..{page.pageNumber}p
         </div>
