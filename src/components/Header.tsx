@@ -114,48 +114,6 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* 관리자 메뉴 */}
-            {canAccessAdminPages && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
-                  >
-                    <Shield className="h-4 w-4" />
-                    <span>관리자</span>
-                    <Badge variant="destructive" className="text-xs ml-1">ADMIN</Badge>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin" className="flex items-center">
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>대시보드</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/community" className="flex items-center">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      <span>커뮤니티 관리</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/jobs" className="flex items-center">
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      <span>구인구직 관리</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin/users" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>사용자 관리</span>
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </nav>
 
           {/* 사용자 메뉴 */}
@@ -276,6 +234,43 @@ export default function Header() {
                         <span>홈</span>
                       </Link>
                     </DropdownMenuItem>
+                    
+                    {/* 관리자 메뉴 */}
+                    {canAccessAdminPages && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-red-600 font-medium flex items-center gap-1">
+                          <Shield className="h-3 w-3" />
+                          관리자 메뉴
+                          <Badge variant="destructive" className="text-xs ml-1">ADMIN</Badge>
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin" className="flex items-center">
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>관리자 대시보드</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/users" className="flex items-center">
+                            <User className="mr-2 h-4 w-4" />
+                            <span>사용자 관리</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/community" className="flex items-center">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            <span>커뮤니티 관리</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/jobs" className="flex items-center">
+                            <Briefcase className="mr-2 h-4 w-4" />
+                            <span>구인구직 관리</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="text-red-600">
                       <LogOut className="mr-2 h-4 w-4" />
@@ -350,48 +345,6 @@ export default function Header() {
                     ))}
                   </div>
 
-                  {/* 모바일 관리자 메뉴 */}
-                  {canAccessAdminPages && (
-                    <div className="border-t pt-2 mt-2">
-                      <p className="text-xs font-medium text-red-500 px-2 mb-2 flex items-center gap-1">
-                        <Shield className="h-3 w-3" />
-                        관리자 메뉴
-                        <Badge variant="destructive" className="text-xs">ADMIN</Badge>
-                      </p>
-                      <Link
-                        href="/admin"
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Shield className="h-4 w-4" />
-                        <span>대시보드</span>
-                      </Link>
-                      <Link
-                        href="/admin/community"
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        <span>커뮤니티 관리</span>
-                      </Link>
-                      <Link
-                        href="/admin/jobs"
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Briefcase className="h-4 w-4" />
-                        <span>구인구직 관리</span>
-                      </Link>
-                      <Link
-                        href="/admin/users"
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <User className="h-4 w-4" />
-                        <span>사용자 관리</span>
-                      </Link>
-                    </div>
-                  )}
 
                   {user && (
                     <>
