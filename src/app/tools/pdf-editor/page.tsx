@@ -257,6 +257,18 @@ export default function PDFEditorPage() {
   // SortableContext용 아이템 ID 배열 (메모이제이션)
   const sortableItems = useMemo(() => pages.map(page => page.id), [pages])
 
+  // 정확한 드롭 위치 계산 함수
+  const calculateDropTarget = useCallback((targetPageId: string, position: 'before' | 'after', currentItems: PDFPageData[], selectedPageIds: Set<string>) => {
+    // 선택된 페이지들을 제외한 배열에서의 타겟 페이지 위치 찾기
+    const itemsWithoutSelected = currentItems.filter(page => !selectedPageIds.has(page.id))
+    const targetIndex = itemsWithoutSelected.findIndex(page => page.id === targetPageId)
+    
+    if (targetIndex === -1) return 0
+    
+    // before: 타겟 페이지 앞에 삽입, after: 타겟 페이지 뒤에 삽입
+    return position === 'before' ? targetIndex : targetIndex + 1
+  }, [])
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -433,41 +445,38 @@ export default function PDFEditorPage() {
 
     if (active.id !== over?.id && over?.id) {
       setPages((items) => {
-        const oldIndex = pageIndexMap.get(draggedPageId) ?? -1
-        const newIndex = pageIndexMap.get(over.id as string) ?? -1
-        
-        if (oldIndex === -1 || newIndex === -1) return items
-
         // 다중 선택된 페이지들이 있고, 드래그한 페이지가 선택된 경우
         if (selectedPages.size > 0 && selectedPages.has(draggedPageId)) {
-          // 선택된 페이지들을 원래 순서대로 정렬
+          // dropPosition이 없으면 기본값 사용
+          const position = dropPosition?.position || 'after'
+          const targetPageId = over.id as string
+          
+          // 1단계: 선택된 페이지들을 원본 문서 순서대로 정렬 (순서 보장)
           const selectedPagesList = items
             .filter(page => selectedPages.has(page.id))
             .sort((a, b) => {
-              const aIndex = pageIndexMap.get(a.id) ?? 0
-              const bIndex = pageIndexMap.get(b.id) ?? 0
+              const aIndex = items.findIndex(item => item.id === a.id)
+              const bIndex = items.findIndex(item => item.id === b.id)
               return aIndex - bIndex
             })
           
-          // 선택되지 않은 페이지들
-          const unselectedPages = items.filter(page => !selectedPages.has(page.id))
+          // 2단계: 선택된 페이지들을 제거한 배열 생성
+          const itemsWithoutSelected = items.filter(page => !selectedPages.has(page.id))
           
-          // 새로운 위치 계산 (선택된 페이지들을 제거한 후의 인덱스)
-          let adjustedNewIndex = newIndex
-          for (const page of selectedPagesList) {
-            const pageIndex = pageIndexMap.get(page.id) ?? 0
-            if (pageIndex < newIndex) {
-              adjustedNewIndex--
-            }
-          }
+          // 3단계: 정확한 삽입 위치 계산
+          const insertIndex = calculateDropTarget(targetPageId, position, items, selectedPages)
           
-          // 선택된 페이지들을 새로운 위치에 삽입
-          const result = [...unselectedPages]
-          result.splice(adjustedNewIndex, 0, ...selectedPagesList)
+          // 4단계: 계산된 위치에 선택된 페이지들을 순서대로 삽입
+          const result = [...itemsWithoutSelected]
+          result.splice(insertIndex, 0, ...selectedPagesList)
           
           return result
         } else {
           // 단일 페이지 이동 (기존 로직)
+          const oldIndex = pageIndexMap.get(draggedPageId) ?? -1
+          const newIndex = pageIndexMap.get(over.id as string) ?? -1
+          
+          if (oldIndex === -1 || newIndex === -1) return items
           return arrayMove(items, oldIndex, newIndex)
         }
       })
@@ -476,7 +485,7 @@ export default function PDFEditorPage() {
     setActiveId(null)
     setOverId(null)
     setDropPosition(null)
-  }, [pageIndexMap, selectedPages])
+  }, [selectedPages, dropPosition, calculateDropTarget, pageIndexMap])
 
   const deletePage = (pageId: string) => {
     setPages(pages => pages.filter(page => page.id !== pageId))
