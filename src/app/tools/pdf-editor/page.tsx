@@ -76,12 +76,15 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging }: {
+function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode }: {
   page: PDFPageData
   onDelete: () => void
   onViewLarge: () => void
   isOver?: boolean
   isDragging?: boolean
+  isSelected?: boolean
+  onToggleSelect?: (event: React.MouseEvent) => void
+  isMultiSelectMode?: boolean
 }) {
   const {
     attributes,
@@ -106,9 +109,11 @@ function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging }: {
     relative group rounded-lg bg-white transition-all duration-200
     ${actualIsDragging ? 
       'border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100' : 
-      isOver ? 
-        'border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200' :
-        'border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+      isSelected ?
+        'border-2 border-purple-400 bg-purple-50 shadow-lg ring-2 ring-purple-200' :
+        isOver ? 
+          'border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200' :
+          'border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
     }
   `.trim()
 
@@ -118,13 +123,30 @@ function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging }: {
       style={style}
       className={containerClasses}
     >
+      {/* 다중 선택 체크박스 */}
+      {isMultiSelectMode && onToggleSelect && (
+        <div 
+          className="absolute top-2 left-2 z-20 p-1 bg-white border border-slate-300 rounded cursor-pointer hover:bg-slate-50"
+          onClick={onToggleSelect}
+          title="페이지 선택"
+        >
+          <input
+            type="checkbox"
+            checked={isSelected || false}
+            onChange={() => {}}
+            className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
+          />
+        </div>
+      )}
+
       {/* 드래그 핸들 */}
       <div 
         {...attributes}
         {...listeners}
         className={`
-          absolute top-2 left-2 z-10 p-1 rounded border cursor-grab active:cursor-grabbing 
+          absolute top-2 z-10 p-1 rounded border cursor-grab active:cursor-grabbing 
           transition-all duration-200
+          ${isMultiSelectMode ? 'left-10' : 'left-2'}
           ${actualIsDragging ? 
             'bg-blue-500 border-blue-600 opacity-100' : 
             'bg-white border-slate-300 opacity-0 group-hover:opacity-100'
@@ -198,6 +220,8 @@ export default function PDFEditorPage() {
   const [overId, setOverId] = useState<string | null>(null)
   const [dropPosition, setDropPosition] = useState<{ pageId: string, position: 'before' | 'after' } | null>(null)
   const [viewLargePage, setViewLargePage] = useState<PDFPageData | null>(null)
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -353,8 +377,18 @@ export default function PDFEditorPage() {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
+    const draggedPageId = event.active.id as string
+    setActiveId(draggedPageId)
     setOverId(null)
+    
+    // 드래그하는 페이지가 선택되지 않았다면 선택에 추가
+    if (selectedPages.size > 0 && !selectedPages.has(draggedPageId)) {
+      setSelectedPages(prev => {
+        const newSet = new Set(prev)
+        newSet.add(draggedPageId)
+        return newSet
+      })
+    }
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -376,12 +410,35 @@ export default function PDFEditorPage() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
-    if (active.id !== over?.id) {
+    if (active.id !== over?.id && over) {
       setPages((items) => {
-        const oldIndex = items.findIndex(item => item.id === active.id)
-        const newIndex = items.findIndex(item => item.id === over?.id)
-        
-        return arrayMove(items, oldIndex, newIndex)
+        // 다중 선택된 페이지들이 있고, 드래그한 페이지가 선택된 페이지 중 하나인 경우
+        if (selectedPages.size > 1 && selectedPages.has(active.id as string)) {
+          const selectedPageIds = Array.from(selectedPages)
+          const targetIndex = items.findIndex(item => item.id === over.id)
+          
+          // 선택된 페이지들을 제거
+          const selectedPagesData = items.filter(item => selectedPages.has(item.id))
+          const remainingItems = items.filter(item => !selectedPages.has(item.id))
+          
+          // 타겟 위치 재계산 (제거된 페이지들을 고려)
+          const adjustedTargetIndex = remainingItems.findIndex(item => item.id === over.id)
+          
+          // 선택된 페이지들을 새 위치에 삽입
+          const result = [
+            ...remainingItems.slice(0, adjustedTargetIndex + 1),
+            ...selectedPagesData,
+            ...remainingItems.slice(adjustedTargetIndex + 1)
+          ]
+          
+          return result
+        } else {
+          // 단일 페이지 이동 (기존 로직)
+          const oldIndex = items.findIndex(item => item.id === active.id)
+          const newIndex = items.findIndex(item => item.id === over.id)
+          
+          return arrayMove(items, oldIndex, newIndex)
+        }
       })
     }
 
@@ -392,6 +449,46 @@ export default function PDFEditorPage() {
 
   const deletePage = (pageId: string) => {
     setPages(pages => pages.filter(page => page.id !== pageId))
+  }
+
+  // 다중 선택 관련 함수들
+  const togglePageSelection = (pageId: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    
+    setSelectedPages(prev => {
+      const newSelection = new Set(prev)
+      if (newSelection.has(pageId)) {
+        newSelection.delete(pageId)
+      } else {
+        newSelection.add(pageId)
+      }
+      return newSelection
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedPages(new Set())
+  }
+
+  const selectAllPages = () => {
+    setSelectedPages(new Set(pages.map(page => page.id)))
+  }
+
+  const deleteSelectedPages = () => {
+    setPages(pages => pages.filter(page => !selectedPages.has(page.id)))
+    clearSelection()
+  }
+
+  const toggleMultiSelectMode = () => {
+    setIsMultiSelectMode(prev => {
+      if (prev) {
+        clearSelection() // 다중 선택 모드 해제 시 선택 초기화
+      }
+      return !prev
+    })
   }
 
   const viewPageLarge = async (pageId: string) => {
@@ -577,6 +674,62 @@ export default function PDFEditorPage() {
                     </div>
                   </div>
 
+                  {/* 다중 선택 컨트롤 */}
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant={isMultiSelectMode ? "default" : "outline"}
+                        size="sm"
+                        onClick={toggleMultiSelectMode}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isMultiSelectMode}
+                          onChange={() => {}}
+                          className="w-4 h-4"
+                        />
+                        다중 선택
+                      </Button>
+                      
+                      {isMultiSelectMode && (
+                        <>
+                          <span className="text-sm text-slate-600">
+                            {selectedPages.size}개 선택됨
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={selectAllPages}
+                            disabled={selectedPages.size === pages.length}
+                          >
+                            전체 선택
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearSelection}
+                            disabled={selectedPages.size === 0}
+                          >
+                            선택 해제
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    
+                    {selectedPages.size > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={deleteSelectedPages}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        선택 삭제 ({selectedPages.size})
+                      </Button>
+                    )}
+                  </div>
+
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -598,6 +751,9 @@ export default function PDFEditorPage() {
                               onViewLarge={() => viewPageLarge(page.id)}
                               isOver={overId === page.id}
                               isDragging={activeId === page.id}
+                              isSelected={selectedPages.has(page.id)}
+                              onToggleSelect={(event) => togglePageSelection(page.id, event)}
+                              isMultiSelectMode={isMultiSelectMode}
                             />
                           </div>
                         ))}
