@@ -78,7 +78,7 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName }: {
+const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName, currentIndex }: {
   page: PDFPageData
   onDelete: () => void
   onViewLarge: () => void
@@ -90,6 +90,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   selectedPages?: Set<string>
   activeId?: string | null
   mainFileName?: string
+  currentIndex: number
 }) {
   const {
     attributes,
@@ -109,8 +110,10 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   // 추가 파일 여부 확인
   const isAdditionalFile = page.sourceFile && page.sourceFile !== mainFileName
   
-  // 디버깅 로그
-  console.log(`Page ${page.id}: sourceFile="${page.sourceFile}", mainFileName="${mainFileName}", isAdditionalFile=${isAdditionalFile}, displayPageNumber=${page.displayPageNumber}`)
+  // 추가 파일 여부 확인을 위한 디버깅 (개발 모드에서만)
+  if (process.env.NODE_ENV === 'development' && isAdditionalFile) {
+    console.log(`Additional file page ${page.id}: sourceFile="${page.sourceFile}", mainFileName="${mainFileName}"`)
+  }
 
   const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
@@ -190,7 +193,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
 
       {/* 페이지 번호 */}
       <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-        {page.displayPageNumber || page.pageNumber}
+        {actualIsDragging ? (page.displayPageNumber || page.pageNumber) : (currentIndex + 1)}
       </div>
 
       {/* 추가 파일 소스 배지 */}
@@ -279,7 +282,15 @@ export default function PDFEditorPage() {
       ...page,
       displayPageNumber: index + 1
     }))
-    console.log('displayPageNumber 할당 결과:', result.map(p => ({ id: p.id, pageNumber: p.pageNumber, displayPageNumber: p.displayPageNumber, sourceFile: p.sourceFile })))
+    // 개발 모드에서만 할당 결과 로그
+    if (process.env.NODE_ENV === 'development') {
+      console.log('displayPageNumber 할당 결과:', result.map(p => ({ 
+        id: p.id, 
+        pageNumber: p.pageNumber, 
+        displayPageNumber: p.displayPageNumber, 
+        sourceFile: p.sourceFile?.substring(0, 20) + '...' 
+      })))
+    }
     return result
   }, [])
 
@@ -1123,6 +1134,7 @@ export default function PDFEditorPage() {
                               selectedPages={selectedPages}
                               activeId={activeId}
                               mainFileName={selectedFile?.name}
+                              currentIndex={index}
                             />
                           </div>
                         ))}
