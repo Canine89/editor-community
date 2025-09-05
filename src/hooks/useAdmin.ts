@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import { useAuth } from './useAuth'
+import { 
+  mockUsers, 
+  mockPosts, 
+  mockJobs, 
+  mockActivities, 
+  getRecentMockActivities,
+  mockStats 
+} from '@/lib/mockData'
 
 interface AdminPermission {
   id: string
@@ -169,6 +177,11 @@ export function useAdmin() {
   const getAdminStats = async () => {
     if (!isAdmin) return null
 
+    // 개발 모드에서는 Mock 데이터 반환
+    if (isDevMode) {
+      return Promise.resolve(mockStats)
+    }
+
     try {
       const [postsResult, jobsResult, usersResult] = await Promise.all([
         supabase.from('posts').select('id', { count: 'exact' }),
@@ -188,6 +201,11 @@ export function useAdmin() {
 
   const getRecentActivity = async (limit: number = 10) => {
     if (!isAdmin) return []
+
+    // 개발 모드에서는 Mock 데이터 반환
+    if (isDevMode) {
+      return Promise.resolve(getRecentMockActivities(limit))
+    }
 
     try {
       const { data, error } = await supabase
@@ -212,6 +230,11 @@ export function useAdmin() {
   const getAllPosts = async () => {
     if (!isAdmin) return []
 
+    // 개발 모드에서는 Mock 데이터 반환
+    if (isDevMode) {
+      return Promise.resolve(mockPosts)
+    }
+
     try {
       const { data, error } = await supabase
         .from('admin_posts_view')
@@ -227,6 +250,11 @@ export function useAdmin() {
   const getAllJobs = async () => {
     if (!isAdmin) return []
 
+    // 개발 모드에서는 Mock 데이터 반환
+    if (isDevMode) {
+      return Promise.resolve(mockJobs)
+    }
+
     try {
       const { data, error } = await supabase
         .from('admin_jobs_view')
@@ -241,6 +269,15 @@ export function useAdmin() {
 
   const getAllUsers = async () => {
     if (!isAdmin) return []
+
+    // 개발 모드에서는 Mock 데이터 반환
+    if (isDevMode) {
+      // Mock 사용자 데이터를 관리자 페이지에서 기대하는 형식으로 변환
+      return Promise.resolve(mockUsers.map(user => ({
+        ...user,
+        permissions: [] // Mock 데이터에서는 권한 정보 생략
+      })))
+    }
 
     try {
       const { data, error } = await supabase
