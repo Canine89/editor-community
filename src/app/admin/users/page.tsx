@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 import {
   Users,
   Shield,
@@ -90,6 +91,8 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all')
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   
   const supabase = createClient()
 
@@ -203,6 +206,14 @@ export default function AdminUsersPage() {
     return matchesSearch && matchesRole
   })
 
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
   // 권한 체크
   if (!canAccessAdminPages) {
     return (
@@ -290,63 +301,82 @@ export default function AdminUsersPage() {
 
         {/* 사용자 목록 */}
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-6">
             {loading ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               </div>
-            ) : filteredUsers.length === 0 ? (
+            ) : paginatedUsers.length === 0 ? (
               <div className="p-8 text-center text-slate-500">
                 {searchTerm || filterRole !== 'all' ? '검색 결과가 없습니다.' : '사용자가 없습니다.'}
               </div>
             ) : (
-              <div className="divide-y">
-                {filteredUsers.map((user) => {
-                  const roleInfo = getRoleInfo(user.user_role)
-                  const RoleIcon = roleInfo.icon
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {paginatedUsers.map((user) => {
+                    const roleInfo = getRoleInfo(user.user_role)
+                    const RoleIcon = roleInfo.icon
 
-                  return (
-                    <div key={user.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                            <User className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-medium text-slate-900">
-                                {user.full_name || '이름 없음'}
-                              </p>
-                              <Badge 
-                                variant="outline"
-                                className={`text-white text-xs ${roleInfo.color}`}
-                              >
-                                <RoleIcon className="h-3 w-3 mr-1" />
-                                {roleInfo.label}
-                              </Badge>
+                    return (
+                      <Card key={user.id} className="p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-5 h-5 text-white" />
                             </div>
-                            <p className="text-sm text-slate-600">{user.email}</p>
-                            <p className="text-xs text-slate-500">
-                              가입일: {new Date(user.created_at).toLocaleDateString('ko-KR')}
-                            </p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium text-slate-900 truncate">
+                                  {user.full_name || '이름 없음'}
+                                </p>
+                                <Badge 
+                                  variant="outline"
+                                  className={`text-white text-xs flex-shrink-0 ${roleInfo.color}`}
+                                >
+                                  <RoleIcon className="h-3 w-3 mr-1" />
+                                  {roleInfo.label}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-slate-600 truncate">{user.email}</p>
+                              <p className="text-xs text-slate-500">
+                                가입일: {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRoleChange(user)}
+                              className="flex items-center gap-1"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              변경
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRoleChange(user)}
-                            className="flex items-center gap-1"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            역할 변경
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+
+                {/* 페이지네이션 */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-col items-center gap-4">
+                    <PaginationInfo
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={filteredUsers.length}
+                      itemsPerPage={itemsPerPage}
+                    />
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
