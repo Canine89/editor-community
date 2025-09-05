@@ -147,11 +147,17 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
     return classes
   }, [actualIsDragging, isGroupDragging, isSelected, isOver, isAdditionalFile])
 
+  // 원본 정보 툴팁 텍스트
+  const tooltipText = isAdditionalFile && page.sourceFile && page.pageNumber 
+    ? `원본: ${page.sourceFile} ${page.pageNumber}페이지`
+    : undefined
+
   return (
     <div 
       ref={setNodeRef}
       style={style}
       className={containerClasses}
+      title={tooltipText}
     >
       {/* 다중 선택 체크박스 */}
       {isMultiSelectMode && onToggleSelect && (
@@ -194,11 +200,11 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
         </div>
       )}
 
-      {/* 추가 파일 소스 배지 */}
+      {/* 추가 파일 소스 배지 - 파일명과 원본 페이지 번호 표시 */}
       {isAdditionalFile && page.sourceFile && (
-        <div className="absolute top-10 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full max-w-20 truncate"
+        <div className="absolute top-10 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full max-w-24 truncate"
              title={`소스: ${page.sourceFile} (원본 페이지 ${page.pageNumber})`}>
-          {page.sourceFile.replace('.pdf', '').substring(0, 8)}...
+          {page.sourceFile.replace('.pdf', '').substring(0, 6)}..{page.pageNumber}p
         </div>
       )}
 
