@@ -170,7 +170,10 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
 
   // GPU 최적화를 위한 추가 스타일
   const optimizedStyle = useMemo(() => {
-    const baseStyle = { ...style }
+    const baseStyle = { ...style } as React.CSSProperties & {
+      contain?: string
+      backfaceVisibility?: string
+    }
     
     if (containerClasses.needsOptimization) {
       baseStyle.willChange = 'transform'
