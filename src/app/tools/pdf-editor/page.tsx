@@ -53,7 +53,8 @@ if (typeof window !== 'undefined') {
 
 interface PDFPageData {
   id: string
-  pageNumber: number
+  pageNumber: number // 원본 파일에서의 페이지 번호 (1부터 시작)
+  displayPageNumber?: number // 편집기에서 보여지는 순서 번호 (1부터 시작)
   canvas?: string // 일반 썸네일 base64 이미지 데이터
   highResCanvas?: string // 고해상도 base64 이미지 데이터 (크게 보기용)
   isLoading?: boolean
@@ -77,7 +78,7 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId }: {
+const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName }: {
   page: PDFPageData
   onDelete: () => void
   onViewLarge: () => void
@@ -88,6 +89,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   isMultiSelectMode?: boolean
   selectedPages?: Set<string>
   activeId?: string | null
+  mainFileName?: string
 }) {
   const {
     attributes,
@@ -104,6 +106,9 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   const isGroupDragging = activeId && selectedPages && selectedPages.size > 0 && 
                          selectedPages.has(activeId) && selectedPages.has(page.id) && !actualIsDragging
 
+  // 추가 파일 여부 확인
+  const isAdditionalFile = page.sourceFile && page.sourceFile !== mainFileName
+
   const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
     transition: actualIsDragging ? 'none' : transition,
@@ -113,7 +118,12 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   }), [transform, transition, actualIsDragging, isGroupDragging])
 
   const containerClasses = useMemo(() => {
-    let classes = 'relative group rounded-lg bg-white transition-all duration-200'
+    // 추가 파일인 경우 기본 배경을 연한 녹색으로 설정
+    let classes = `relative group rounded-lg transition-all duration-200 ${
+      isAdditionalFile 
+        ? 'bg-green-50' 
+        : 'bg-white'
+    }`
     
     if (actualIsDragging) {
       classes += ' border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100'
@@ -124,11 +134,16 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
     } else if (isOver) {
       classes += ' border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200'
     } else {
-      classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+      // 추가 파일인 경우 녹색 테두리, 메인 파일인 경우 회색 테두리
+      if (isAdditionalFile) {
+        classes += ' border-2 border-green-300 hover:border-green-400 shadow-sm hover:shadow-md'
+      } else {
+        classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+      }
     }
     
     return classes
-  }, [actualIsDragging, isGroupDragging, isSelected, isOver])
+  }, [actualIsDragging, isGroupDragging, isSelected, isOver, isAdditionalFile])
 
   return (
     <div 
@@ -172,8 +187,16 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
 
       {/* 페이지 번호 */}
       <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-        {page.pageNumber}
+        {page.displayPageNumber || page.pageNumber}
       </div>
+
+      {/* 추가 파일 소스 배지 */}
+      {isAdditionalFile && page.sourceFile && (
+        <div className="absolute top-10 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full max-w-20 truncate"
+             title={`소스: ${page.sourceFile} (원본 페이지 ${page.pageNumber})`}>
+          {page.sourceFile.replace('.pdf', '').substring(0, 8)}...
+        </div>
+      )}
 
       {/* 페이지 이미지 */}
       <div className="w-full h-48 flex items-center justify-center p-4">
@@ -247,6 +270,14 @@ export default function PDFEditorPage() {
     })
   )
 
+  // displayPageNumber를 순차적으로 할당하는 도우미 함수
+  const assignDisplayPageNumbers = useCallback((pagesArray: PDFPageData[]): PDFPageData[] => {
+    return pagesArray.map((page, index) => ({
+      ...page,
+      displayPageNumber: index + 1
+    }))
+  }, [])
+
   // 페이지 ID → 인덱스 맵핑 (성능 최적화)
   const pageIndexMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -306,11 +337,16 @@ export default function PDFEditorPage() {
   }, [])
 
   // 고해상도 페이지 생성 (크게 보기용)
-  const generateHighResPageImage = useCallback(async (pageNumber: number): Promise<string | null> => {
-    if (!selectedFile) return null
-    
+  const generateHighResPageImage = useCallback(async (sourceFileName: string, originalPageNumber: number): Promise<string | null> => {
     try {
-      const arrayBuffer = await selectedFile.arrayBuffer()
+      // 캐시에서 소스 파일 가져오기
+      const sourceFile = originalFileCache.get(sourceFileName)
+      if (!sourceFile) {
+        console.error('소스 파일을 찾을 수 없습니다:', sourceFileName)
+        return null
+      }
+
+      const arrayBuffer = await sourceFile.arrayBuffer()
       const loadingTask = getDocument({ 
         data: arrayBuffer,
         cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
@@ -318,7 +354,7 @@ export default function PDFEditorPage() {
       })
       
       const pdf = await loadingTask.promise
-      const page = await pdf.getPage(pageNumber)
+      const page = await pdf.getPage(originalPageNumber)
       
       // 고해상도로 렌더링 (scale 2.0)
       const viewport = page.getViewport({ scale: 2.0 })
@@ -341,7 +377,7 @@ export default function PDFEditorPage() {
       console.error('고해상도 이미지 생성 오류:', error)
       return null
     }
-  }, [selectedFile])
+  }, [originalFileCache])
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -386,6 +422,7 @@ export default function PDFEditorPage() {
       const initialPages: PDFPageData[] = Array.from({ length: totalPages }, (_, index) => ({
         id: `page-${index + 1}`,
         pageNumber: index + 1,
+        displayPageNumber: index + 1, // 메인 파일의 경우 순서대로 할당
         isLoading: true,
         sourceFile: file.name
       }))
@@ -476,14 +513,17 @@ export default function PDFEditorPage() {
           const result = [...itemsWithoutSelected]
           result.splice(insertIndex, 0, ...selectedPagesList)
           
-          return result
+          // displayPageNumber 재할당
+          return assignDisplayPageNumbers(result)
         } else {
           // 단일 페이지 이동 (기존 로직)
           const oldIndex = pageIndexMap.get(draggedPageId) ?? -1
           const newIndex = pageIndexMap.get(over.id as string) ?? -1
           
           if (oldIndex === -1 || newIndex === -1) return items
-          return arrayMove(items, oldIndex, newIndex)
+          const movedItems = arrayMove(items, oldIndex, newIndex)
+          // displayPageNumber 재할당
+          return assignDisplayPageNumbers(movedItems)
         }
       })
     }
@@ -494,7 +534,10 @@ export default function PDFEditorPage() {
   }, [selectedPages, dropPosition, calculateDropTarget, pageIndexMap])
 
   const deletePage = (pageId: string) => {
-    setPages(pages => pages.filter(page => page.id !== pageId))
+    setPages(pages => {
+      const filteredPages = pages.filter(page => page.id !== pageId)
+      return assignDisplayPageNumbers(filteredPages)
+    })
   }
 
   // 다중 선택 관련 함수들
@@ -634,7 +677,9 @@ export default function PDFEditorPage() {
         ]
       }
 
-      setPages(newPages)
+      // displayPageNumber 할당하여 최종 페이지 배열 설정
+      const finalPages = assignDisplayPageNumbers(newPages)
+      setPages(finalPages)
       
       // 추가 파일 목록 초기화
       setAdditionalFiles([])
@@ -658,7 +703,8 @@ export default function PDFEditorPage() {
         setViewLargePage(updatedPage)
         
         // 고해상도 이미지 생성
-        const highResImage = await generateHighResPageImage(page.pageNumber)
+        const sourceFileName = page.sourceFile || selectedFile?.name || ''
+        const highResImage = await generateHighResPageImage(sourceFileName, page.pageNumber)
         
         if (highResImage) {
           // pages 상태 업데이트
@@ -1071,6 +1117,7 @@ export default function PDFEditorPage() {
                               isMultiSelectMode={isMultiSelectMode}
                               selectedPages={selectedPages}
                               activeId={activeId}
+                              mainFileName={selectedFile?.name}
                             />
                           </div>
                         ))}
