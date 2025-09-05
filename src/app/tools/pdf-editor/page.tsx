@@ -683,7 +683,7 @@ export default function PDFEditorPage() {
           {/* 크게 보기 모달 */}
           {viewLargePage && (
             <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-2">
-              <div className="bg-white rounded-lg max-w-[76vw] max-h-[76vh] w-full flex flex-col shadow-2xl">
+              <div className="bg-white rounded-lg max-w-[90vw] max-h-[70vh] md:max-w-[70vw] md:max-h-[65vh] lg:max-w-[60vw] lg:max-h-[60vh] w-full flex flex-col shadow-2xl">
                 {/* 모달 헤더 */}
                 <div className="flex items-center justify-between p-4 border-b">
                   <h3 className="text-lg font-semibold">
