@@ -15,9 +15,10 @@ import {
   Info,
   GripVertical,
   Trash2,
-  Copy,
   RotateCcw,
-  Move
+  Move,
+  Eye,
+  X
 } from 'lucide-react'
 import Link from 'next/link'
 import { PDFDocument } from 'pdf-lib'
@@ -89,10 +90,10 @@ function DropIndicator({ isActive }: { isActive: boolean }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-function SortablePage({ page, onDelete, onDuplicate, isOver, isDragging }: {
+function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging }: {
   page: PDFPageData
   onDelete: () => void
-  onDuplicate: () => void
+  onViewLarge: () => void
   isOver?: boolean
   isDragging?: boolean
 }) {
@@ -179,11 +180,11 @@ function SortablePage({ page, onDelete, onDuplicate, isOver, isDragging }: {
         <Button
           size="sm"
           variant="secondary"
-          onClick={onDuplicate}
+          onClick={onViewLarge}
           className="h-8 w-8 p-0"
-          title="페이지 복제"
+          title="크게 보기"
         >
-          <Copy className="w-3 h-3" />
+          <Eye className="w-3 h-3" />
         </Button>
         <Button
           size="sm"
@@ -209,6 +210,7 @@ export default function PDFEditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [viewLargePage, setViewLargePage] = useState<PDFPageData | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -354,21 +356,11 @@ export default function PDFEditorPage() {
     setPages(pages => pages.filter(page => page.id !== pageId))
   }
 
-  const duplicatePage = (pageId: string) => {
-    const pageIndex = pages.findIndex(page => page.id === pageId)
-    if (pageIndex === -1) return
-
-    const originalPage = pages[pageIndex]
-    const newPage: PDFPageData = {
-      ...originalPage,
-      id: `${originalPage.id}-copy-${Date.now()}`,
+  const viewPageLarge = (pageId: string) => {
+    const page = pages.find(p => p.id === pageId)
+    if (page) {
+      setViewLargePage(page)
     }
-
-    setPages(pages => {
-      const newPages = [...pages]
-      newPages.splice(pageIndex + 1, 0, newPage)
-      return newPages
-    })
   }
 
   const generateEditedPDF = async () => {
@@ -529,13 +521,13 @@ export default function PDFEditorPage() {
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext items={pages.map(page => page.id)} strategy={verticalListSortingStrategy}>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {pages.map((page) => (
                           <SortablePage
                             key={page.id}
                             page={page}
                             onDelete={() => deletePage(page.id)}
-                            onDuplicate={() => duplicatePage(page.id)}
+                            onViewLarge={() => viewPageLarge(page.id)}
                             isOver={overId === page.id}
                             isDragging={activeId === page.id}
                           />
@@ -613,11 +605,64 @@ export default function PDFEditorPage() {
             <ul className="space-y-2 text-sm text-slate-700">
               <li>• PDF 파일을 업로드하면 모든 페이지의 미리보기가 생성됩니다</li>
               <li>• 페이지를 드래그하여 순서를 자유롭게 변경할 수 있습니다</li>
-              <li>• 복제 버튼으로 페이지를 복사하거나 삭제 버튼으로 제거할 수 있습니다</li>
+              <li>• 눈 버튼으로 페이지를 크게 보거나 삭제 버튼으로 제거할 수 있습니다</li>
               <li>• 편집이 완료되면 새로운 PDF 파일로 다운로드됩니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 안전합니다</li>
             </ul>
           </div>
+
+          {/* 크게 보기 모달 */}
+          {viewLargePage && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col">
+                {/* 모달 헤더 */}
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="text-lg font-semibold">
+                    페이지 {viewLargePage.pageNumber} 미리보기
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewLargePage(null)}
+                    className="text-slate-500 hover:text-slate-700"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+                
+                {/* 모달 내용 */}
+                <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
+                  {viewLargePage.isLoading ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-slate-600">로딩 중...</span>
+                    </div>
+                  ) : viewLargePage.canvas ? (
+                    <img 
+                      src={viewLargePage.canvas} 
+                      alt={`페이지 ${viewLargePage.pageNumber}`}
+                      className="max-w-full max-h-full object-contain rounded shadow-lg"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <FileText className="w-16 h-16 mx-auto mb-4" />
+                      <p>미리보기를 사용할 수 없습니다</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 모달 푸터 */}
+                <div className="p-4 border-t bg-slate-50 flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewLargePage(null)}
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
