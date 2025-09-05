@@ -78,7 +78,7 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
-const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName, currentIndex, draggedPageOriginalNumber }: {
+const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName, currentIndex }: {
   page: PDFPageData
   onDelete: () => void
   onViewLarge: () => void
@@ -91,7 +91,6 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   activeId?: string | null
   mainFileName?: string
   currentIndex: number
-  draggedPageOriginalNumber?: number | null
 }) {
   const {
     attributes,
@@ -111,10 +110,6 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   // 추가 파일 여부 확인
   const isAdditionalFile = page.sourceFile && page.sourceFile !== mainFileName
   
-  // 추가 파일 여부 확인을 위한 디버깅 (개발 모드에서만)
-  if (process.env.NODE_ENV === 'development' && isAdditionalFile) {
-    console.log(`Additional file page ${page.id}: sourceFile="${page.sourceFile}", mainFileName="${mainFileName}"`)
-  }
 
   const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
@@ -192,10 +187,12 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
         <GripVertical className={`w-4 h-4 ${actualIsDragging ? 'text-white' : 'text-slate-600'}`} />
       </div>
 
-      {/* 페이지 번호 */}
-      <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-        {actualIsDragging && draggedPageOriginalNumber ? draggedPageOriginalNumber : (currentIndex + 1)}
-      </div>
+      {/* 페이지 번호 - 드래그 중에는 숨김 */}
+      {!actualIsDragging && (
+        <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+          {currentIndex + 1}
+        </div>
+      )}
 
       {/* 추가 파일 소스 배지 */}
       {isAdditionalFile && page.sourceFile && (
@@ -258,7 +255,6 @@ export default function PDFEditorPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
-  const [draggedPageOriginalNumber, setDraggedPageOriginalNumber] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -280,17 +276,10 @@ export default function PDFEditorPage() {
 
   // displayPageNumber를 순차적으로 할당하는 도우미 함수
   const assignDisplayPageNumbers = useCallback((pagesArray: PDFPageData[]): PDFPageData[] => {
-    const result = pagesArray.map((page, index) => ({
+    return pagesArray.map((page, index) => ({
       ...page,
       displayPageNumber: index + 1
     }))
-    // 할당 결과 상세 로그
-    console.log('=== displayPageNumber 할당 결과 ===')
-    result.forEach((p, idx) => {
-      console.log(`${idx + 1}. ID: ${p.id}, pageNumber: ${p.pageNumber}, displayPageNumber: ${p.displayPageNumber}, sourceFile: ${p.sourceFile?.substring(0, 15)}...`)
-    })
-    console.log('=== 할당 완료 ===')
-    return result
   }, [])
 
   // 페이지 ID → 인덱스 맵핑 (성능 최적화)
@@ -477,27 +466,7 @@ export default function PDFEditorPage() {
     const draggedPageId = event.active.id as string
     setActiveId(draggedPageId)
     setOverId(null)
-    
-    // 드래그되는 페이지의 현재 displayPageNumber 보존
-    const draggedPage = pages.find(page => page.id === draggedPageId)
-    if (draggedPage) {
-      const currentIndex = pages.findIndex(page => page.id === draggedPageId)
-      const calculatedNumber = currentIndex + 1
-      const originalNumber = draggedPage.displayPageNumber || draggedPage.pageNumber
-      
-      // 디버깅 로그
-      console.log(`드래그 시작 - 페이지 ID: ${draggedPageId}`)
-      console.log(`- currentIndex: ${currentIndex}`)
-      console.log(`- calculatedNumber: ${calculatedNumber}`) 
-      console.log(`- displayPageNumber: ${draggedPage.displayPageNumber}`)
-      console.log(`- pageNumber: ${draggedPage.pageNumber}`)
-      console.log(`- sourceFile: ${draggedPage.sourceFile}`)
-      console.log(`- 최종 사용할 번호: ${calculatedNumber} (인덱스 기반)`)
-      
-      // 인덱스 기반으로 안전하게 계산
-      setDraggedPageOriginalNumber(calculatedNumber)
-    }
-  }, [pages])
+  }, [])
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const overId = event.over?.id as string
@@ -566,7 +535,6 @@ export default function PDFEditorPage() {
     setActiveId(null)
     setOverId(null)
     setDropPosition(null)
-    setDraggedPageOriginalNumber(null) // 드래그 종료 시 원본 번호 상태 정리
   }, [selectedPages, dropPosition, calculateDropTarget, pageIndexMap])
 
   const deletePage = (pageId: string) => {
@@ -1155,7 +1123,6 @@ export default function PDFEditorPage() {
                               activeId={activeId}
                               mainFileName={selectedFile?.name}
                               currentIndex={index}
-                              draggedPageOriginalNumber={activeId === page.id ? draggedPageOriginalNumber : null}
                             />
                           </div>
                         ))}
