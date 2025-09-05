@@ -11,7 +11,8 @@ import {
   ArrowRight,
   FileCheck,
   PenTool,
-  FileSearch
+  FileSearch,
+  Edit3
 } from 'lucide-react'
 
 const tools = [
@@ -31,6 +32,15 @@ const tools = [
     icon: Scissors,
     href: '/tools/pdf-extractor',
     color: 'bg-red-500',
+    available: true
+  },
+  {
+    id: 'pdf-editor',
+    title: 'PDF 페이지 편집기',
+    description: '드래그앤드롭으로 PDF 페이지 순서 변경, 복제, 삭제 등 자유로운 편집',
+    icon: Edit3,
+    href: '/tools/pdf-editor',
+    color: 'bg-purple-500',
     available: true
   },
   {
