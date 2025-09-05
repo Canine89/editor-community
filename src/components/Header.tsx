@@ -48,12 +48,12 @@ export default function Header() {
   ]
 
   const tools = [
-    { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool },
-    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText },
-    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3 },
-    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText },
-    { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText },
-    ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3 }] : []),
+    { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
+    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
+    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: false },
+    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
+    { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
+    ...(canViewBookSales() ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3, isPremium: false }] : []),
   ]
 
   return (
@@ -95,12 +95,20 @@ export default function Header() {
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuContent align="start" className="w-56">
                 {tools.map((tool) => (
                   <DropdownMenuItem key={tool.name} asChild>
-                    <Link href={tool.href} className="flex items-center">
-                      <tool.icon className="mr-2 h-4 w-4" />
-                      <span>{tool.name}</span>
+                    <Link href={tool.href} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <tool.icon className="mr-2 h-4 w-4" />
+                        <span>{tool.name}</span>
+                      </div>
+                      {tool.isPremium && (
+                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs ml-2">
+                          <Crown className="h-3 w-3 mr-1" />
+                          프리미엄
+                        </Badge>
+                      )}
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -312,11 +320,19 @@ export default function Header() {
                       <Link
                         key={tool.name}
                         href={tool.href}
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <tool.icon className="h-4 w-4" />
-                        <span>{tool.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <tool.icon className="h-4 w-4" />
+                          <span>{tool.name}</span>
+                        </div>
+                        {tool.isPremium && (
+                          <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs">
+                            <Crown className="h-3 w-3 mr-1" />
+                            프리미엄
+                          </Badge>
+                        )}
                       </Link>
                     ))}
                   </div>

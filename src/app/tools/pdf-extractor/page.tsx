@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,7 @@ interface ExtractedInfo {
   fileSize: string
 }
 
-export default function PDFExtractorPage() {
+function PDFExtractorContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [extractedInfo, setExtractedInfo] = useState<ExtractedInfo | null>(null)
   const [startPage, setStartPage] = useState('')
@@ -382,5 +383,18 @@ export default function PDFExtractorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PDFExtractorPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      requirePremium={true} 
+      featureName="PDF 추출기"
+      fallbackMessage="PDF 추출기는 프리미엄 회원 전용 기능입니다. PDF 파일의 특정 페이지를 정밀하게 추출하는 고급 기능을 이용하려면 프리미엄으로 업그레이드하세요."
+    >
+      <PDFExtractorContent />
+    </AuthRequired>
   )
 }
