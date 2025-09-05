@@ -66,29 +66,14 @@ interface PDFInfo {
   fileSize: string
 }
 
-// 삽입 위치 인디케이터 컴포넌트 (페이지 사이에 표시)
+// 삽입 위치 인디케이터 컴포넌트 (빨간 세로선으로 간단히 표시)
 function DropIndicator({ isActive }: { isActive: boolean }) {
   if (!isActive) return null
   
   return (
-    <div className="flex items-center justify-center w-full min-h-[200px] bg-blue-50 border-2 border-dashed border-blue-400 rounded-lg animate-pulse">
-      <div className="flex flex-col items-center gap-2">
-        {/* 세로 삽입 라인 */}
-        <div className="w-1 h-20 bg-blue-500 rounded-full shadow-lg relative">
-          {/* 상단 원형 인디케이터 */}
-          <div className="absolute -top-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
-            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-          </div>
-          {/* 하단 원형 인디케이터 */}
-          <div className="absolute -bottom-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
-            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-          </div>
-        </div>
-        {/* 텍스트 */}
-        <div className="bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-full shadow-lg">
-          🔄 여기에 페이지 삽입
-        </div>
-      </div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+      {/* 빨간 세로선 */}
+      <div className="w-1 h-full bg-red-500 shadow-lg animate-pulse"></div>
     </div>
   )
 }
@@ -689,7 +674,7 @@ export default function PDFEditorPage() {
           {/* 크게 보기 모달 */}
           {viewLargePage && (
             <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-2">
-              <div className="bg-white rounded-lg max-w-[95vw] max-h-[95vh] w-full flex flex-col shadow-2xl">
+              <div className="bg-white rounded-lg max-w-[76vw] max-h-[76vh] w-full flex flex-col shadow-2xl">
                 {/* 모달 헤더 */}
                 <div className="flex items-center justify-between p-4 border-b">
                   <h3 className="text-lg font-semibold">
