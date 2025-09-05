@@ -54,8 +54,10 @@ if (typeof window !== 'undefined') {
 interface PDFPageData {
   id: string
   pageNumber: number
-  canvas?: string // base64 이미지 데이터
+  canvas?: string // 일반 썸네일 base64 이미지 데이터
+  highResCanvas?: string // 고해상도 base64 이미지 데이터 (크게 보기용)
   isLoading?: boolean
+  isLoadingHighRes?: boolean
 }
 
 interface PDFInfo {
@@ -64,26 +66,28 @@ interface PDFInfo {
   fileSize: string
 }
 
-// 삽입 위치 인디케이터 컴포넌트
+// 삽입 위치 인디케이터 컴포넌트 (페이지 사이에 표시)
 function DropIndicator({ isActive }: { isActive: boolean }) {
   if (!isActive) return null
   
   return (
-    <div className="relative flex items-center justify-center h-full">
-      {/* 세로 삽입 라인 */}
-      <div className="absolute inset-y-0 left-1/2 w-1 bg-blue-500 transform -translate-x-1/2 animate-pulse rounded-full shadow-lg">
-        {/* 상단 원형 인디케이터 */}
-        <div className="absolute -top-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
-          <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+    <div className="flex items-center justify-center w-full min-h-[200px] bg-blue-50 border-2 border-dashed border-blue-400 rounded-lg animate-pulse">
+      <div className="flex flex-col items-center gap-2">
+        {/* 세로 삽입 라인 */}
+        <div className="w-1 h-20 bg-blue-500 rounded-full shadow-lg relative">
+          {/* 상단 원형 인디케이터 */}
+          <div className="absolute -top-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
+            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+          </div>
+          {/* 하단 원형 인디케이터 */}
+          <div className="absolute -bottom-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
+            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+          </div>
         </div>
-        {/* 하단 원형 인디케이터 */}
-        <div className="absolute -bottom-2 left-1/2 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 shadow-md">
-          <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+        {/* 텍스트 */}
+        <div className="bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-full shadow-lg">
+          🔄 여기에 페이지 삽입
         </div>
-      </div>
-      {/* 텍스트 */}
-      <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg z-10">
-        여기에 삽입
       </div>
     </div>
   )
@@ -227,7 +231,7 @@ export default function PDFEditorPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // 페이지 썸네일 생성
+  // 페이지 썸네일 생성 (일반 미리보기용)
   const generatePageThumbnail = useCallback(async (pdfDoc: any, pageIndex: number): Promise<string | null> => {
     try {
       const page = await pdfDoc.getPage(pageIndex + 1)
@@ -252,6 +256,44 @@ export default function PDFEditorPage() {
       return null
     }
   }, [])
+
+  // 고해상도 페이지 생성 (크게 보기용)
+  const generateHighResPageImage = useCallback(async (pageNumber: number): Promise<string | null> => {
+    if (!selectedFile) return null
+    
+    try {
+      const arrayBuffer = await selectedFile.arrayBuffer()
+      const loadingTask = getDocument({ 
+        data: arrayBuffer,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
+        cMapPacked: true
+      })
+      
+      const pdf = await loadingTask.promise
+      const page = await pdf.getPage(pageNumber)
+      
+      // 고해상도로 렌더링 (scale 2.0)
+      const viewport = page.getViewport({ scale: 2.0 })
+      
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      canvas.height = viewport.height
+      canvas.width = viewport.width
+
+      if (!context) return null
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      }
+
+      await page.render(renderContext).promise
+      return canvas.toDataURL('image/jpeg', 0.9) // 높은 품질
+    } catch (error) {
+      console.error('고해상도 이미지 생성 오류:', error)
+      return null
+    }
+  }, [selectedFile])
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -356,10 +398,36 @@ export default function PDFEditorPage() {
     setPages(pages => pages.filter(page => page.id !== pageId))
   }
 
-  const viewPageLarge = (pageId: string) => {
+  const viewPageLarge = async (pageId: string) => {
     const page = pages.find(p => p.id === pageId)
     if (page) {
-      setViewLargePage(page)
+      // 고해상도 이미지가 없으면 생성
+      if (!page.highResCanvas) {
+        // 로딩 상태로 설정
+        const updatedPage = { ...page, isLoadingHighRes: true }
+        setViewLargePage(updatedPage)
+        
+        // 고해상도 이미지 생성
+        const highResImage = await generateHighResPageImage(page.pageNumber)
+        
+        if (highResImage) {
+          // pages 상태 업데이트
+          setPages(prevPages => 
+            prevPages.map(p => 
+              p.id === pageId 
+                ? { ...p, highResCanvas: highResImage, isLoadingHighRes: false }
+                : p
+            )
+          )
+          
+          // 모달 페이지 상태도 업데이트
+          setViewLargePage({ ...page, highResCanvas: highResImage, isLoadingHighRes: false })
+        } else {
+          setViewLargePage({ ...page, isLoadingHighRes: false })
+        }
+      } else {
+        setViewLargePage(page)
+      }
     }
   }
 
@@ -522,15 +590,22 @@ export default function PDFEditorPage() {
                   >
                     <SortableContext items={pages.map(page => page.id)} strategy={verticalListSortingStrategy}>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {pages.map((page) => (
-                          <SortablePage
-                            key={page.id}
-                            page={page}
-                            onDelete={() => deletePage(page.id)}
-                            onViewLarge={() => viewPageLarge(page.id)}
-                            isOver={overId === page.id}
-                            isDragging={activeId === page.id}
-                          />
+                        {pages.map((page, index) => (
+                          <div key={page.id} className="relative">
+                            {/* 드롭 인디케이터 - 드래그 중일 때만 표시 */}
+                            {activeId && activeId !== page.id && overId === page.id && (
+                              <div className="absolute -inset-2 z-10">
+                                <DropIndicator isActive={true} />
+                              </div>
+                            )}
+                            <SortablePage
+                              page={page}
+                              onDelete={() => deletePage(page.id)}
+                              onViewLarge={() => viewPageLarge(page.id)}
+                              isOver={overId === page.id}
+                              isDragging={activeId === page.id}
+                            />
+                          </div>
                         ))}
                       </div>
                     </SortableContext>
@@ -613,8 +688,8 @@ export default function PDFEditorPage() {
 
           {/* 크게 보기 모달 */}
           {viewLargePage && (
-            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col">
+            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-2">
+              <div className="bg-white rounded-lg max-w-[95vw] max-h-[95vh] w-full flex flex-col shadow-2xl">
                 {/* 모달 헤더 */}
                 <div className="flex items-center justify-between p-4 border-b">
                   <h3 className="text-lg font-semibold">
@@ -631,22 +706,35 @@ export default function PDFEditorPage() {
                 </div>
                 
                 {/* 모달 내용 */}
-                <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-                  {viewLargePage.isLoading ? (
+                <div className="flex-1 p-6 overflow-auto flex items-center justify-center bg-slate-50">
+                  {viewLargePage.isLoadingHighRes ? (
                     <div className="flex flex-col items-center gap-4">
-                      <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-slate-600">로딩 중...</span>
+                      <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-slate-700 text-lg font-medium">고해상도 이미지 생성 중...</span>
+                      <span className="text-slate-500 text-sm">잠시만 기다려주세요</span>
+                    </div>
+                  ) : viewLargePage.highResCanvas ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <img 
+                        src={viewLargePage.highResCanvas} 
+                        alt={`페이지 ${viewLargePage.pageNumber} 고해상도`}
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
+                        style={{ maxWidth: '90%', maxHeight: '90%' }}
+                      />
                     </div>
                   ) : viewLargePage.canvas ? (
-                    <img 
-                      src={viewLargePage.canvas} 
-                      alt={`페이지 ${viewLargePage.pageNumber}`}
-                      className="max-w-full max-h-full object-contain rounded shadow-lg"
-                    />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <img 
+                        src={viewLargePage.canvas} 
+                        alt={`페이지 ${viewLargePage.pageNumber}`}
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
+                        style={{ maxWidth: '90%', maxHeight: '90%' }}
+                      />
+                    </div>
                   ) : (
                     <div className="text-center text-slate-400">
-                      <FileText className="w-16 h-16 mx-auto mb-4" />
-                      <p>미리보기를 사용할 수 없습니다</p>
+                      <FileText className="w-20 h-20 mx-auto mb-4" />
+                      <p className="text-lg font-medium">미리보기를 사용할 수 없습니다</p>
                     </div>
                   )}
                 </div>
