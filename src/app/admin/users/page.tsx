@@ -160,7 +160,7 @@ export default function AdminUsersPage() {
         }
 
         // 모든 사용자 데이터를 변환
-        const convertedData = (allProfilesData || []).map(user => ({
+        const convertedData = (allProfilesData || []).map((user: any) => ({
           ...user,
           user_role: adminUsersMap.get(user.id) || (user.membership_tier === 'premium' ? 'premium' : 'user')
         }))
