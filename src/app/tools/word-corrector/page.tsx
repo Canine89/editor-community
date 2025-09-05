@@ -81,13 +81,40 @@ export default function WordCorrectorPage() {
 
     try {
       const arrayBuffer = await file.arrayBuffer()
-      const result = await mammoth.extractRawText({ arrayBuffer })
       
-      // 문단별로 분리 (빈 줄 제거)
-      const paragraphs = result.value
-        .split('\n')
-        .map(p => p.trim())
+      // HTML 형태로 추출하여 더 정확한 문단 구조 파악
+      const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
+      const textResult = await mammoth.extractRawText({ arrayBuffer })
+      
+      console.log('워드 파일 HTML 추출 결과:', htmlResult.value.substring(0, 500) + '...')
+      console.log('워드 파일 텍스트 추출 결과:', textResult.value.substring(0, 500) + '...')
+      
+      // 문단별로 분리 개선 - 여러 방식 시도
+      let paragraphs: string[] = []
+      
+      // 방법 1: HTML 파싱으로 <p> 태그 기반 분리
+      const htmlDoc = new DOMParser().parseFromString(htmlResult.value, 'text/html')
+      const htmlParagraphs = Array.from(htmlDoc.querySelectorAll('p'))
+        .map(p => p.textContent?.trim() || '')
         .filter(p => p.length > 0)
+      
+      // 방법 2: 원본 텍스트를 개선된 방식으로 분리
+      const textParagraphs = textResult.value
+        .split(/\n\s*\n/) // 빈 줄로 분리
+        .map(p => p.replace(/\n/g, ' ').trim()) // 문단 내 개행은 공백으로
+        .filter(p => p.length > 0)
+      
+      // 더 많은 문단을 가진 방식 선택
+      paragraphs = htmlParagraphs.length > textParagraphs.length ? htmlParagraphs : textParagraphs
+      
+      console.log(`HTML 방식: ${htmlParagraphs.length}개 문단`)
+      console.log(`텍스트 방식: ${textParagraphs.length}개 문단`)
+      console.log(`선택된 방식: ${paragraphs.length}개 문단`)
+      
+      // 각 문단의 샘플 표시 (처음 5개)
+      paragraphs.slice(0, 5).forEach((p, i) => {
+        console.log(`문단 ${i + 1}: ${p.substring(0, 100)}${p.length > 100 ? '...' : ''}`)
+      })
 
       setWordDoc({
         fileName: file.name,
@@ -164,37 +191,57 @@ export default function WordCorrectorPage() {
 
     setIsProcessing(true)
     setError('')
+    console.log(`분석 시작: ${wordDoc.paragraphs.length}개 문단, ${corrections.length}개 교정 규칙`)
 
     try {
       const foundMatches: CorrectionMatch[] = []
 
       wordDoc.paragraphs.forEach((paragraph, paragraphIndex) => {
-        corrections.forEach(({ wrong, correct }) => {
-          // 대소문자 구분 없이 검색
-          const regex = new RegExp(wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-          let match
+        console.log(`문단 ${paragraphIndex + 1} 분석 중: "${paragraph.substring(0, 50)}..."`)
+        let paragraphMatches = 0
 
-          while ((match = regex.exec(paragraph)) !== null) {
-            foundMatches.push({
-              original: match[0],
-              corrected: correct,
-              startIndex: match.index,
-              endIndex: match.index + match[0].length,
-              paragraphIndex
-            })
-          }
+        corrections.forEach(({ wrong, correct }) => {
+          // 정규식 특수문자 이스케이프 처리 강화
+          const escapedWrong = wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          
+          // matchAll 사용으로 안전한 매치 검색
+          const regex = new RegExp(escapedWrong, 'gi')
+          const matches = Array.from(paragraph.matchAll(regex))
+          
+          matches.forEach(match => {
+            if (match.index !== undefined) {
+              foundMatches.push({
+                original: match[0],
+                corrected: correct,
+                startIndex: match.index,
+                endIndex: match.index + match[0].length,
+                paragraphIndex
+              })
+              paragraphMatches++
+              
+              console.log(`  매치 발견: "${match[0]}" → "${correct}" (위치: ${match.index})`)
+            }
+          })
         })
+        
+        console.log(`문단 ${paragraphIndex + 1}: ${paragraphMatches}개 매치 발견`)
       })
 
+      console.log(`총 ${foundMatches.length}개 매치 발견`)
+
+      // 중복 제거 및 겹침 처리
+      const processedMatches = removeDuplicateMatches(foundMatches)
+      console.log(`중복 제거 후: ${processedMatches.length}개 매치`)
+
       // 문단별, 위치별로 정렬
-      foundMatches.sort((a, b) => {
+      processedMatches.sort((a, b) => {
         if (a.paragraphIndex !== b.paragraphIndex) {
           return a.paragraphIndex - b.paragraphIndex
         }
         return a.startIndex - b.startIndex
       })
 
-      setMatches(foundMatches)
+      setMatches(processedMatches)
       setStep(2)
     } catch (error) {
       console.error('문서 분석 오류:', error)
@@ -204,46 +251,103 @@ export default function WordCorrectorPage() {
     }
   }
 
+  // 중복 매치 제거 함수
+  const removeDuplicateMatches = (matches: CorrectionMatch[]): CorrectionMatch[] => {
+    const filtered: CorrectionMatch[] = []
+    
+    matches.forEach(match => {
+      // 같은 위치에서 겹치는 다른 매치가 있는지 확인
+      const overlapping = filtered.find(existing => 
+        existing.paragraphIndex === match.paragraphIndex &&
+        ((match.startIndex >= existing.startIndex && match.startIndex < existing.endIndex) ||
+         (match.endIndex > existing.startIndex && match.endIndex <= existing.endIndex) ||
+         (match.startIndex <= existing.startIndex && match.endIndex >= existing.endIndex))
+      )
+      
+      if (!overlapping) {
+        filtered.push(match)
+      } else {
+        // 더 긴 매치를 우선으로 선택
+        if (match.endIndex - match.startIndex > overlapping.endIndex - overlapping.startIndex) {
+          const index = filtered.indexOf(overlapping)
+          filtered[index] = match
+          console.log(`겹침 해결: 더 긴 매치 선택 "${match.original}" > "${overlapping.original}"`)
+        }
+      }
+    })
+    
+    return filtered
+  }
+
   const highlightText = (text: string, matches: CorrectionMatch[], paragraphIndex: number) => {
     const paragraphMatches = matches.filter(m => m.paragraphIndex === paragraphIndex)
     if (paragraphMatches.length === 0) return text
 
+    // 디버깅 로그
+    console.log(`문단 ${paragraphIndex + 1} 하이라이트:`, {
+      텍스트길이: text.length,
+      매치수: paragraphMatches.length,
+      텍스트샘플: text.substring(0, 100) + '...'
+    })
+
     let result = []
     let lastIndex = 0
 
-    // 겹치지 않게 정렬된 매치들을 순서대로 처리
-    paragraphMatches
+    // 매치들을 위치순으로 정렬하고 유효성 검증
+    const validMatches = paragraphMatches
       .sort((a, b) => a.startIndex - b.startIndex)
-      .forEach((match, index) => {
-        // 이전 매치와 겹치지 않는지 확인
-        if (match.startIndex < lastIndex) return
-
-        // 매치 이전 텍스트 추가
-        if (match.startIndex > lastIndex) {
-          result.push(text.substring(lastIndex, match.startIndex))
+      .filter(match => {
+        // 인덱스 유효성 검증
+        if (match.startIndex < 0 || match.startIndex >= text.length || 
+            match.endIndex <= match.startIndex || match.endIndex > text.length) {
+          console.warn(`잘못된 매치 인덱스 제외:`, match)
+          return false
         }
-
-        // 매치된 텍스트를 하이라이트
-        result.push(
-          <span
-            key={`${paragraphIndex}-${index}`}
-            className="bg-green-100 text-green-800 px-1 rounded relative group"
-            title={`교정됨: "${match.original}" → "${match.corrected}"`}
-          >
-            {match.corrected}
-            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-              원래: {match.original}
-            </span>
-          </span>
-        )
-
-        lastIndex = match.endIndex
+        return true
       })
 
-    // 남은 텍스트 추가
+    validMatches.forEach((match, index) => {
+      // 이전 매치와 겹치지 않는지 확인
+      if (match.startIndex < lastIndex) {
+        console.warn(`겹치는 매치 건너뜀:`, match)
+        return
+      }
+
+      // 매치 이전 텍스트 추가
+      if (match.startIndex > lastIndex) {
+        const beforeText = text.substring(lastIndex, match.startIndex)
+        result.push(beforeText)
+      }
+
+      // 실제 매치된 텍스트 확인
+      const actualText = text.substring(match.startIndex, match.endIndex)
+      
+      console.log(`매치 ${index + 1}: "${actualText}" → "${match.corrected}" (${match.startIndex}-${match.endIndex})`)
+
+      // 매치된 텍스트를 하이라이트
+      result.push(
+        <span
+          key={`${paragraphIndex}-${match.startIndex}-${index}`}
+          className="bg-green-100 text-green-800 px-1 rounded relative group"
+          title={`교정됨: "${actualText}" → "${match.corrected}"`}
+        >
+          {match.corrected}
+          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            원래: {actualText}
+          </span>
+        </span>
+      )
+
+      lastIndex = match.endIndex
+    })
+
+    // 마지막 매치 이후 텍스트 추가
     if (lastIndex < text.length) {
-      result.push(text.substring(lastIndex))
+      const afterText = text.substring(lastIndex)
+      result.push(afterText)
     }
+
+    console.log(`문단 ${paragraphIndex + 1} 하이라이트 완료: ${result.length}개 요소`)
 
     return result
   }
