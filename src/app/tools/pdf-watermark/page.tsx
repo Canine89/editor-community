@@ -25,6 +25,9 @@ export default function PDFWatermarkPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  // 드래그 상태 관리 - 가시성 개선을 위함
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [dragCounter, setDragCounter] = useState(0) // 중첩 드래그 이벤트 처리용
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>({
     text: '',
     fontSize: 24,
@@ -54,8 +57,47 @@ export default function PDFWatermarkPage() {
     alert('PDF 파일이 선택되었습니다')
   }, [])
 
+  // 드래그 진입 - 중첩 이벤트 처리를 위한 카운터 사용
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setDragCounter(prev => prev + 1)
+    
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragOver(true)
+    }
+  }, [])
+
+  // 드래그 오버 - 기본 동작 방지
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  // 드래그 이탈 - 카운터가 0이 되면 상태 비활성화
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setDragCounter(prev => {
+      const newCounter = prev - 1
+      if (newCounter === 0) {
+        setIsDragOver(false)
+      }
+      return newCounter
+    })
+  }, [])
+
+  // 파일 드롭 - 상태 초기화 및 파일 처리
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
+    e.stopPropagation()
+    
+    // 상태 초기화
+    setIsDragOver(false)
+    setDragCounter(0)
+    
     const files = e.dataTransfer.files
     const file = files[0]
     
@@ -66,12 +108,14 @@ export default function PDFWatermarkPage() {
       return
     }
 
-    setSelectedFile(file)
-    alert('PDF 파일이 업로드되었습니다')
-  }, [])
+    if (file.size > 50 * 1024 * 1024) {
+      alert('파일 크기는 50MB 이하만 가능합니다')
+      return
+    }
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
+    setSelectedFile(file)
+    // 성공 피드백을 위한 개선된 메시지
+    alert('PDF 파일이 성공적으로 업로드되었습니다!')
   }, [])
 
   const applyWatermark = async () => {
@@ -251,14 +295,40 @@ export default function PDFWatermarkPage() {
                   <div
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-300 ease-in-out ${
+                      isDragOver
+                        ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-200 ring-opacity-50 scale-[1.02] shadow-lg'
+                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25'
+                    }`}
                   >
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-gray-700 mb-2">
-                      PDF 파일을 드래그하거나 클릭하여 선택
+                    <Upload 
+                      className={`w-12 h-12 mx-auto mb-4 transition-all duration-300 ${
+                        isDragOver 
+                          ? 'text-blue-600 scale-110 animate-pulse' 
+                          : 'text-gray-400'
+                      }`} 
+                    />
+                    <p className={`text-lg font-medium mb-2 transition-colors duration-300 ${
+                      isDragOver 
+                        ? 'text-blue-800' 
+                        : 'text-gray-700'
+                    }`}>
+                      {isDragOver 
+                        ? 'PDF 파일을 여기에 놓아주세요!' 
+                        : 'PDF 파일을 드래그하거나 클릭하여 선택'
+                      }
                     </p>
-                    <p className="text-sm text-gray-500 mb-4">
-                      최대 50MB까지 업로드 가능
+                    <p className={`text-sm mb-4 transition-colors duration-300 ${
+                      isDragOver 
+                        ? 'text-blue-600 font-medium' 
+                        : 'text-gray-500'
+                    }`}>
+                      {isDragOver 
+                        ? '파일을 놓으면 자동으로 업로드됩니다' 
+                        : '최대 50MB까지 업로드 가능'
+                      }
                     </p>
                     <input
                       type="file"
@@ -268,10 +338,30 @@ export default function PDFWatermarkPage() {
                       id="pdf-upload"
                     />
                     <label htmlFor="pdf-upload">
-                      <Button variant="outline" className="cursor-pointer" asChild>
-                        <span>파일 선택</span>
+                      <Button 
+                        variant="outline" 
+                        className={`cursor-pointer transition-all duration-300 ${
+                          isDragOver 
+                            ? 'bg-blue-100 border-blue-400 text-blue-700 scale-105 shadow-md' 
+                            : 'hover:bg-gray-50'
+                        }`} 
+                        asChild
+                      >
+                        <span>
+                          {isDragOver ? '또는 파일 선택' : '파일 선택'}
+                        </span>
                       </Button>
                     </label>
+                    
+                    {/* 추가 도움말 - 드래그 상태에 따른 동적 표시 */}
+                    {isDragOver && (
+                      <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg animate-fadeIn">
+                        <div className="flex items-center justify-center gap-2 text-blue-800">
+                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></div>
+                          <span className="text-sm font-medium">PDF 파일 감지됨</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {selectedFile && (
                     <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">

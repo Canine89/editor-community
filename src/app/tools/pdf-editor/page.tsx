@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
   Upload,
@@ -78,6 +79,7 @@ function InsertionIndicator({ position }: { position: 'before' | 'after' }) {
 }
 
 // 드래그 가능한 페이지 썸네일 컴포넌트
+// 성능 최적화를 위한 메모이제이션 비교 함수
 const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, isOver, isDragging, isSelected, onToggleSelect, isMultiSelectMode, selectedPages, activeId, mainFileName, currentIndex }: {
   page: PDFPageData
   onDelete: () => void
@@ -113,38 +115,52 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
 
   const style = useMemo(() => ({
     transform: CSS.Transform.toString(transform),
-    transition: actualIsDragging ? 'none' : transition,
+    // 드래그 중에는 모든 트랜지션 비활성화
+    transition: actualIsDragging ? 'none' : 'transform 150ms cubic-bezier(0.2, 0, 0, 1)',
     opacity: actualIsDragging ? 0.3 : isGroupDragging ? 0.7 : 1,
+    // GPU 가속을 위한 transform3d 사용
     scale: actualIsDragging ? 1.05 : isGroupDragging ? 1.02 : 1,
     zIndex: actualIsDragging ? 50 : isGroupDragging ? 10 : 1,
+    // GPU 레이어 생성을 위한 will-change 속성
+    willChange: actualIsDragging || isGroupDragging ? 'transform' : 'auto',
   }), [transform, transition, actualIsDragging, isGroupDragging])
 
   const containerClasses = useMemo(() => {
     // 추가 파일인 경우 기본 배경을 연한 녹색으로 설정
-    let classes = `relative group rounded-lg transition-all duration-200 ${
+    let classes = `relative group rounded-lg cursor-move ${
       isAdditionalFile 
         ? 'bg-green-50' 
         : 'bg-white'
     }`
     
+    // 드래그 중에는 트랜지션 비활성화, 평상시에는 최적화된 트랜지션 적용
     if (actualIsDragging) {
-      classes += ' border-2 border-blue-400 shadow-2xl ring-4 ring-blue-100'
+      classes += ' transition-none'
+    } else {
+      classes += ' transition-[transform,box-shadow,border-color] duration-150 ease-out'
+    }
+    
+    // GPU 가속을 위한 성능 최적화 속성들 - 인라인 스타일로 적용
+    const needsOptimization = actualIsDragging || isGroupDragging || isSelected
+    
+    if (actualIsDragging) {
+      classes += ' border-4 border-blue-400 shadow-2xl ring-4 ring-blue-100 transform scale-105 rotate-1 z-50'
     } else if (isGroupDragging) {
-      classes += ' border-2 border-purple-500 bg-purple-100 shadow-xl ring-3 ring-purple-300 animate-pulse'
+      classes += ' border-4 border-purple-500 bg-purple-100 shadow-xl ring-3 ring-purple-300 transform scale-105 z-40'
     } else if (isSelected) {
-      classes += ' border-2 border-purple-400 bg-purple-50 shadow-lg ring-2 ring-purple-200'
+      classes += ' border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg ring-2 ring-purple-200 transform scale-[1.03]'
     } else if (isOver) {
-      classes += ' border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200'
+      classes += ' border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200 transform scale-[1.01]'
     } else {
       // 추가 파일인 경우 녹색 테두리, 메인 파일인 경우 회색 테두리
       if (isAdditionalFile) {
-        classes += ' border-2 border-green-300 hover:border-green-400 shadow-sm hover:shadow-md'
+        classes += ' border-2 border-green-300 hover:border-green-400 shadow-sm hover:shadow-md hover:scale-[1.01]'
       } else {
-        classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+        classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md hover:scale-[1.01]'
       }
     }
     
-    return classes
+    return { classes, needsOptimization }
   }, [actualIsDragging, isGroupDragging, isSelected, isOver, isAdditionalFile])
 
   // 원본 정보 툴팁 텍스트 - 모든 페이지에 적용
@@ -152,92 +168,121 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
     ? `원본: ${page.sourceFile} ${page.pageNumber}페이지`
     : undefined
 
+  // GPU 최적화를 위한 추가 스타일
+  const optimizedStyle = useMemo(() => {
+    const baseStyle = { ...style }
+    
+    if (containerClasses.needsOptimization) {
+      baseStyle.willChange = 'transform'
+      baseStyle.contain = 'layout style paint'
+      baseStyle.backfaceVisibility = 'hidden'
+      // transform3d를 사용하여 GPU 레이어 강제 생성
+      baseStyle.transform = `${baseStyle.transform || ''} translate3d(0, 0, 0)`
+    }
+    
+    return baseStyle
+  }, [style, containerClasses.needsOptimization])
+
   return (
     <div 
       ref={setNodeRef}
-      style={style}
-      className={containerClasses}
+      style={optimizedStyle}
+      className={containerClasses.classes}
       title={tooltipText}
     >
-      {/* 다중 선택 체크박스 */}
+      {/* 다중 선택 체크박스 - 개선된 시각적 피드백 */}
       {isMultiSelectMode && onToggleSelect && (
         <div 
-          className="absolute top-2 left-2 z-20 p-1 bg-white border border-slate-300 rounded cursor-pointer hover:bg-slate-50"
-          onClick={onToggleSelect}
+          className={cn(
+            "absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 shadow-sm",
+            isSelected 
+              ? "bg-purple-500 border-2 border-purple-600 shadow-md" 
+              : "bg-white border-2 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+          )}
           title="페이지 선택"
         >
           <input
             type="checkbox"
             checked={isSelected || false}
-            onChange={() => {}}
-            className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
+            onChange={(e) => {
+              e.stopPropagation()
+              onToggleSelect(e as any)
+            }}
+            className={cn(
+              "w-4 h-4 rounded cursor-pointer transition-all duration-200",
+              isSelected 
+                ? "text-white bg-purple-500 border-purple-500 focus:ring-purple-400" 
+                : "text-purple-600 bg-white border-slate-300 focus:ring-purple-500 hover:border-purple-400"
+            )}
           />
         </div>
       )}
 
-      {/* 드래그 핸들 */}
+      {/* 드래그 핸들 - 개선된 시각적 피드백 */}
       <div 
         {...attributes}
         {...listeners}
-        className={`
-          absolute top-2 z-10 p-1 rounded border cursor-grab active:cursor-grabbing 
-          transition-all duration-200
-          ${isMultiSelectMode ? 'left-10' : 'left-2'}
-          ${actualIsDragging ? 
-            'bg-blue-500 border-blue-600 opacity-100' : 
-            'bg-white border-slate-300 opacity-0 group-hover:opacity-100'
-          }
-        `}
+        className={cn(
+          "absolute top-2 z-10 p-2 rounded-full cursor-grab active:cursor-grabbing transition-all duration-200 shadow-sm",
+          isMultiSelectMode ? "left-12" : "left-2",
+          actualIsDragging 
+            ? "bg-blue-500 border-2 border-blue-600 opacity-100 shadow-md transform scale-110" 
+            : "bg-white border-2 border-slate-300 opacity-0 group-hover:opacity-100 hover:border-slate-400 hover:shadow-md"
+        )}
         title="드래그하여 순서 변경"
       >
-        <GripVertical className={`w-4 h-4 ${actualIsDragging ? 'text-white' : 'text-slate-600'}`} />
+        <GripVertical className={cn(
+          "w-4 h-4 transition-colors duration-200",
+          actualIsDragging ? "text-white" : "text-slate-600"
+        )} />
       </div>
 
-      {/* 페이지 번호 - 드래그 중에는 숨김 */}
+      {/* 페이지 번호 - 드래그 중에는 숨김, 개선된 스타일 */}
       {!actualIsDragging && (
-        <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+        <div className="absolute top-2 right-2 bg-slate-700 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
           {currentIndex + 1}
         </div>
       )}
 
-      {/* 소스 파일 배지 - 모든 페이지에 파일명과 원본 페이지 번호 표시 */}
+      {/* 소스 파일 배지 - 모든 페이지에 파일명과 원본 페이지 번호 표시, 개선된 스타일 */}
       {page.sourceFile && (
-        <div className={`absolute top-10 right-2 text-white text-xs px-2 py-1 rounded-full max-w-24 truncate ${
-          isAdditionalFile ? 'bg-green-600' : 'bg-slate-600'
-        }`}
+        <div className={cn(
+          "absolute bottom-2 left-2 text-white text-xs px-3 py-1.5 rounded-full max-w-28 truncate z-10 font-medium shadow-sm transition-all duration-200",
+          isAdditionalFile ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-slate-700"
+        )}
              title={`소스: ${page.sourceFile} (원본 페이지 ${page.pageNumber})`}>
           {page.sourceFile.replace('.pdf', '').substring(0, 6)}..{page.pageNumber}p
         </div>
       )}
 
-      {/* 페이지 이미지 */}
-      <div className="w-full h-48 flex items-center justify-center p-4">
+      {/* 페이지 이미지 - 개선된 스타일 */}
+      <div className="w-full h-48 flex items-center justify-center p-4 bg-slate-25 rounded-lg">
         {page.isLoading ? (
           <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs text-slate-500">로딩 중...</span>
           </div>
         ) : page.canvas ? (
           <img 
             src={page.canvas} 
             alt={`페이지 ${page.pageNumber}`}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full object-contain rounded border border-slate-200 transition-all duration-200 hover:shadow-sm"
           />
         ) : (
-          <div className="text-slate-400">
+          <div className="text-slate-400 flex flex-col items-center">
             <FileText className="w-8 h-8 mx-auto mb-2" />
             <span className="text-xs">미리보기 없음</span>
           </div>
         )}
       </div>
 
-      {/* 액션 버튼들 */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* 액션 버튼들 - 개선된 스타일과 배치 */}
+      <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
         <Button
           size="sm"
           variant="secondary"
           onClick={onViewLarge}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 shadow-sm transition-colors duration-200"
           title="크게 보기"
         >
           <Eye className="w-3 h-3" />
@@ -246,13 +291,27 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
           size="sm"
           variant="destructive"
           onClick={onDelete}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 hover:bg-red-600 shadow-sm transition-colors duration-200"
           title="페이지 삭제"
         >
           <Trash2 className="w-3 h-3" />
         </Button>
       </div>
     </div>
+  )
+}, (prevProps, nextProps) => {
+  // 성능 최적화를 위한 얕은 비교 함수
+  return (
+    prevProps.page.id === nextProps.page.id &&
+    prevProps.page.canvas === nextProps.page.canvas &&
+    prevProps.page.isLoading === nextProps.page.isLoading &&
+    prevProps.isOver === nextProps.isOver &&
+    prevProps.isDragging === nextProps.isDragging &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isMultiSelectMode === nextProps.isMultiSelectMode &&
+    prevProps.activeId === nextProps.activeId &&
+    prevProps.currentIndex === nextProps.currentIndex &&
+    prevProps.mainFileName === nextProps.mainFileName
   )
 })
 
@@ -275,8 +334,14 @@ export default function PDFEditorPage() {
   const [insertPosition, setInsertPosition] = useState<'end' | number>('end')
   const [originalFileCache, setOriginalFileCache] = useState<Map<string, File>>(new Map())
 
+  // 최적화된 센서 설정 - 성능 개선을 위한 임계값 설정
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      // 5px 임계값으로 의도하지 않은 드래그 방지
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -470,27 +535,40 @@ export default function PDFEditorPage() {
     }
   }
 
+  // 드래그 시작 최적화 - 불필요한 상태 초기화 최소화
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const draggedPageId = event.active.id as string
     setActiveId(draggedPageId)
+    // 드래그 시작 시에만 overId와 dropPosition 초기화
     setOverId(null)
+    setDropPosition(null)
   }, [])
 
+  // 드래그 오버 최적화 - 동일한 상태 업데이트 방지
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const overId = event.over?.id as string
-    setOverId(overId || null)
+    
+    // 이전 overId와 같으면 불필요한 상태 업데이트 방지
+    if (overId === (event.over?.id as string)) {
+      // overId가 변경된 경우에만 업데이트
+      setOverId(prevOverId => prevOverId !== overId ? (overId || null) : prevOverId)
+    }
     
     if (overId && activeId && activeId !== overId) {
       const activeIndex = pageIndexMap.get(activeId) ?? -1
       const overIndex = pageIndexMap.get(overId) ?? -1
       
       if (activeIndex !== -1 && overIndex !== -1) {
-        // 드래그하는 페이지가 target 페이지보다 앞에 있으면 오른쪽에, 뒤에 있으면 왼쪽에 표시
         const position = activeIndex < overIndex ? 'after' : 'before'
-        setDropPosition({ pageId: overId, position })
+        // 같은 위치면 업데이트하지 않음
+        setDropPosition(prev => 
+          prev?.pageId === overId && prev?.position === position 
+            ? prev 
+            : { pageId: overId, position }
+        )
       }
     } else {
-      setDropPosition(null)
+      setDropPosition(prev => prev ? null : prev)
     }
   }, [activeId, pageIndexMap])
 
@@ -916,13 +994,18 @@ export default function PDFEditorPage() {
                         variant={isMultiSelectMode ? "default" : "outline"}
                         size="sm"
                         onClick={toggleMultiSelectMode}
-                        className="flex items-center gap-2"
+                        className={cn(
+                          "flex items-center gap-2 transition-all duration-200",
+                          isMultiSelectMode 
+                            ? "bg-purple-600 hover:bg-purple-700 border-purple-600" 
+                            : "hover:bg-purple-50 hover:border-purple-300"
+                        )}
                       >
                         <input
                           type="checkbox"
                           checked={isMultiSelectMode}
                           onChange={() => {}}
-                          className="w-4 h-4"
+                          className="w-4 h-4 pointer-events-none"
                         />
                         다중 선택
                       </Button>
@@ -1139,41 +1222,47 @@ export default function PDFEditorPage() {
                     
                     {/* 드래그 오버레이 - 다중 선택 정보 표시 */}
                     <DragOverlay>
-                      {activeId ? (
-                        <div className="relative">
-                          {/* 메인 드래그 카드 */}
-                          <div className="bg-white border-2 border-blue-400 rounded-lg shadow-2xl ring-4 ring-blue-100 opacity-90">
-                            {(() => {
-                              const draggedPage = pages.find(p => p.id === activeId)
-                              return draggedPage ? (
-                                <div className="w-40 h-48 p-4">
-                                  {draggedPage.canvas ? (
-                                    <img 
-                                      src={draggedPage.canvas} 
-                                      alt={`페이지 ${draggedPage.pageNumber}`}
-                                      className="w-full h-full object-contain"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                      <FileText className="w-8 h-8" />
-                                    </div>
-                                  )}
-                                  <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                                    {draggedPage.pageNumber}
-                                  </div>
+                      {activeId ? (() => {
+                        const draggedPage = pages.find(p => p.id === activeId)
+                        if (!draggedPage) return null
+                        
+                        return (
+                          <div 
+                            className="relative pointer-events-none"
+                            style={{
+                              // GPU 가속을 위한 최적화
+                              willChange: 'transform',
+                              contain: 'layout style paint',
+                              backfaceVisibility: 'hidden',
+                              transform: 'translate3d(0, 0, 0)'
+                            }}
+                          >
+                            {/* 단순화된 드래그 카드 */}
+                            <div className="bg-white border-2 border-blue-400 rounded-lg shadow-xl opacity-90 w-40 h-48 p-2 transition-none">
+                              {/* 이미지만 표시 - 다른 요소들 제거 */}
+                              {draggedPage.canvas ? (
+                                <img 
+                                  src={draggedPage.canvas} 
+                                  alt={`페이지 ${draggedPage.pageNumber}`}
+                                  className="w-full h-full object-contain rounded"
+                                  draggable={false}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50 rounded">
+                                  <FileText className="w-6 h-6" />
                                 </div>
-                              ) : null
-                            })()}
-                          </div>
-                          
-                          {/* 다중 선택 카운터 */}
-                          {selectedPages.size > 0 && selectedPages.has(activeId) && (
-                            <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
-                              {selectedPages.size}
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ) : null}
+                            
+                            {/* 다중 선택 카운터만 유지 (성능 중요) */}
+                            {selectedPages.size > 1 && selectedPages.has(activeId) && (
+                              <div className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+                                {selectedPages.size}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })() : null}
                     </DragOverlay>
                   </DndContext>
                 </div>
