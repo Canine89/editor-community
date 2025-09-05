@@ -224,6 +224,7 @@ export default function PDFEditorPage() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([])
   const [isMerging, setIsMerging] = useState(false)
+  const [insertPosition, setInsertPosition] = useState<'end' | number>('end')
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -493,19 +494,42 @@ export default function PDFEditorPage() {
       const mainArrayBuffer = await selectedFile.arrayBuffer()
       const mainPdfDoc = await PDFDocument.load(mainArrayBuffer)
       
-      // 현재 페이지 순서대로 복사
-      const mainPageIndices = pages.map((_, index) => index)
-      const mainPages = await mergedPdf.copyPages(mainPdfDoc, mainPageIndices)
-      mainPages.forEach(page => mergedPdf.addPage(page))
-
-      // 추가 PDF 파일들을 순서대로 병합
+      // 추가 파일들의 페이지들을 미리 준비
+      const additionalPages = []
       for (const file of additionalFiles) {
         const arrayBuffer = await file.arrayBuffer()
         const pdfDoc = await PDFDocument.load(arrayBuffer)
         const pageCount = pdfDoc.getPageCount()
         const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
         const copiedPages = await mergedPdf.copyPages(pdfDoc, pageIndices)
-        copiedPages.forEach(page => mergedPdf.addPage(page))
+        additionalPages.push(...copiedPages)
+      }
+
+      // 삽입 위치에 따라 병합
+      if (insertPosition === 'end') {
+        // 맨 끝에 추가 (기존 로직)
+        const mainPageIndices = pages.map((_, index) => index)
+        const mainPages = await mergedPdf.copyPages(mainPdfDoc, mainPageIndices)
+        mainPages.forEach(page => mergedPdf.addPage(page))
+        additionalPages.forEach(page => mergedPdf.addPage(page))
+      } else {
+        // 지정된 위치에 삽입
+        const insertAfterIndex = insertPosition as number
+        
+        // 삽입 위치까지의 페이지들 추가
+        for (let i = 0; i <= insertAfterIndex; i++) {
+          const [copiedPage] = await mergedPdf.copyPages(mainPdfDoc, [i])
+          mergedPdf.addPage(copiedPage)
+        }
+        
+        // 추가 파일들의 페이지들 삽입
+        additionalPages.forEach(page => mergedPdf.addPage(page))
+        
+        // 나머지 페이지들 추가
+        for (let i = insertAfterIndex + 1; i < pages.length; i++) {
+          const [copiedPage] = await mergedPdf.copyPages(mainPdfDoc, [i])
+          mergedPdf.addPage(copiedPage)
+        }
       }
 
       // 병합된 PDF 다운로드
@@ -515,7 +539,8 @@ export default function PDFEditorPage() {
 
       const link = document.createElement('a')
       link.href = url
-      link.download = `merged_${selectedFile.name}`
+      const positionText = insertPosition === 'end' ? 'end' : `after_page_${insertPosition + 1}`
+      link.download = `merged_${positionText}_${selectedFile.name}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -782,7 +807,7 @@ export default function PDFEditorPage() {
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-green-800 mb-2">
-                          추가할 PDF 파일들 선택 (현재 파일 뒤에 병합됩니다)
+                          추가할 PDF 파일들 선택
                         </label>
                         <input
                           type="file"
@@ -791,6 +816,67 @@ export default function PDFEditorPage() {
                           onChange={handleAdditionalFiles}
                           className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
                         />
+                      </div>
+
+                      {/* 삽입 위치 선택 */}
+                      <div>
+                        <label className="block text-sm font-medium text-green-800 mb-2">
+                          삽입 위치 선택
+                        </label>
+                        <div className="space-y-2">
+                          <div className="flex items-center">
+                            <input
+                              type="radio"
+                              id="position-end"
+                              name="insertPosition"
+                              value="end"
+                              checked={insertPosition === 'end'}
+                              onChange={() => setInsertPosition('end')}
+                              className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500"
+                            />
+                            <label htmlFor="position-end" className="ml-2 text-sm text-green-800">
+                              맨 끝에 추가 (기본)
+                            </label>
+                          </div>
+                          
+                          {pages.length > 0 && (
+                            <>
+                              <div className="flex items-center">
+                                <input
+                                  type="radio"
+                                  id="position-custom"
+                                  name="insertPosition"
+                                  value="custom"
+                                  checked={typeof insertPosition === 'number'}
+                                  onChange={() => setInsertPosition(0)}
+                                  className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500"
+                                />
+                                <label htmlFor="position-custom" className="ml-2 text-sm text-green-800">
+                                  특정 페이지 뒤에 삽입:
+                                </label>
+                              </div>
+                              
+                              {typeof insertPosition === 'number' && (
+                                <div className="ml-6">
+                                  <select
+                                    value={insertPosition}
+                                    onChange={(e) => setInsertPosition(parseInt(e.target.value))}
+                                    className="block w-full px-3 py-2 bg-white border border-green-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  >
+                                    {pages.map((page, index) => (
+                                      <option key={page.id} value={index}>
+                                        {index + 1}페이지 뒤에 삽입
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="text-xs text-green-600 mt-1">
+                                    현재 {insertPosition + 1}페이지 뒤에 새 파일들이 삽입됩니다
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       {additionalFiles.length > 0 && (
