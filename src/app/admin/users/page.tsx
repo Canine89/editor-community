@@ -45,7 +45,6 @@ interface AdminUser {
   full_name: string
   avatar_url: string
   created_at: string
-  last_sign_in_at: string
   user_role: UserRole
 }
 
@@ -106,7 +105,7 @@ export default function AdminUsersPage() {
       // 먼저 user_role 컬럼이 있는지 확인하고 없으면 기존 방식 사용
       let { data, error } = await supabase
         .from('profiles')
-        .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, user_role, membership_tier')
+        .select('id, email, full_name, avatar_url, created_at, user_role, membership_tier')
         .order('created_at', { ascending: false })
 
       if (error && error.code === 'PGRST116') {
@@ -122,7 +121,6 @@ export default function AdminUsersPage() {
             full_name, 
             avatar_url, 
             created_at, 
-            last_sign_in_at, 
             membership_tier,
             admin_permissions!inner(permission_type, is_active)
           `)
@@ -131,7 +129,7 @@ export default function AdminUsersPage() {
         // admin_permissions가 없는 일반 사용자도 포함
         const { data: allProfilesData, error: allProfilesError } = await supabase
           .from('profiles')
-          .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, membership_tier')
+          .select('id, email, full_name, avatar_url, created_at, membership_tier')
           .order('created_at', { ascending: false })
 
         if (allProfilesError) {
