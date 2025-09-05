@@ -208,7 +208,7 @@ export default function AdminUsersPage() {
         
         // membership_tier 업데이트
         if (selectedNewRole === 'premium' || selectedNewRole === 'user') {
-          const { error: membershipError } = await supabase
+          const { error: membershipError } = await (supabase as any)
             .from('profiles')
             .update({ 
               membership_tier: selectedNewRole === 'premium' ? 'premium' : 'free',
@@ -222,14 +222,14 @@ export default function AdminUsersPage() {
         // admin_permissions 관리
         if (selectedNewRole === 'master' || selectedNewRole === 'employee') {
           // 기존 권한 비활성화
-          await supabase
+          await (supabase as any)
             .from('admin_permissions')
             .update({ is_active: false })
             .eq('user_id', selectedUser.id)
 
           // 새 권한 추가
           const permissionType = selectedNewRole === 'master' ? 'master' : 'goldenrabbit_employee'
-          const { error: permissionError } = await supabase
+          const { error: permissionError } = await (supabase as any)
             .from('admin_permissions')
             .upsert({
               user_id: selectedUser.id,
@@ -242,7 +242,7 @@ export default function AdminUsersPage() {
           if (permissionError) throw permissionError
         } else {
           // 일반 사용자나 프리미엄으로 변경시 모든 관리자 권한 비활성화
-          await supabase
+          await (supabase as any)
             .from('admin_permissions')
             .update({ is_active: false })
             .eq('user_id', selectedUser.id)
