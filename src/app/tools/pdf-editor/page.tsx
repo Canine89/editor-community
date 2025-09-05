@@ -222,6 +222,8 @@ export default function PDFEditorPage() {
   const [viewLargePage, setViewLargePage] = useState<PDFPageData | null>(null)
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set())
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([])
+  const [isMerging, setIsMerging] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -377,18 +379,8 @@ export default function PDFEditorPage() {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    const draggedPageId = event.active.id as string
-    setActiveId(draggedPageId)
+    setActiveId(event.active.id as string)
     setOverId(null)
-    
-    // 드래그하는 페이지가 선택되지 않았다면 선택에 추가
-    if (selectedPages.size > 0 && !selectedPages.has(draggedPageId)) {
-      setSelectedPages(prev => {
-        const newSet = new Set(prev)
-        newSet.add(draggedPageId)
-        return newSet
-      })
-    }
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -410,35 +402,12 @@ export default function PDFEditorPage() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
-    if (active.id !== over?.id && over) {
+    if (active.id !== over?.id) {
       setPages((items) => {
-        // 다중 선택된 페이지들이 있고, 드래그한 페이지가 선택된 페이지 중 하나인 경우
-        if (selectedPages.size > 1 && selectedPages.has(active.id as string)) {
-          const selectedPageIds = Array.from(selectedPages)
-          const targetIndex = items.findIndex(item => item.id === over.id)
-          
-          // 선택된 페이지들을 제거
-          const selectedPagesData = items.filter(item => selectedPages.has(item.id))
-          const remainingItems = items.filter(item => !selectedPages.has(item.id))
-          
-          // 타겟 위치 재계산 (제거된 페이지들을 고려)
-          const adjustedTargetIndex = remainingItems.findIndex(item => item.id === over.id)
-          
-          // 선택된 페이지들을 새 위치에 삽입
-          const result = [
-            ...remainingItems.slice(0, adjustedTargetIndex + 1),
-            ...selectedPagesData,
-            ...remainingItems.slice(adjustedTargetIndex + 1)
-          ]
-          
-          return result
-        } else {
-          // 단일 페이지 이동 (기존 로직)
-          const oldIndex = items.findIndex(item => item.id === active.id)
-          const newIndex = items.findIndex(item => item.id === over.id)
-          
-          return arrayMove(items, oldIndex, newIndex)
-        }
+        const oldIndex = items.findIndex(item => item.id === active.id)
+        const newIndex = items.findIndex(item => item.id === over?.id)
+        
+        return arrayMove(items, oldIndex, newIndex)
       })
     }
 
@@ -489,6 +458,79 @@ export default function PDFEditorPage() {
       }
       return !prev
     })
+  }
+
+  // PDF 병합 관련 함수들
+  const handleAdditionalFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf')
+    if (pdfFiles.length === 0) {
+      setError('PDF 파일만 선택할 수 있습니다.')
+      return
+    }
+
+    setAdditionalFiles(pdfFiles)
+    setError('')
+  }
+
+  const removeAdditionalFile = (index: number) => {
+    setAdditionalFiles(files => files.filter((_, i) => i !== index))
+  }
+
+  const mergePDFs = async () => {
+    if (!selectedFile || additionalFiles.length === 0) return
+
+    setIsMerging(true)
+    setError('')
+
+    try {
+      // 메인 PDF 문서 생성
+      const mergedPdf = await PDFDocument.create()
+      
+      // 현재 편집된 페이지들을 메인 PDF에 추가
+      const mainArrayBuffer = await selectedFile.arrayBuffer()
+      const mainPdfDoc = await PDFDocument.load(mainArrayBuffer)
+      
+      // 현재 페이지 순서대로 복사
+      const mainPageIndices = pages.map((_, index) => index)
+      const mainPages = await mergedPdf.copyPages(mainPdfDoc, mainPageIndices)
+      mainPages.forEach(page => mergedPdf.addPage(page))
+
+      // 추가 PDF 파일들을 순서대로 병합
+      for (const file of additionalFiles) {
+        const arrayBuffer = await file.arrayBuffer()
+        const pdfDoc = await PDFDocument.load(arrayBuffer)
+        const pageCount = pdfDoc.getPageCount()
+        const pageIndices = Array.from({ length: pageCount }, (_, i) => i)
+        const copiedPages = await mergedPdf.copyPages(pdfDoc, pageIndices)
+        copiedPages.forEach(page => mergedPdf.addPage(page))
+      }
+
+      // 병합된 PDF 다운로드
+      const mergedPdfBytes = await mergedPdf.save()
+      const blob = new Blob([mergedPdfBytes as any], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `merged_${selectedFile.name}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      URL.revokeObjectURL(url)
+      
+      // 추가 파일들 초기화
+      setAdditionalFiles([])
+
+    } catch (error) {
+      console.error('PDF 병합 오류:', error)
+      setError('PDF 병합 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsMerging(false)
+    }
   }
 
   const viewPageLarge = async (pageId: string) => {
@@ -728,6 +770,83 @@ export default function PDFEditorPage() {
                         선택 삭제 ({selectedPages.size})
                       </Button>
                     )}
+                  </div>
+
+                  {/* PDF 병합 기능 */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="w-5 h-5 text-green-600" />
+                      <h3 className="text-lg font-medium text-green-900">PDF 파일 병합</h3>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-green-800 mb-2">
+                          추가할 PDF 파일들 선택 (현재 파일 뒤에 병합됩니다)
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          multiple
+                          onChange={handleAdditionalFiles}
+                          className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
+                        />
+                      </div>
+
+                      {additionalFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-green-800">
+                            병합할 파일들 ({additionalFiles.length}개):
+                          </p>
+                          <div className="space-y-1">
+                            {additionalFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between bg-white rounded-lg p-2 border border-green-200">
+                                <span className="text-sm text-slate-700 truncate flex-1">
+                                  {index + 1}. {file.name}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeAdditionalFile(index)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2 h-6 w-6 p-0"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {additionalFiles.length > 0 && (
+                        <div className="flex gap-3 pt-2">
+                          <Button
+                            onClick={mergePDFs}
+                            disabled={isMerging}
+                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {isMerging ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                병합 중...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4" />
+                                PDF 병합 및 다운로드
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setAdditionalFiles([])}
+                            disabled={isMerging}
+                          >
+                            파일 목록 초기화
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <DndContext
