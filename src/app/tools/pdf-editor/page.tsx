@@ -237,6 +237,8 @@ export default function PDFEditorPage() {
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([])
   const [isMerging, setIsMerging] = useState(false)
   const [insertPosition, setInsertPosition] = useState<'end' | number>('end')
+  const [mergedPreview, setMergedPreview] = useState<PDFPageData[] | null>(null)
+  const [mergedPdfData, setMergedPdfData] = useState<Uint8Array | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -550,7 +552,7 @@ export default function PDFEditorPage() {
     setAdditionalFiles(files => files.filter((_, i) => i !== index))
   }
 
-  const mergePDFs = async () => {
+  const previewMergedPDF = async () => {
     if (!selectedFile || additionalFiles.length === 0) return
 
     setIsMerging(true)
@@ -602,9 +604,72 @@ export default function PDFEditorPage() {
         }
       }
 
-      // 병합된 PDF 다운로드
+      // 병합된 PDF 바이트 데이터 저장 (나중에 다운로드용)
       const mergedPdfBytes = await mergedPdf.save()
-      const blob = new Blob([mergedPdfBytes as any], { type: 'application/pdf' })
+      setMergedPdfData(mergedPdfBytes)
+
+      // 병합된 PDF의 미리보기 생성
+      const mergedArrayBuffer = new ArrayBuffer(mergedPdfBytes.length)
+      const view = new Uint8Array(mergedArrayBuffer)
+      view.set(mergedPdfBytes)
+      
+      const loadingTask = getDocument({ 
+        data: mergedArrayBuffer,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
+        cMapPacked: true
+      })
+      
+      const pdf = await loadingTask.promise
+      const totalPages = pdf.numPages
+
+      // 초기 페이지 데이터 생성 (로딩 상태)
+      const initialMergedPages: PDFPageData[] = Array.from({ length: totalPages }, (_, index) => ({
+        id: `merged-page-${index + 1}`,
+        pageNumber: index + 1,
+        isLoading: true
+      }))
+
+      setMergedPreview(initialMergedPages)
+
+      // 썸네일을 비동기적으로 생성
+      const thumbnailPromises = Array.from({ length: totalPages }, async (_, index) => {
+        const canvas = await generatePageThumbnail(pdf, index)
+        return { index, canvas }
+      })
+
+      // 썸네일이 생성되는대로 업데이트
+      thumbnailPromises.forEach(async (promise) => {
+        const { index, canvas } = await promise
+        setMergedPreview(prevPages => 
+          prevPages ? prevPages.map(page => 
+            page.pageNumber === index + 1 
+              ? { ...page, canvas: canvas || undefined, isLoading: false }
+              : page
+          ) : null
+        )
+      })
+
+    } catch (error) {
+      console.error('PDF 병합 미리보기 오류:', error)
+      setError('PDF 병합 미리보기 생성 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsMerging(false)
+    }
+  }
+
+  // 병합 미리보기 리셋
+  const resetMergedPreview = () => {
+    setMergedPreview(null)
+    setMergedPdfData(null)
+    setAdditionalFiles([])
+  }
+
+  // 최종 병합된 PDF 다운로드
+  const downloadMergedPDF = async () => {
+    if (!mergedPdfData || !selectedFile) return
+
+    try {
+      const blob = new Blob([mergedPdfData as any], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
 
       const link = document.createElement('a')
@@ -617,14 +682,12 @@ export default function PDFEditorPage() {
 
       URL.revokeObjectURL(url)
       
-      // 추가 파일들 초기화
-      setAdditionalFiles([])
+      // 병합 미리보기 상태 리셋
+      resetMergedPreview()
 
     } catch (error) {
-      console.error('PDF 병합 오류:', error)
-      setError('PDF 병합 중 오류가 발생했습니다. 다시 시도해주세요.')
-    } finally {
-      setIsMerging(false)
+      console.error('PDF 다운로드 오류:', error)
+      setError('PDF 다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -977,7 +1040,7 @@ export default function PDFEditorPage() {
                       {additionalFiles.length > 0 && (
                         <div className="flex gap-3 pt-2">
                           <Button
-                            onClick={mergePDFs}
+                            onClick={previewMergedPDF}
                             disabled={isMerging}
                             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
                           >
@@ -988,8 +1051,8 @@ export default function PDFEditorPage() {
                               </>
                             ) : (
                               <>
-                                <Download className="w-4 h-4" />
-                                PDF 병합 및 다운로드
+                                <Eye className="w-4 h-4" />
+                                PDF 병합 미리보기
                               </>
                             )}
                           </Button>
@@ -1081,6 +1144,92 @@ export default function PDFEditorPage() {
             </Card>
           )}
 
+          {/* 병합 미리보기 결과 */}
+          {mergedPreview && (
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-green-600" />
+                    병합된 PDF 미리보기
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600">
+                      총 {mergedPreview.length}페이지
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetMergedPreview}
+                      className="text-slate-600"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      다시 병합
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-green-800 text-sm">
+                      <Info className="w-4 h-4" />
+                      <span>병합된 결과를 확인하고 필요시 페이지 순서를 조정할 수 있습니다</span>
+                    </div>
+                  </div>
+
+                  {/* TODO: 여기에 droppable 기능을 가진 페이지 그리드 추가 */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {mergedPreview.map((page, index) => (
+                      <div key={page.id} className="relative">
+                        <div className="relative group rounded-lg bg-white border-2 border-green-300 transition-all duration-200 hover:border-green-400 shadow-sm hover:shadow-md">
+                          {/* 페이지 번호 */}
+                          <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                            {page.pageNumber}
+                          </div>
+                          
+                          {/* 페이지 이미지 */}
+                          <div className="w-full h-48 flex items-center justify-center p-4">
+                            {page.isLoading ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-xs text-slate-500">로딩 중...</span>
+                              </div>
+                            ) : page.canvas ? (
+                              <img 
+                                src={page.canvas} 
+                                alt={`병합된 페이지 ${page.pageNumber}`}
+                                className="max-w-full max-h-full object-contain"
+                              />
+                            ) : (
+                              <div className="text-slate-400">
+                                <FileText className="w-8 h-8 mx-auto mb-2" />
+                                <span className="text-xs">미리보기 없음</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 최종 다운로드 버튼 */}
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={downloadMergedPDF}
+                      disabled={!mergedPdfData}
+                      size="lg"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Download className="w-5 h-5 mr-2" />
+                      병합된 PDF 다운로드
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* 오류 메시지 */}
           {error && (
             <Alert className="mb-6 border-red-200 bg-red-50">
@@ -1148,7 +1297,7 @@ export default function PDFEditorPage() {
               <li>• 페이지를 드래그하여 순서를 자유롭게 변경할 수 있습니다</li>
               <li>• <strong>다중 선택 모드:</strong> 여러 페이지를 선택한 후 그 중 하나를 드래그하면 선택된 모든 페이지가 함께 이동됩니다</li>
               <li>• 눈 버튼으로 페이지를 크게 보거나 삭제 버튼으로 제거할 수 있습니다</li>
-              <li>• PDF 병합 기능으로 여러 PDF를 하나로 합칠 수 있습니다 (삽입 위치 선택 가능)</li>
+              <li>• <strong>PDF 병합 미리보기:</strong> 여러 PDF를 먼저 미리보기로 확인한 후 페이지 순서를 조정하고 다운로드할 수 있습니다</li>
               <li>• 편집이 완료되면 새로운 PDF 파일로 다운로드됩니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 안전합니다</li>
             </ul>
