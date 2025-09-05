@@ -103,13 +103,72 @@ export default function AdminUsersPage() {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase
+      // 먼저 user_role 컬럼이 있는지 확인하고 없으면 기존 방식 사용
+      let { data, error } = await supabase
         .from('profiles')
-        .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, user_role')
+        .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, user_role, membership_tier')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('사용자 조회 실패:', error)
+      if (error && error.code === 'PGRST116') {
+        // user_role 컬럼이 없을 경우 기존 방식으로 폴백
+        console.warn('user_role 컬럼 없음, 기존 방식으로 폴백')
+        
+        // admin_permissions 테이블과 조인하여 관리자 권한 확인
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select(`
+            id, 
+            email, 
+            full_name, 
+            avatar_url, 
+            created_at, 
+            last_sign_in_at, 
+            membership_tier,
+            admin_permissions!inner(permission_type, is_active)
+          `)
+          .order('created_at', { ascending: false })
+
+        // admin_permissions가 없는 일반 사용자도 포함
+        const { data: allProfilesData, error: allProfilesError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, avatar_url, created_at, last_sign_in_at, membership_tier')
+          .order('created_at', { ascending: false })
+
+        if (allProfilesError) {
+          console.error('사용자 조회 실패:', allProfilesError)
+          return
+        }
+
+        // 권한 정보가 있는 사용자들의 맵 생성
+        const adminUsersMap = new Map()
+        if (profilesData && !profilesError) {
+          profilesData.forEach(user => {
+            const permissions = Array.isArray(user.admin_permissions) ? user.admin_permissions : [user.admin_permissions]
+            const activePermissions = permissions.filter(p => p.is_active)
+            
+            let userRole = 'user'
+            if (activePermissions.some(p => p.permission_type === 'master')) {
+              userRole = 'master'
+            } else if (activePermissions.some(p => p.permission_type === 'goldenrabbit_employee')) {
+              userRole = 'employee'
+            } else if (user.membership_tier === 'premium') {
+              userRole = 'premium'
+            }
+            
+            adminUsersMap.set(user.id, userRole)
+          })
+        }
+
+        // 모든 사용자 데이터를 변환
+        const convertedData = (allProfilesData || []).map(user => ({
+          ...user,
+          user_role: adminUsersMap.get(user.id) || (user.membership_tier === 'premium' ? 'premium' : 'user')
+        }))
+        
+        setUsers(convertedData)
+        return
+      } else if (error) {
+        console.error('사용자 조회 오류:', error)
         return
       }
 
@@ -137,19 +196,78 @@ export default function AdminUsersPage() {
     setMessage(null)
 
     try {
-      const { error } = await (supabase as any).rpc('update_user_role', {
-        user_uuid: selectedUser.id,
-        new_role: selectedNewRole,
-        reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`
-      })
+      // user_role 컬럼이 있는지 먼저 확인
+      const { error: checkError } = await supabase
+        .from('profiles')
+        .select('user_role')
+        .limit(1)
 
-      if (error) throw error
+      if (checkError && checkError.code === 'PGRST116') {
+        // user_role 컬럼이 없는 경우 - 기존 시스템 사용
+        console.warn('user_role 컬럼 없음, 기존 방식으로 역할 변경')
+        
+        // membership_tier 업데이트
+        if (selectedNewRole === 'premium' || selectedNewRole === 'user') {
+          const { error: membershipError } = await supabase
+            .from('profiles')
+            .update({ 
+              membership_tier: selectedNewRole === 'premium' ? 'premium' : 'free',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', selectedUser.id)
 
-      const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
-      setMessage({ 
-        type: 'success', 
-        text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다.` 
-      })
+          if (membershipError) throw membershipError
+        }
+
+        // admin_permissions 관리
+        if (selectedNewRole === 'master' || selectedNewRole === 'employee') {
+          // 기존 권한 비활성화
+          await supabase
+            .from('admin_permissions')
+            .update({ is_active: false })
+            .eq('user_id', selectedUser.id)
+
+          // 새 권한 추가
+          const permissionType = selectedNewRole === 'master' ? 'master' : 'goldenrabbit_employee'
+          const { error: permissionError } = await supabase
+            .from('admin_permissions')
+            .upsert({
+              user_id: selectedUser.id,
+              permission_type: permissionType,
+              is_active: true,
+              granted_by: (await supabase.auth.getUser()).data.user?.id,
+              granted_at: new Date().toISOString()
+            })
+
+          if (permissionError) throw permissionError
+        } else {
+          // 일반 사용자나 프리미엄으로 변경시 모든 관리자 권한 비활성화
+          await supabase
+            .from('admin_permissions')
+            .update({ is_active: false })
+            .eq('user_id', selectedUser.id)
+        }
+
+        setMessage({ 
+          type: 'success', 
+          text: `${selectedUser.email}의 역할이 변경되었습니다. (기존 시스템)` 
+        })
+      } else {
+        // user_role 컬럼이 있는 경우 - 새로운 시스템 사용
+        const { error } = await (supabase as any).rpc('update_user_role', {
+          user_uuid: selectedUser.id,
+          new_role: selectedNewRole,
+          reason: `관리자에 의한 역할 변경: ${selectedUser.user_role} → ${selectedNewRole}`
+        })
+
+        if (error) throw error
+
+        const roleInfo = roleTypes.find(r => r.value === selectedNewRole)
+        setMessage({ 
+          type: 'success', 
+          text: `${selectedUser.email}의 역할이 "${roleInfo?.label}"로 변경되었습니다.` 
+        })
+      }
       
       await logAdminActivity('change_user_role', 'user', selectedUser.id, {
         from_role: selectedUser.user_role,
