@@ -127,11 +127,11 @@ export default function ITSpellCheckerPage() {
   }, [text, checkSpelling])
 
   // 수정된 텍스트 생성
-  const getCorrectedText = () => {
+  const getCorrectedText = async () => {
     if (!result || !result.matches.length) return text
 
-    const engine = getSpellChecker()
-    return engine.then(e => e.applyCorrections(text, result.matches))
+    const engine = await getSpellChecker()
+    return engine.applyCorrections(text, result.matches)
   }
 
   // 텍스트 복사
@@ -327,7 +327,10 @@ export default function ITSpellCheckerPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => getCorrectedText().then(corrected => copyText(corrected))}
+                        onClick={async () => {
+                          const corrected = await getCorrectedText()
+                          await copyText(corrected)
+                        }}
                         disabled={copiedText}
                         className="gap-2"
                       >
