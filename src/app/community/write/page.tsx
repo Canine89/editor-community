@@ -65,7 +65,6 @@ export default function WritePage() {
 
   // 로그인하지 않은 사용자는 로그인 페이지로 리디렉션
   if (!user) {
-    console.log('로그인하지 않은 사용자가 글쓰기 페이지에 접근 - /auth로 리디렉션')
     router.push('/auth')
     return null
   }
@@ -105,16 +104,8 @@ export default function WritePage() {
     try {
       const supabase = createClient()
 
-      console.log('게시글 작성 시도:', {
-        title: formData.title.trim(),
-        content: formData.content.trim(),
-        category: formData.category,
-        author_id: user.id,
-        is_anonymous: formData.isAnonymous
-      })
 
       // 먼저 posts 테이블이 존재하는지 확인
-      console.log('테이블 존재 확인 중...')
       const { data: testData, error: testError } = await supabase
         .from('posts')
         .select('id')
@@ -133,10 +124,8 @@ export default function WritePage() {
         return
       }
 
-      console.log('✅ posts 테이블 확인됨')
 
       // 사용자 프로필이 존재하는지 확인하고 없다면 생성
-      console.log('사용자 프로필 확인 중...')
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
@@ -144,7 +133,6 @@ export default function WritePage() {
         .single()
 
       if (profileError && profileError.code === 'PGRST116') {
-        console.log('사용자 프로필이 존재하지 않아 새로 생성합니다...')
         const { error: createProfileError } = await (supabase
           .from('profiles') as any)
           .insert([
@@ -161,7 +149,6 @@ export default function WritePage() {
           return
         }
 
-        console.log('✅ 사용자 프로필 생성 완료')
       }
 
       const { data, error } = await (supabase
@@ -184,7 +171,6 @@ export default function WritePage() {
         return
       }
 
-      console.log('게시글 작성 성공:', data)
 
       // 성공 시 커뮤니티 페이지로 리디렉션
       router.push('/community')

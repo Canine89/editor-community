@@ -6,7 +6,9 @@ const nextConfig = {
       // Vercel deployment domains
       'editor-community.vercel.app',
       // Supabase storage if used for images
-      'nnllrgwnukqqepwkluja.supabase.co'
+      'nnllrgwnukqqepwkluja.supabase.co',
+      // Unsplash for ad images
+      'images.unsplash.com'
     ],
   },
   // PDF.js worker 설정 및 빌드 최적화

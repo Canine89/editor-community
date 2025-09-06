@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase'
+import { mockPosts, mockUsers } from '@/lib/mockData'
+import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +57,36 @@ export default function CommunityPage() {
 
   const loadPosts = async () => {
     try {
+      // 개발 모드에서는 Mock 데이터 사용
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        // Mock 데이터 필터링
+        let filteredPosts = [...mockPosts]
+        
+        // 카테고리 필터링
+        if (selectedCategory !== 'all') {
+          filteredPosts = filteredPosts.filter(post => post.category === selectedCategory)
+        }
+        
+        // 시간순 정렬 (최신순)
+        filteredPosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        
+        // Mock 데이터를 Supabase 형식으로 변환 (profiles 객체 추가)
+        const transformedPosts = filteredPosts.map(post => ({
+          ...post,
+          profiles: post.is_anonymous ? undefined : {
+            full_name: post.author_name,
+            avatar_url: mockUsers.find(user => user.id === post.author_id)?.avatar_url || ''
+          }
+        }))
+        
+        setPosts(transformedPosts)
+        setLoading(false)
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase 사용
       const supabase = createClient()
 
       let query = supabase
@@ -112,8 +144,7 @@ export default function CommunityPage() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <PageLayout>
         {/* 헤더 섹션 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -294,7 +325,6 @@ export default function CommunityPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }

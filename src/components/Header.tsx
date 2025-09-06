@@ -7,6 +7,7 @@ import { useRole } from '@/hooks/useRole'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { PremiumToolLink } from '@/components/PremiumToolLink'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,12 +49,16 @@ export default function Header() {
 
   const tools = [
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
-    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
-    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: false },
+    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: false },
+    { name: 'IT 맞춤법 검사기', href: '/tools/it-spell-checker', icon: FileText, isPremium: false },
+    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: true },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
     { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
-    ...(canViewBookSales ? [{ name: '도서 판매 데이터', href: '/admin/book-sales', icon: BarChart3, isPremium: false }] : []),
   ]
+
+  // 무료 도구와 프리미엄 도구 분리
+  const freeTools = tools.filter(tool => !tool.isPremium)
+  const premiumTools = tools.filter(tool => tool.isPremium)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -82,7 +87,7 @@ export default function Header() {
               </Link>
             ))}
 
-            {/* 유틸리티 드롭다운 */}
+            {/* 무료 도구 드롭다운 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -90,25 +95,47 @@ export default function Header() {
                   className="flex items-center space-x-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   <Wrench className="h-4 w-4" />
-                  <span>유틸리티</span>
+                  <span>무료 도구</span>
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                {tools.map((tool) => (
+                {freeTools.map((tool) => (
                   <DropdownMenuItem key={tool.name} asChild>
-                    <Link href={tool.href} className="flex items-center justify-between">
+                    <Link href={tool.href} className="flex items-center">
+                      <tool.icon className="mr-2 h-4 w-4" />
+                      <span>{tool.name}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* 프리미엄 도구 드롭다운 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex items-center space-x-1 text-sm font-medium bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-600 hover:from-amber-500/20 hover:to-yellow-500/20 hover:text-amber-700 transition-colors"
+                >
+                  <Crown className="h-4 w-4" />
+                  <span>프리미엄 도구</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {premiumTools.map((tool) => (
+                  <DropdownMenuItem key={tool.name} asChild>
+                    <PremiumToolLink href={tool.href} className="flex items-center justify-between">
                       <div className="flex items-center">
                         <tool.icon className="mr-2 h-4 w-4" />
                         <span>{tool.name}</span>
                       </div>
-                      {tool.isPremium && (
-                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs ml-2">
-                          <Crown className="h-3 w-3 mr-1" />
-                          P
-                        </Badge>
-                      )}
-                    </Link>
+                      <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs ml-2">
+                        <Crown className="h-3 w-3 mr-1" />
+                        P
+                      </Badge>
+                    </PremiumToolLink>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -249,6 +276,23 @@ export default function Header() {
                       </>
                     )}
                     
+                    {/* 골든래빗 임직원 전용 메뉴 */}
+                    {canViewBookSales && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/book-sales" className="flex items-center text-blue-600 font-medium">
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            <span>도서 판매 데이터</span>
+                            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs ml-2">
+                              <Building className="h-3 w-3 mr-1" />
+                              GR
+                            </Badge>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="text-red-600">
                       <LogOut className="mr-2 h-4 w-4" />
@@ -299,11 +343,33 @@ export default function Header() {
                     </Link>
                   ))}
 
-                  {/* 모바일 유틸리티 메뉴 */}
+                  {/* 모바일 무료 도구 메뉴 */}
                   <div className="border-t pt-2 mt-2">
-                    <p className="text-xs font-medium text-slate-500 px-2 mb-2">유틸리티 도구</p>
-                    {tools.map((tool) => (
+                    <p className="text-xs font-medium text-slate-500 px-2 mb-2 flex items-center">
+                      <Wrench className="h-3 w-3 mr-1" />
+                      무료 도구
+                    </p>
+                    {freeTools.map((tool) => (
                       <Link
+                        key={tool.name}
+                        href={tool.href}
+                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <tool.icon className="h-4 w-4" />
+                        <span>{tool.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* 모바일 프리미엄 도구 메뉴 */}
+                  <div className="border-t pt-2 mt-2">
+                    <p className="text-xs font-medium text-amber-600 px-2 mb-2 flex items-center">
+                      <Crown className="h-3 w-3 mr-1" />
+                      프리미엄 도구
+                    </p>
+                    {premiumTools.map((tool) => (
+                      <PremiumToolLink
                         key={tool.name}
                         href={tool.href}
                         className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent"
@@ -313,13 +379,11 @@ export default function Header() {
                           <tool.icon className="h-4 w-4" />
                           <span>{tool.name}</span>
                         </div>
-                        {tool.isPremium && (
-                          <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs">
-                            <Crown className="h-3 w-3 mr-1" />
-                            P
-                          </Badge>
-                        )}
-                      </Link>
+                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs">
+                          <Crown className="h-3 w-3 mr-1" />
+                          P
+                        </Badge>
+                      </PremiumToolLink>
                     ))}
                   </div>
 
@@ -344,6 +408,51 @@ export default function Header() {
                             </p>
                           </div>
                         </div>
+
+                        {/* 관리자 메뉴 (모바일) */}
+                        {canAccessAdminPages && (
+                          <Link
+                            href="/admin"
+                            className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent text-red-600 font-medium"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Shield className="h-4 w-4" />
+                              <span>관리자 메뉴</span>
+                            </div>
+                            <Badge variant="destructive" className="text-xs">ADMIN</Badge>
+                          </Link>
+                        )}
+
+                        {/* 골든래빗 임직원 전용 메뉴 (모바일) */}
+                        {canViewBookSales && (
+                          <Link
+                            href="/admin/book-sales"
+                            className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent text-blue-600 font-medium"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <BarChart3 className="h-4 w-4" />
+                              <span>도서 판매 데이터</span>
+                            </div>
+                            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs">
+                              <Building className="h-3 w-3 mr-1" />
+                              GR
+                            </Badge>
+                          </Link>
+                        )}
+
+                        {/* 로그아웃 (모바일) */}
+                        <button
+                          onClick={() => {
+                            setIsMobileMenuOpen(false)
+                            signOut()
+                          }}
+                          className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent text-red-600 w-full text-left mt-2"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>로그아웃</span>
+                        </button>
                       </div>
                     </>
                   )}

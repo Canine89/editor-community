@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase'
+import { mockJobs, mockUsers, getActiveJobs, getJobsByType } from '@/lib/mockData'
+import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +60,36 @@ export default function JobsPage() {
 
   const loadJobs = async () => {
     try {
+      // 개발 모드에서는 Mock 데이터 사용
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        // Mock 데이터를 활성 상태만 필터링
+        let filteredJobs = mockJobs.filter(job => job.is_active)
+        
+        // 타입 필터링
+        if (selectedType !== 'all') {
+          filteredJobs = filteredJobs.filter(job => job.type === selectedType)
+        }
+        
+        // 시간순 정렬 (최신순)
+        filteredJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        
+        // Mock 데이터를 Supabase 형식으로 변환 (profiles 객체 추가)
+        const transformedJobs = filteredJobs.map(job => ({
+          ...job,
+          profiles: {
+            full_name: job.poster_name,
+            avatar_url: mockUsers.find(user => user.id === job.poster_id)?.avatar_url || ''
+          }
+        }))
+        
+        setJobs(transformedJobs)
+        setLoading(false)
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase 사용
       const supabase = createClient()
 
       let query = supabase
@@ -118,8 +150,7 @@ export default function JobsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <PageLayout>
         {/* 헤더 섹션 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -309,7 +340,6 @@ export default function JobsPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </PageLayout>
   )
 }

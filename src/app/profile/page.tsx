@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRole, UserRole } from '@/hooks/useRole'
 import { createClient } from '@/lib/supabase'
+import { mockUsers } from '@/lib/mockData'
+import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,6 +51,32 @@ export default function ProfilePage() {
     
     try {
       setLoading(true)
+      
+      // 개발 모드에서는 Mock 데이터 사용
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        // Mock 사용자 데이터에서 현재 사용자 찾기
+        const mockUser = mockUsers.find(u => u.id === user.id)
+        
+        if (mockUser) {
+          const mockProfile: UserProfile = {
+            id: mockUser.id,
+            email: mockUser.email,
+            full_name: mockUser.full_name,
+            user_role: mockUser.user_role,
+            created_at: mockUser.created_at,
+            updated_at: mockUser.created_at // Mock에는 updated_at이 없으므로 created_at 사용
+          }
+          
+          setProfile(mockProfile)
+        }
+        
+        setLoading(false)
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase 사용
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, full_name, user_role, created_at, updated_at')
@@ -66,16 +94,15 @@ export default function ProfilePage() {
 
   if (loading || roleLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <PageLayout className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      </PageLayout>
     )
   }
 
   return (
     <AuthRequired>
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+      <PageLayout>
           {/* 헤더 */}
           <div className="flex items-center gap-4 mb-8">
             <Button variant="outline" size="icon" asChild>
@@ -301,8 +328,7 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+      </PageLayout>
     </AuthRequired>
   )
 }

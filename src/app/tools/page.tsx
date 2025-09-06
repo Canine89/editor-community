@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { WidePageLayout } from '@/components/layout/PageLayout'
 import {
   FileText,
   Scissors,
   Download,
   Wrench,
   ArrowRight,
-  FileCheck,
   PenTool,
   FileSearch,
   Edit3
@@ -83,8 +83,7 @@ const tools = [
 
 export default function ToolsPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <WidePageLayout>
         {/* 헤더 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
@@ -164,7 +163,6 @@ export default function ToolsPage() {
             </Link>
           </Button>
         </div>
-      </div>
-    </div>
+    </WidePageLayout>
   )
 }

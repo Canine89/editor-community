@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase'
+import { mockJobs, mockUsers } from '@/lib/mockData'
+import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +67,34 @@ export default function JobDetailPage() {
 
   const loadJob = async () => {
     try {
+      // 개발 모드에서는 Mock 데이터 사용
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        // Mock 데이터에서 해당 ID의 채용공고 찾기
+        const mockJob = mockJobs.find(job => job.id === id)
+        
+        if (mockJob) {
+          // Mock 데이터를 Supabase 형식으로 변환
+          const transformedJob = {
+            ...mockJob,
+            profiles: {
+              full_name: mockJob.poster_name,
+              avatar_url: mockUsers.find(user => user.id === mockJob.poster_id)?.avatar_url || '',
+              email: mockJob.poster_email
+            }
+          }
+          
+          setJob(transformedJob)
+        } else {
+          console.error('채용공고를 찾을 수 없습니다:', id)
+        }
+        
+        setLoading(false)
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase 사용
       const supabase = createClient()
 
       const { data, error } = await supabase
@@ -97,6 +127,15 @@ export default function JobDetailPage() {
     if (!job || !user || job.poster_id !== user.id) return
 
     try {
+      // 개발 모드에서는 상태만 로컬에서 변경
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        setJob(prev => prev ? { ...prev, is_active: !prev.is_active } : null)
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase 업데이트
       const supabase = createClient()
 
       const { error } = await (supabase
@@ -121,6 +160,15 @@ export default function JobDetailPage() {
     if (!confirm('정말로 이 채용공고를 삭제하시겠습니까?')) return
 
     try {
+      // 개발 모드에서는 바로 목록 페이지로 이동
+      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      
+      if (isDevMode) {
+        router.push('/jobs')
+        return
+      }
+
+      // 프로덕션 모드에서는 Supabase에서 삭제
       const supabase = createClient()
 
       const { error } = await supabase
@@ -152,9 +200,8 @@ export default function JobDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
+      <PageLayout>
+        <div className="max-w-4xl mx-auto">
             <Card className="animate-pulse">
               <CardContent className="p-6">
                 <div className="space-y-4">
@@ -168,15 +215,14 @@ export default function JobDetailPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   if (!job) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <PageLayout className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">채용공고를 찾을 수 없습니다</h1>
           <p className="text-slate-600 mb-6">요청하신 채용공고가 존재하지 않거나 삭제되었을 수 있습니다.</p>
@@ -184,16 +230,15 @@ export default function JobDetailPage() {
             <Link href="/jobs">구인구직으로 돌아가기</Link>
           </Button>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   const isOwner = user && job.poster_id === user.id
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+    <PageLayout>
+      <div className="max-w-4xl mx-auto">
           {/* 헤더 */}
           <div className="flex items-center gap-4 mb-6">
             <Button variant="outline" size="icon" asChild>
@@ -365,7 +410,6 @@ export default function JobDetailPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   )
 }
