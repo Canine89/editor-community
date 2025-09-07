@@ -200,17 +200,17 @@ export default function JobDetailPage() {
 
   if (loading) {
     return (
-      <PageLayout>
+      <PageLayout className="min-h-screen gradient-bg-editorial">
         <div className="max-w-4xl mx-auto">
-            <Card className="animate-pulse">
+            <Card className="card-editorial animate-pulse">
               <CardContent className="p-6">
                 <div className="space-y-4">
-                  <div className="h-8 bg-slate-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                  <div className="h-8 bg-muted rounded w-3/4"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
                   <div className="space-y-2">
-                    <div className="h-4 bg-slate-200 rounded"></div>
-                    <div className="h-4 bg-slate-200 rounded"></div>
-                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-muted rounded"></div>
+                    <div className="h-4 bg-muted rounded"></div>
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
                   </div>
                 </div>
               </CardContent>
@@ -222,11 +222,11 @@ export default function JobDetailPage() {
 
   if (!job) {
     return (
-      <PageLayout className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">채용공고를 찾을 수 없습니다</h1>
-          <p className="text-slate-600 mb-6">요청하신 채용공고가 존재하지 않거나 삭제되었을 수 있습니다.</p>
-          <Button asChild>
+      <PageLayout className="min-h-screen gradient-bg-editorial flex items-center justify-center">
+        <div className="text-center card-editorial p-8 max-w-md animate-fade-in">
+          <h1 className="text-2xl font-bold text-gradient-editorial mb-4">채용공고를 찾을 수 없습니다</h1>
+          <p className="text-muted-foreground mb-6">요청하신 채용공고가 존재하지 않거나 삭제되었을 수 있습니다.</p>
+          <Button asChild className="hover-lift-editorial">
             <Link href="/jobs">구인구직으로 돌아가기</Link>
           </Button>
         </div>
@@ -237,25 +237,25 @@ export default function JobDetailPage() {
   const isOwner = user && job.poster_id === user.id
 
   return (
-    <PageLayout>
+    <PageLayout className="min-h-screen gradient-bg-editorial">
       <div className="max-w-4xl mx-auto">
           {/* 헤더 */}
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="icon" asChild>
+            <Button variant="outline" size="icon" asChild className="hover-lift-editorial">
               <Link href="/jobs">
                 <ArrowLeft className="w-4 h-4" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold text-slate-900">채용공고</h1>
+            <h1 className="text-2xl font-bold text-gradient-editorial animate-fade-in">채용공고</h1>
           </div>
 
           {/* 채용공고 본문 */}
-          <Card className="mb-8">
+          <Card className="card-editorial mb-8 hover-lift-editorial">
             <CardContent className="p-6">
               {/* 공고 비활성 상태 표시 */}
               {!job.is_active && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 text-yellow-800">
+                <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-6 animate-fade-in">
+                  <div className="flex items-center gap-2 text-warning-foreground">
                     <EyeOff className="w-4 h-4" />
                     <span className="font-medium">이 채용공고는 현재 비공개 상태입니다</span>
                   </div>
@@ -275,29 +275,29 @@ export default function JobDetailPage() {
                       {jobTypes.find(t => t.value === job.type)?.label || job.type}
                     </Badge>
                     {!job.is_active && (
-                      <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-700">
+                      <Badge variant="outline" className="text-xs border-warning text-warning-foreground animate-fade-in">
                         비공개
                       </Badge>
                     )}
                   </div>
                   
-                  <h1 className="text-3xl font-bold text-slate-900 mb-4">
+                  <h1 className="text-3xl font-bold text-foreground mb-4">
                     {job.title}
                   </h1>
 
-                  <div className="space-y-2 text-lg text-slate-700">
+                  <div className="space-y-2 text-lg text-foreground">
                     <div className="flex items-center gap-2">
-                      <Building className="w-5 h-5 text-slate-500" />
-                      <span className="font-medium">{job.company}</span>
+                      <Building className="w-5 h-5 text-muted-foreground" />
+                      <span className="font-medium text-foreground">{job.company}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-slate-500" />
-                      <span>{job.location}</span>
+                      <MapPin className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-foreground">{job.location}</span>
                     </div>
                     {job.salary_range && (
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-slate-500" />
-                        <span>{job.salary_range}</span>
+                        <DollarSign className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-foreground">{job.salary_range}</span>
                       </div>
                     )}
                   </div>
@@ -310,6 +310,7 @@ export default function JobDetailPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleToggleActive}
+                      className="hover-lift-editorial"
                     >
                       {job.is_active ? (
                         <>
@@ -323,7 +324,7 @@ export default function JobDetailPage() {
                         </>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+                    <Button variant="outline" size="sm" onClick={handleDelete} className="text-red-600 hover:text-red-700 hover-lift-editorial">
                       <Trash2 className="w-4 h-4 mr-1" />
                       삭제
                     </Button>
@@ -335,9 +336,9 @@ export default function JobDetailPage() {
 
               {/* 업무 설명 */}
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">업무 설명</h2>
+                <h2 className="text-xl font-semibold text-foreground mb-4">업무 설명</h2>
                 <div className="prose prose-slate max-w-none">
-                  <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                  <div className="whitespace-pre-wrap text-foreground leading-relaxed">
                     {job.description}
                   </div>
                 </div>
@@ -346,7 +347,7 @@ export default function JobDetailPage() {
               {/* 요구사항 */}
               {job.requirements && job.requirements.length > 0 && (
                 <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900 mb-4">요구사항 및 우대사항</h2>
+                  <h2 className="text-xl font-semibold text-foreground mb-4">요구사항 및 우대사항</h2>
                   <div className="flex flex-wrap gap-2">
                     {job.requirements.map((requirement, index) => (
                       <Badge key={index} variant="outline" className="text-sm py-1">
@@ -361,8 +362,8 @@ export default function JobDetailPage() {
 
               {/* 담당자 정보 */}
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">담당자 정보</h2>
-                <div className="flex items-center space-x-4 bg-slate-50 p-4 rounded-lg">
+                <h2 className="text-xl font-semibold text-foreground mb-4">담당자 정보</h2>
+                <div className="flex items-center space-x-4 bg-muted/30 p-4 rounded-lg">
                   <Avatar className="w-12 h-12">
                     <AvatarImage src={job.profiles?.avatar_url} />
                     <AvatarFallback>
@@ -370,11 +371,11 @@ export default function JobDetailPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-slate-900">
+                    <div className="font-medium text-foreground">
                       {job.profiles?.full_name || '담당자'}
                     </div>
                     {job.profiles?.email && (
-                      <div className="text-sm text-slate-600 flex items-center gap-1">
+                      <div className="text-sm text-muted-foreground flex items-center gap-1">
                         <Mail className="w-3 h-3" />
                         {job.profiles.email}
                       </div>
@@ -385,7 +386,7 @@ export default function JobDetailPage() {
 
               {/* 메타 정보 */}
               <div className="flex items-center pt-4 border-t">
-                <div className="flex items-center gap-4 text-sm text-slate-500">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {formatDate(job.created_at)}
@@ -396,15 +397,15 @@ export default function JobDetailPage() {
           </Card>
 
           {/* 관련 채용공고 (나중에 구현) */}
-          <Card>
+          <Card className="card-editorial hover-lift-editorial">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-gradient-editorial">
                 <Briefcase className="w-5 h-5" />
                 다른 채용공고
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-muted-foreground">
                 <p>관련 채용공고를 준비 중입니다.</p>
               </div>
             </CardContent>

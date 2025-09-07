@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -51,13 +51,13 @@ export default function WritePage() {
   // 인증 로딩 중일 때는 로딩 화면 표시
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen gradient-bg-editorial flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="relative">
             <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin mx-auto"></div>
             <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-500 rounded-full animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
-          <p className="text-slate-600 font-medium">인증 확인 중...</p>
+          <p className="text-muted-foreground font-medium">인증 확인 중...</p>
         </div>
       </div>
     )
@@ -69,6 +69,13 @@ export default function WritePage() {
     return null
   }
 
+  // HTML을 일반 텍스트로 변환하는 함수
+  const stripHtml = (html: string) => {
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    return tmp.textContent || tmp.innerText || ''
+  }
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -78,9 +85,10 @@ export default function WritePage() {
       newErrors.title = '제목은 100자 이내로 입력해주세요'
     }
 
-    if (!formData.content.trim()) {
+    const plainTextContent = stripHtml(formData.content).trim()
+    if (!plainTextContent) {
       newErrors.content = '내용을 입력해주세요'
-    } else if (formData.content.length > 5000) {
+    } else if (plainTextContent.length > 5000) {
       newErrors.content = '내용은 5000자 이내로 입력해주세요'
     }
 
@@ -192,7 +200,7 @@ export default function WritePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen gradient-bg-editorial">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* 헤더 */}
         <div className="flex items-center gap-4 mb-8">
@@ -202,14 +210,14 @@ export default function WritePage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">게시글 작성</h1>
-            <p className="text-slate-600">편집자 커뮤니티에 글을 공유하세요</p>
+            <h1 className="text-3xl font-bold text-gradient-editorial">게시글 작성</h1>
+            <p className="text-muted-foreground">편집자 커뮤니티에 글을 공유하세요</p>
           </div>
         </div>
 
         {/* 작성 폼 */}
         <div className="max-w-4xl mx-auto">
-          <Card>
+          <Card className="card-editorial">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Save className="w-5 h-5" />
@@ -238,7 +246,7 @@ export default function WritePage() {
                       {errors.title}
                     </p>
                   )}
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground/80">
                     {formData.title.length}/100자
                   </p>
                 </div>
@@ -258,7 +266,7 @@ export default function WritePage() {
                         <SelectItem key={category.value} value={category.value}>
                           <div>
                             <div className="font-medium">{category.label}</div>
-                            <div className="text-xs text-slate-500">{category.description}</div>
+                            <div className="text-xs text-muted-foreground/80">{category.description}</div>
                           </div>
                         </SelectItem>
                       ))}
@@ -293,6 +301,7 @@ export default function WritePage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setPreview(!preview)}
+                      className="hover-lift-editorial"
                     >
                       {preview ? (
                         <>
@@ -309,19 +318,22 @@ export default function WritePage() {
                   </div>
 
                   {preview ? (
-                    <div className="min-h-[200px] p-4 border rounded-lg bg-slate-50">
+                    <div className="card-editorial min-h-[200px] p-6">
                       <div className="prose prose-sm max-w-none">
-                        <h3 className="text-lg font-semibold mb-2">{formData.title || '제목 없음'}</h3>
-                        <div className="whitespace-pre-wrap">{formData.content || '내용 없음'}</div>
+                        <h3 className="text-lg font-semibold mb-4 text-gradient-editorial">{formData.title || '제목 없음'}</h3>
+                        <div 
+                          className="rich-text-preview"
+                          dangerouslySetInnerHTML={{ __html: formData.content || '<p class="text-muted-foreground">내용 없음</p>' }}
+                        />
                       </div>
                     </div>
                   ) : (
-                    <Textarea
-                      id="content"
+                    <RichTextEditor
+                      content={formData.content}
+                      onChange={(content) => handleInputChange('content', content)}
                       placeholder="게시글 내용을 입력하세요..."
-                      value={formData.content}
-                      onChange={(e) => handleInputChange('content', e.target.value)}
-                      className={`min-h-[200px] ${errors.content ? 'border-red-500' : ''}`}
+                      error={!!errors.content}
+                      disabled={loading}
                     />
                   )}
 
@@ -331,14 +343,14 @@ export default function WritePage() {
                       {errors.content}
                     </p>
                   )}
-                  <p className="text-xs text-slate-500">
-                    {formData.content.length}/5000자
+                  <p className="text-xs text-muted-foreground/80">
+                    {stripHtml(formData.content).length}/5000자 (HTML 태그 제외)
                   </p>
                 </div>
 
                 {/* 액션 버튼들 */}
                 <div className="flex gap-4 pt-6 border-t">
-                  <Button type="submit" disabled={loading} className="flex-1">
+                  <Button type="submit" disabled={loading} className="flex-1 hover-lift-editorial">
                     {loading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -352,7 +364,7 @@ export default function WritePage() {
                     )}
                   </Button>
 
-                  <Button type="button" variant="outline" asChild>
+                  <Button type="button" variant="outline" asChild className="hover-lift-editorial">
                     <Link href="/community">취소</Link>
                   </Button>
                 </div>
@@ -361,11 +373,11 @@ export default function WritePage() {
           </Card>
 
           {/* 작성 팁 */}
-          <Alert className="mt-6">
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>작성 팁:</strong> 다른 사용자들에게 도움이 될 수 있는 유용한 정보를 공유해주세요.
-              질문을 하실 때는 구체적인 상황과 원하시는 답변을 명확히 적어주세요.
+          <Alert className="mt-6 card-editorial border-primary/20">
+            <CheckCircle className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-muted-foreground">
+              <strong className="text-foreground">작성 팁:</strong> 리치 텍스트 에디터로 텍스트 서식, 링크, 목록 등을 활용해보세요.
+              다른 편집자들에게 도움이 될 수 있는 유용한 정보를 공유해주세요.
             </AlertDescription>
           </Alert>
         </div>

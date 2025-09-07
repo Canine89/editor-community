@@ -21,6 +21,7 @@ import {
   User
 } from 'lucide-react'
 import Link from 'next/link'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 
 interface Job {
   id: string
@@ -53,10 +54,16 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedType, setSelectedType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 12
 
   useEffect(() => {
     loadJobs()
   }, [selectedType])
+
+  useEffect(() => {
+    setCurrentPage(1) // 검색어나 타입 변경시 첫 페이지로
+  }, [searchQuery, selectedType])
 
   const loadJobs = async () => {
     try {
@@ -149,16 +156,25 @@ export default function JobsPage() {
     job.location.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedJobs = filteredJobs.slice(startIndex, startIndex + itemsPerPage)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
-    <PageLayout>
+    <PageLayout className="min-h-screen gradient-bg-editorial">
         {/* 헤더 섹션 */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gradient-editorial flex items-center gap-3 animate-fade-in">
               <Briefcase className="w-8 h-8 text-blue-600" />
               구인구직 게시판
             </h1>
-            <p className="text-slate-600 mt-2">편집자들을 위한 일자리 정보 및 프리랜서 모집</p>
+            <p className="text-muted-foreground mt-2">편집자들을 위한 일자리 정보 및 프리랜서 모집</p>
           </div>
 
           {user && (
@@ -172,17 +188,17 @@ export default function JobsPage() {
         </div>
 
         {/* 검색 및 필터 섹션 */}
-        <div className="bg-white rounded-lg border p-4 mb-6">
+        <div className="card-editorial p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* 검색 */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60 w-4 h-4" />
               <input
                 type="text"
                 placeholder="직무, 회사명, 지역 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
               />
             </div>
 
@@ -216,24 +232,24 @@ export default function JobsPage() {
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-slate-200 rounded-lg"></div>
+                    <div className="w-12 h-12 bg-muted rounded-lg"></div>
                     <div className="flex-1 space-y-2">
-                      <div className="h-5 bg-slate-200 rounded w-3/4"></div>
-                      <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                      <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+                      <div className="h-5 bg-muted rounded w-3/4"></div>
+                      <div className="h-4 bg-muted rounded w-1/2"></div>
+                      <div className="h-3 bg-muted rounded w-1/4"></div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : filteredJobs.length === 0 ? (
+        ) : paginatedJobs.length === 0 ? (
           <div className="text-center py-12">
-            <Briefcase className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">
+            <Briefcase className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-foreground mb-2">
               {searchQuery || selectedType !== 'all' ? '검색 결과가 없습니다' : '첫 번째 채용공고를 등록해보세요'}
             </h3>
-            <p className="text-slate-500">
+            <p className="text-muted-foreground">
               {searchQuery || selectedType !== 'all' ? '다른 검색어로 시도해보세요' : '편집자들을 위한 일자리를 공유해보세요'}
             </p>
             {user && !searchQuery && selectedType === 'all' && (
@@ -247,8 +263,8 @@ export default function JobsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredJobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-md transition-shadow cursor-pointer h-fit">
+            {paginatedJobs.map((job) => (
+              <Card key={job.id} className="card-editorial hover-lift-editorial animate-scale-in cursor-pointer h-fit">
                 <CardContent className="p-4">
                   <Link href={`/jobs/${job.id}`} className="block">
                     {/* 회사 로고와 타입 */}
@@ -267,18 +283,18 @@ export default function JobsPage() {
                     </div>
 
                     {/* 직무명 */}
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2 line-clamp-2">
+                    <h3 className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
                       {job.title}
                     </h3>
 
                     {/* 회사명 */}
                     <div className="flex items-center gap-2 mb-3">
-                      <Building className="w-4 h-4 text-slate-500" />
-                      <span className="font-medium text-slate-800 truncate">{job.company}</span>
+                      <Building className="w-4 h-4 text-muted-foreground/80" />
+                      <span className="font-medium text-foreground truncate">{job.company}</span>
                     </div>
 
                     {/* 위치 및 급여 */}
-                    <div className="space-y-1 mb-3 text-sm text-slate-600">
+                    <div className="space-y-1 mb-3 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
                         <span className="truncate">{job.location}</span>
@@ -292,7 +308,7 @@ export default function JobsPage() {
                     </div>
 
                     {/* 설명 미리보기 */}
-                    <p className="text-slate-600 mb-3 line-clamp-3 text-sm">
+                    <p className="text-muted-foreground mb-3 line-clamp-3 text-sm">
                       {job.description}
                     </p>
 
@@ -313,7 +329,7 @@ export default function JobsPage() {
                     )}
 
                     {/* 메타 정보 */}
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground/80 pt-2 border-t border-border">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formatDate(job.created_at)}
@@ -332,12 +348,25 @@ export default function JobsPage() {
           </div>
         )}
 
-        {/* 페이지네이션 (나중에 구현) */}
+        {/* 페이지네이션 */}
         {filteredJobs.length > 0 && (
-          <div className="flex justify-center mt-8">
-            <div className="text-sm text-slate-500">
-              총 {filteredJobs.length}개의 채용공고
-            </div>
+          <div className="mt-12 space-y-4">
+            <PaginationInfo
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredJobs.length}
+              itemsPerPage={itemsPerPage}
+              itemName="채용공고"
+              className="mb-4"
+            />
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-4"
+              />
+            )}
           </div>
         )}
     </PageLayout>

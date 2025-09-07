@@ -87,6 +87,24 @@ export default function PostDetailPage() {
     }
   }, [id, user])
 
+  // 페이지 포커스 시 데이터 새로고침 (수정 후 돌아왔을 때)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (id && document.visibilityState === 'visible') {
+        loadPost()
+        loadComments()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleFocus)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleFocus)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [id])
+
   // 조회수 증가는 별도 useEffect로 분리 (세션 기반 중복 방지)
   useEffect(() => {
     if (id) {
@@ -477,9 +495,10 @@ export default function PostDetailPage() {
 
               {/* 내용 */}
               <div className="prose prose-slate max-w-none mb-6">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
-                  {post.content}
-                </div>
+                <div 
+                  className="rich-text-content text-slate-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: post.content }}
+                />
               </div>
 
               {/* 액션 버튼들 */}

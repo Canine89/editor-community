@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,18 +8,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { ToolPageLayout } from '@/components/layout/PageLayout'
+import { FileUpload } from '@/components/ui/file-upload'
+import { SimpleProgress } from '@/components/ui/progress-steps'
 import {
   ArrowLeft,
-  Upload,
   FileText,
   FileSpreadsheet,
   Search,
   AlertCircle,
   Info,
   CheckCircle,
-  Eye,
-  Download,
+  ArrowRight,
+  RefreshCw,
+  Zap,
   Copy,
   Check,
   Settings,
@@ -28,8 +30,9 @@ import {
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
+import { cn } from '@/lib/utils'
 
-// PDF.js worker 설정 - 실제 설치된 버전과 일치
+// PDF.js worker 설정
 if (typeof window !== 'undefined') {
   GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'
 }
@@ -48,8 +51,8 @@ interface CorrectionMatch {
 }
 
 interface MarginSettings {
-  vertical: number    // 상하 여백 (mm)
-  horizontal: number  // 좌우 여백 (mm)
+  vertical: number
+  horizontal: number
 }
 
 interface PDFPageContent {
@@ -66,22 +69,19 @@ interface PDFInfo {
 }
 
 function PDFSpellCheckerContent() {
+  const [currentStep, setCurrentStep] = useState(1)
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [pdfDoc, setPdfDoc] = useState<PDFInfo | null>(null)
   const [corrections, setCorrections] = useState<CorrectionPair[]>([])
   const [matches, setMatches] = useState<CorrectionMatch[]>([])
   const [margins, setMargins] = useState<MarginSettings>({
-    vertical: 15,    // 기본 15mm (더 보수적인 값)
-    horizontal: 15   // 기본 15mm (더 보수적인 값)
+    vertical: 15,
+    horizontal: 15
   })
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState(1) // 1: 업로드, 2: 분석 결과
   const [copiedPages, setCopiedPages] = useState<Set<number>>(new Set())
-  
-  const pdfInputRef = useRef<HTMLInputElement>(null)
-  const excelInputRef = useRef<HTMLInputElement>(null)
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
@@ -91,97 +91,57 @@ function PDFSpellCheckerContent() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // mm를 pt로 변환 (1mm = 2.834645669pt)
   const mmToPt = (mm: number): number => {
     return mm * 2.834645669
   }
 
   const extractTextFromPDF = async (file: File): Promise<PDFPageContent[]> => {
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-      const loadingTask = getDocument({ 
-        data: arrayBuffer,
-        // 추가 옵션으로 호환성 개선 - 실제 버전과 일치
-        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
-        cMapPacked: true,
-        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/standard_fonts/',
-      })
-      
-      const pdf = await loadingTask.promise
-      const pages: PDFPageContent[] = []
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await getDocument({ data: arrayBuffer }).promise
+    const pages: PDFPageContent[] = []
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const textContent = await page.getTextContent()
-      const viewport = page.getViewport({ scale: 1.0 })
+      const viewport = page.getViewport({ scale: 1 })
+
+      const verticalMargin = mmToPt(margins.vertical)
+      const horizontalMargin = mmToPt(margins.horizontal)
 
       let fullText = ''
-      let filteredText = ''
+      let bodyText = ''
 
-      // 모든 텍스트 항목을 순회하면서 여백 필터링 적용
       textContent.items.forEach((item: any) => {
-        if ('str' in item && 'transform' in item) {
-          const text = item.str
-          const [, , , , x, y] = item.transform
-          
-          // 전체 텍스트에 추가
-          fullText += text + ' '
+        if (item.str && item.transform) {
+          const x = item.transform[4]
+          const y = item.transform[5]
 
-          // 여백 검사 - PDF 좌표계는 좌하단이 (0,0)
-          // mm를 pt로 변환하여 사용
-          const leftMarginPt = mmToPt(margins.horizontal)
-          const rightMarginPt = mmToPt(margins.horizontal)
-          const bottomMarginPt = mmToPt(margins.vertical)
-          const topMarginPt = mmToPt(margins.vertical)
-          
-          const isInMargin = 
-            x < leftMarginPt || 
-            x > (viewport.width - rightMarginPt) ||
-            y < bottomMarginPt || 
-            y > (viewport.height - topMarginPt)
+          fullText += item.str + ' '
 
-          if (!isInMargin) {
-            filteredText += text + ' '
+          if (
+            x >= horizontalMargin &&
+            x <= viewport.width - horizontalMargin &&
+            y >= verticalMargin &&
+            y <= viewport.height - verticalMargin
+          ) {
+            bodyText += item.str + ' '
           }
         }
       })
 
-      const pageData = {
+      pages.push({
         pageNumber: pageNum,
-        content: filteredText.trim(),
+        content: bodyText.trim(),
         originalContent: fullText.trim()
-      }
-      
-      // 디버깅 로그
-      console.log(`페이지 ${pageNum} 텍스트 추출 결과:`, {
-        원본텍스트길이: fullText.trim().length,
-        필터링후길이: filteredText.trim().length,
-        여백설정: `상하${margins.vertical}mm 좌우${margins.horizontal}mm`,
-        원본샘플: fullText.trim().length > 0 ? fullText.trim().substring(0, 100) + '...' : '(텍스트 없음)'
       })
-      
-      pages.push(pageData)
     }
 
     return pages
-    } catch (error) {
-      console.error('PDF 텍스트 추출 오류:', error)
-      throw new Error(`PDF 파일 처리 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
-    }
   }
 
-  const handlePDFFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (file.type !== 'application/pdf') {
-      setError('PDF 파일만 선택할 수 있습니다.')
-      return
-    }
-
+  const handlePDFFileSelect = async (file: File) => {
     setError('')
     setPdfFile(file)
-    setIsProcessing(true)
 
     try {
       const pages = await extractTextFromPDF(file)
@@ -192,99 +152,19 @@ function PDFSpellCheckerContent() {
         totalPages: pages.length,
         pages
       })
+
+      if (excelFile && corrections.length > 0) {
+        setCurrentStep(2)
+      }
     } catch (error) {
       console.error('PDF 파일 로드 오류:', error)
-      const errorMessage = error instanceof Error 
-        ? `PDF 파일 로드 실패: ${error.message}` 
-        : 'PDF 파일을 읽는데 실패했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
-      setError(errorMessage)
+      setError('PDF 파일을 읽는데 실패했습니다. 파일이 손상되었거나 암호화되어 있을 수 있습니다.')
       setPdfFile(null)
       setPdfDoc(null)
-    } finally {
-      setIsProcessing(false)
     }
   }
 
-  const handleMarginChange = async (field: keyof MarginSettings, value: number) => {
-    const newMargins = { ...margins, [field]: value }
-    setMargins(newMargins)
-
-    // 여백이 변경되면 PDF 텍스트를 다시 추출
-    if (pdfFile && !isProcessing) {
-      setIsProcessing(true)
-      try {
-        // 새로운 여백 설정으로 텍스트 재추출
-        const arrayBuffer = await pdfFile.arrayBuffer()
-        const pdf = await getDocument({ data: arrayBuffer }).promise
-        const pages: PDFPageContent[] = []
-
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum)
-          const textContent = await page.getTextContent()
-          const viewport = page.getViewport({ scale: 1.0 })
-
-          let fullText = ''
-          let filteredText = ''
-
-          textContent.items.forEach((item: any) => {
-            if ('str' in item && 'transform' in item) {
-              const text = item.str
-              const [, , , , x, y] = item.transform
-              
-              fullText += text + ' '
-
-              // 새로운 여백 설정으로 검사
-              const leftMarginPt = mmToPt(newMargins.horizontal)
-              const rightMarginPt = mmToPt(newMargins.horizontal)
-              const bottomMarginPt = mmToPt(newMargins.vertical)
-              const topMarginPt = mmToPt(newMargins.vertical)
-              
-              const isInMargin = 
-                x < leftMarginPt || 
-                x > (viewport.width - rightMarginPt) ||
-                y < bottomMarginPt || 
-                y > (viewport.height - topMarginPt)
-
-              if (!isInMargin) {
-                filteredText += text + ' '
-              }
-            }
-          })
-
-          const pageData = {
-            pageNumber: pageNum,
-            content: filteredText.trim(),
-            originalContent: fullText.trim()
-          }
-          
-          // 디버깅 로그 (여백 변경시)
-          console.log(`여백 변경 후 페이지 ${pageNum} 재추출:`, {
-            원본텍스트길이: fullText.trim().length,
-            필터링후길이: filteredText.trim().length,
-            새여백설정: `상하${newMargins.vertical}mm 좌우${newMargins.horizontal}mm`
-          })
-          
-          pages.push(pageData)
-        }
-
-        setPdfDoc(prev => prev ? { ...prev, pages } : null)
-      } catch (error) {
-        console.error('텍스트 재추출 오류:', error)
-      } finally {
-        setIsProcessing(false)
-      }
-    }
-  }
-
-  const handleExcelFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.name.toLowerCase().match(/\.(xlsx|xls)$/)) {
-      setError('Excel 파일(.xlsx, .xls)만 선택할 수 있습니다.')
-      return
-    }
-
+  const handleExcelFileSelect = async (file: File) => {
     setError('')
     setExcelFile(file)
 
@@ -292,18 +172,12 @@ function PDFSpellCheckerContent() {
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
       
-      // 모든 시트에서 교정 데이터 추출
       const correctionPairs: CorrectionPair[] = []
       
-      console.log(`Excel 파일에서 ${workbook.SheetNames.length}개 시트 발견:`, workbook.SheetNames)
-      
       workbook.SheetNames.forEach(sheetName => {
-        console.log(`시트 '${sheetName}' 처리 중...`)
         const worksheet = workbook.Sheets[sheetName]
         const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][]
 
-        // A열(틀린 것), B열(맞는 것) 추출
-        let sheetPairs = 0
         for (let i = 0; i < data.length; i++) {
           const row = data[i]
           if (row && row[0] && row[1] && row[0].toString().trim() && row[1].toString().trim()) {
@@ -311,13 +185,9 @@ function PDFSpellCheckerContent() {
               wrong: row[0].toString().trim(),
               correct: row[1].toString().trim()
             })
-            sheetPairs++
           }
         }
-        console.log(`시트 '${sheetName}'에서 ${sheetPairs}개 교정 쌍 추출`)
       })
-      
-      console.log(`총 ${correctionPairs.length}개 교정 쌍 로드됨`)
 
       if (correctionPairs.length === 0) {
         setError('Excel 파일의 A열(틀린 표현), B열(올바른 표현)에 데이터가 없습니다.')
@@ -325,6 +195,10 @@ function PDFSpellCheckerContent() {
       }
 
       setCorrections(correctionPairs)
+
+      if (pdfFile && pdfDoc) {
+        setCurrentStep(2)
+      }
     } catch (error) {
       console.error('Excel 파일 로드 오류:', error)
       setError('Excel 파일을 읽는데 실패했습니다. 파일이 손상되었을 수 있습니다.')
@@ -337,563 +211,346 @@ function PDFSpellCheckerContent() {
     if (!pdfDoc || corrections.length === 0) return
 
     setIsProcessing(true)
+    setCurrentStep(3)
     setError('')
 
     try {
       const foundMatches: CorrectionMatch[] = []
 
       pdfDoc.pages.forEach((page, pageIndex) => {
-        corrections.forEach(({ wrong, correct }) => {
-          // 대소문자 구분 없이 검색
-          const regex = new RegExp(wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-          let match
-
-          while ((match = regex.exec(page.content)) !== null) {
+        corrections.forEach(correction => {
+          const wrongText = correction.wrong.toLowerCase()
+          const pageContentLower = page.content.toLowerCase()
+          
+          let index = 0
+          while ((index = pageContentLower.indexOf(wrongText, index)) !== -1) {
             foundMatches.push({
-              original: match[0],
-              corrected: correct,
-              startIndex: match.index,
-              endIndex: match.index + match[0].length,
+              original: correction.wrong,
+              corrected: correction.correct,
+              startIndex: index,
+              endIndex: index + correction.wrong.length,
               pageIndex
             })
+            index += correction.wrong.length
           }
         })
       })
 
-      // 페이지별, 위치별로 정렬
-      foundMatches.sort((a, b) => {
-        if (a.pageIndex !== b.pageIndex) {
-          return a.pageIndex - b.pageIndex
-        }
-        return a.startIndex - b.startIndex
-      })
-
       setMatches(foundMatches)
-      setStep(2)
     } catch (error) {
-      console.error('문서 분석 오류:', error)
-      setError('문서 분석 중 오류가 발생했습니다.')
+      console.error('PDF 분석 오류:', error)
+      setError('PDF 분석 중 오류가 발생했습니다.')
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const highlightText = (text: string, matches: CorrectionMatch[], pageIndex: number) => {
-    const pageMatches = matches.filter(m => m.pageIndex === pageIndex)
-    if (pageMatches.length === 0) return text
-
-    let result = []
-    let lastIndex = 0
-
-    // 겹치지 않게 정렬된 매치들을 순서대로 처리
-    pageMatches
-      .sort((a, b) => a.startIndex - b.startIndex)
-      .forEach((match, index) => {
-        // 이전 매치와 겹치지 않는지 확인
-        if (match.startIndex < lastIndex) return
-
-        // 매치 이전 텍스트 추가
-        if (match.startIndex > lastIndex) {
-          result.push(text.substring(lastIndex, match.startIndex))
-        }
-
-        // 매치된 텍스트를 하이라이트
-        result.push(
-          <span
-            key={`${pageIndex}-${index}`}
-            className="bg-green-100 text-green-800 px-1 rounded relative group"
-            title={`교정됨: "${match.original}" → "${match.corrected}"`}
-          >
-            {match.corrected}
-            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-              원래: {match.original}
-            </span>
-          </span>
-        )
-
-        lastIndex = match.endIndex
-      })
-
-    // 남은 텍스트 추가
-    if (lastIndex < text.length) {
-      result.push(text.substring(lastIndex))
-    }
-
-    return result
-  }
-
-  const getCorrectedPageText = (pageText: string, pageIndex: number): string => {
-    let correctedText = pageText
-    const pageMatches = matches
-      .filter(m => m.pageIndex === pageIndex)
-      .sort((a, b) => b.startIndex - a.startIndex) // 뒤에서부터 교체
-
-    pageMatches.forEach(match => {
-      correctedText = 
-        correctedText.substring(0, match.startIndex) +
-        match.corrected +
-        correctedText.substring(match.endIndex)
-    })
-
-    return correctedText
-  }
-
-  const copyPage = async (pageIndex: number) => {
-    if (!pdfDoc) return
-
-    try {
-      const correctedText = getCorrectedPageText(pdfDoc.pages[pageIndex].content, pageIndex)
-      await navigator.clipboard.writeText(correctedText)
-      
-      // 복사 상태 표시
-      setCopiedPages(prev => {
-        const newSet = new Set(prev)
-        newSet.add(pageIndex)
-        return newSet
-      })
-      
-      // 3초 후 복사 상태 초기화
-      setTimeout(() => {
-        setCopiedPages(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(pageIndex)
-          return newSet
-        })
-      }, 3000)
-    } catch (error) {
-      console.error('클립보드 복사 오류:', error)
-      // 클립보드 API 지원하지 않는 경우 대체 방법
-      const textArea = document.createElement('textarea')
-      const correctedText = getCorrectedPageText(pdfDoc.pages[pageIndex].content, pageIndex)
-      textArea.value = correctedText
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      
-      setCopiedPages(prev => {
-        const newSet = new Set(prev)
-        newSet.add(pageIndex)
-        return newSet
-      })
-      setTimeout(() => {
-        setCopiedPages(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(pageIndex)
-          return newSet
-        })
-      }, 3000)
-    }
-  }
-
-  const resetTool = () => {
+  const resetForm = () => {
+    setCurrentStep(1)
     setPdfFile(null)
     setExcelFile(null)
     setPdfDoc(null)
     setCorrections([])
     setMatches([])
     setError('')
-    setStep(1)
+    setIsProcessing(false)
     setCopiedPages(new Set())
-    if (pdfInputRef.current) pdfInputRef.current.value = ''
-    if (excelInputRef.current) excelInputRef.current.value = ''
   }
 
-  const downloadCorrectedText = () => {
-    if (!pdfDoc || matches.length === 0) return
+  const highlightText = (text: string, matches: CorrectionMatch[], pageIndex: number) => {
+    const pageMatches = matches.filter(match => match.pageIndex === pageIndex)
+    if (pageMatches.length === 0) return text
 
-    let correctedText = ''
-    
-    pdfDoc.pages.forEach((page, pageIndex) => {
-      let correctedPageText = page.content
-      const pageMatches = matches
-        .filter(m => m.pageIndex === pageIndex)
-        .sort((a, b) => b.startIndex - a.startIndex) // 뒤에서부터 교체
+    let result = text
+    let offset = 0
 
-      pageMatches.forEach(match => {
-        correctedPageText = 
-          correctedPageText.substring(0, match.startIndex) +
-          match.corrected +
-          correctedPageText.substring(match.endIndex)
+    pageMatches
+      .sort((a, b) => a.startIndex - b.startIndex)
+      .forEach(match => {
+        const beforeMatch = result.slice(0, match.startIndex + offset)
+        const matchText = result.slice(match.startIndex + offset, match.endIndex + offset)
+        const afterMatch = result.slice(match.endIndex + offset)
+        
+        const highlighted = `<mark class="bg-red-200 text-red-900 px-1 rounded">${matchText}</mark> → <mark class="bg-green-200 text-green-900 px-1 rounded">${match.corrected}</mark>`
+        
+        result = beforeMatch + highlighted + afterMatch
+        offset += highlighted.length - matchText.length
       })
 
-      correctedText += `=== 페이지 ${page.pageNumber} ===\n\n${correctedPageText}\n\n`
-    })
-
-    const blob = new Blob([correctedText], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `교정완료_${pdfDoc.fileName.replace('.pdf', '.txt')}`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    return result
   }
 
-  if (step === 2) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto">
-            {/* 헤더 */}
-            <div className="flex items-center gap-4 mb-6">
-              <Button variant="outline" size="icon" onClick={() => setStep(1)}>
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">PDF 맞춤법 검사 결과</h1>
-                <p className="text-slate-600">발견된 수정 사항을 확인하세요</p>
-              </div>
-            </div>
+  const copyToClipboard = async (text: string, pageIndex: number) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedPages(prev => new Set([...prev, pageIndex]))
+      setTimeout(() => {
+        setCopiedPages(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(pageIndex)
+          return newSet
+        })
+      }, 2000)
+    } catch (error) {
+      console.error('클립보드 복사 오류:', error)
+    }
+  }
 
-            {/* 결과 요약 */}
-            <Card className="mb-6">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-medium">
-                        {matches.length}개의 수정 사항 발견
-                      </span>
+  const stepLabels = ['파일 & 설정', '분석 시작', '결과 확인']
+
+  return (
+    <ToolPageLayout>
+      {/* 헤더 */}
+      <div className="flex items-center gap-4 mb-8">
+        <Button variant="outline" size="icon" asChild className="hover-lift-editorial">
+          <Link href="/tools">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+        </Button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 gradient-accent rounded-2xl flex items-center justify-center">
+              <FileSearch className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <h1 className="text-3xl font-bold text-gradient-editorial">PDF 맞춤법 검사기</h1>
+            <Badge className="gradient-accent text-accent-foreground">
+              <Zap className="w-3 h-3 mr-1" />
+              PRO
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-lg">PDF 문서의 본문 영역에서 맞춤법을 검사하고 교정사항을 찾습니다</p>
+        </div>
+      </div>
+
+      {/* 진행상황 */}
+      <SimpleProgress
+        currentStep={currentStep}
+        totalSteps={3}
+        stepLabels={stepLabels}
+        className="mb-8"
+      />
+
+      {/* 안내사항 */}
+      <Alert className="mb-8 border-primary/20 bg-primary/5">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertDescription className="text-foreground">
+          <strong>스마트 분석:</strong> 여백을 제외한 본문 영역만 검사하여 더 정확한 맞춤법 검사를 제공합니다.
+          여백 설정을 통해 검사 영역을 조정할 수 있습니다.
+        </AlertDescription>
+      </Alert>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* 메인 워크플로우 */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* 1단계: 파일 업로드 & 설정 */}
+          <Card className={cn(
+            'card-editorial transition-all duration-300',
+            currentStep >= 1 && 'shadow-lg',
+            currentStep === 1 && 'ring-2 ring-primary/20'
+          )}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <div className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                  currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                )}>
+                  1
+                </div>
+                파일 업로드 & 여백 설정
+                {pdfDoc && corrections.length > 0 && currentStep > 1 && (
+                  <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* PDF 파일 업로드 */}
+              <div>
+                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  PDF 문서 (.pdf)
+                </h4>
+                <FileUpload
+                  accept=".pdf"
+                  onFileSelect={handlePDFFileSelect}
+                  onFileRemove={() => {
+                    setPdfFile(null)
+                    setPdfDoc(null)
+                    if (currentStep > 1) setCurrentStep(1)
+                  }}
+                  selectedFile={pdfFile}
+                  title="PDF 문서를 업로드하세요"
+                  description="맞춤법을 검사할 문서를 선택해주세요"
+                />
+              </div>
+
+              {/* Excel 파일 업로드 */}
+              <div>
+                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-accent" />
+                  Excel 교정 데이터 (.xlsx, .xls)
+                </h4>
+                <FileUpload
+                  accept=".xlsx,.xls"
+                  onFileSelect={handleExcelFileSelect}
+                  onFileRemove={() => {
+                    setExcelFile(null)
+                    setCorrections([])
+                    if (currentStep > 1) setCurrentStep(1)
+                  }}
+                  selectedFile={excelFile}
+                  title="Excel 파일을 업로드하세요"
+                  description="A열: 틀린 표현, B열: 올바른 표현"
+                />
+              </div>
+
+              {/* 여백 설정 */}
+              <div>
+                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-primary" />
+                  여백 설정 (mm)
+                </h4>
+                <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    설정한 여백 안쪽 영역만 검사하여 헤더, 푸터, 페이지 번호 등을 제외합니다.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="vertical" className="text-sm">상하 여백</Label>
+                      <Input
+                        id="vertical"
+                        type="number"
+                        min="0"
+                        max="50"
+                        value={margins.vertical}
+                        onChange={(e) => setMargins(prev => ({
+                          ...prev,
+                          vertical: Number(e.target.value)
+                        }))}
+                        className="mt-1"
+                      />
                     </div>
-                    <div className="text-sm text-slate-600">
-                      총 {pdfDoc?.totalPages}페이지 분석 완료
+                    <div>
+                      <Label htmlFor="horizontal" className="text-sm">좌우 여백</Label>
+                      <Input
+                        id="horizontal"
+                        type="number"
+                        min="0"
+                        max="50"
+                        value={margins.horizontal}
+                        onChange={(e) => setMargins(prev => ({
+                          ...prev,
+                          horizontal: Number(e.target.value)
+                        }))}
+                        className="mt-1"
+                      />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={downloadCorrectedText} disabled={matches.length === 0}>
-                      <Download className="w-4 h-4 mr-2" />
-                      교정본 다운로드
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMargins({ vertical: 15, horizontal: 15 })}
+                    >
+                      표준 (15mm)
                     </Button>
-                    <Button variant="outline" onClick={resetTool}>
-                      새로 시작
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMargins({ vertical: 20, horizontal: 20 })}
+                    >
+                      넓게 (20mm)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMargins({ vertical: 10, horizontal: 10 })}
+                    >
+                      좁게 (10mm)
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* 교정 결과 */}
-            {matches.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    수정할 내용이 없습니다
-                  </h3>
-                  <p className="text-slate-600">
-                    Excel 파일의 교정 데이터와 일치하는 내용이 PDF 문서에서 발견되지 않았습니다.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {pdfDoc?.pages.map((page, index) => {
-                  const pageMatches = matches.filter(m => m.pageIndex === index)
-                  // 매치가 있거나 텍스트가 있는 페이지만 표시
-                  if (pageMatches.length === 0 && !page.content?.trim()) return null
-
-                  return (
-                    <Card key={index}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm text-slate-600">
-                            페이지 {page.pageNumber}
-                          </CardTitle>
-                          <div className="flex items-center gap-2">
-                            {pageMatches.length > 0 && (
-                              <Badge variant="secondary" className="bg-red-100 text-red-800">
-                                {pageMatches.length}개 수정
-                              </Badge>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyPage(index)}
-                              className="h-7 px-2 text-xs"
-                            >
-                              {copiedPages.has(index) ? (
-                                <>
-                                  <Check className="w-3 h-3 mr-1 text-green-600" />
-                                  복사됨
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3 mr-1" />
-                                  복사
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="text-sm leading-relaxed mb-4 p-4 bg-slate-50 rounded-lg max-h-80 overflow-y-auto">
-                          {page.content ? (
-                            highlightText(page.content, matches, index)
-                          ) : (
-                            <div className="text-slate-500 italic p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                              <div className="font-medium text-yellow-800 mb-2">⚠️ 텍스트 추출 문제 발생</div>
-                              <div className="text-sm space-y-1">
-                                <div>원본 텍스트 길이: <span className="font-medium">{page.originalContent?.length || 0}자</span></div>
-                                <div>필터링된 텍스트 길이: <span className="font-medium">{page.content?.length || 0}자</span></div>
-                                <div>현재 여백 설정: 상하 {margins.vertical}mm, 좌우 {margins.horizontal}mm</div>
-                                {page.originalContent && page.originalContent.length > 0 ? (
-                                  <div className="mt-3 p-2 bg-white rounded border">
-                                    <div className="text-xs text-slate-600 mb-1">원본 텍스트 샘플 (처음 200자):</div>
-                                    <div className="text-xs font-mono text-slate-800 max-h-20 overflow-y-auto">
-                                      {page.originalContent.substring(0, 200)}
-                                      {page.originalContent.length > 200 && '...'}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-red-600 font-medium">원본 텍스트 자체가 추출되지 않았습니다.</div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* 헤더 */}
-          <div className="flex items-center gap-4 mb-8">
-            <Button variant="outline" size="icon" asChild>
-              <Link href="/tools">
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <FileSearch className="w-6 h-6 text-orange-600" />
-                PDF 맞춤법 검사기
-              </h1>
-              <p className="text-slate-600">PDF 문서의 여백을 제외한 본문 텍스트에서 맞춤법을 검사합니다</p>
-            </div>
-          </div>
-
-          {/* 안내사항 */}
-          <Alert className="mb-6 border-orange-200 bg-orange-50">
-            <Info className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="text-orange-800">
-              <strong>사용법:</strong> PDF 파일과 Excel 교정 데이터를 업로드하세요.
-              <br />
-              상하좌우 여백값을 설정하여 불필요한 텍스트(머리글, 바닥글 등)를 제외할 수 있습니다.
-            </AlertDescription>
-          </Alert>
-
-          {/* PDF 파일 업로드 */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-orange-600" />
-                1단계: PDF 파일 업로드
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="pdfFile">검사할 PDF 문서 (.pdf)</Label>
-                  <Input
-                    id="pdfFile"
-                    ref={pdfInputRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handlePDFFileSelect}
-                    className="cursor-pointer"
-                    disabled={isProcessing}
-                  />
-                </div>
-                
-                {pdfDoc && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <FileText className="w-5 h-5 text-green-600 mt-0.5" />
+              {/* 파일 정보 */}
+              {(pdfDoc || corrections.length > 0) && (
+                <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                  {pdfDoc && (
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="font-medium text-green-900">{pdfDoc.fileName}</p>
-                        <p className="text-sm text-green-700">
+                        <p className="font-medium text-foreground">{pdfDoc.fileName}</p>
+                        <p className="text-sm text-muted-foreground">
                           {pdfDoc.totalPages}페이지 • {pdfDoc.fileSize}
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 여백 설정 */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-purple-600" />
-                2단계: 여백 설정 (mm 단위)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="marginVertical">상하 여백</Label>
-                  <Input
-                    id="marginVertical"
-                    type="number"
-                    value={margins.vertical}
-                    onChange={(e) => handleMarginChange('vertical', Number(e.target.value))}
-                    className="text-center"
-                    min="0"
-                    max="100"
-                    step="1"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">상단과 하단에 동일하게 적용</p>
-                </div>
-                <div>
-                  <Label htmlFor="marginHorizontal">좌우 여백</Label>
-                  <Input
-                    id="marginHorizontal"
-                    type="number"
-                    value={margins.horizontal}
-                    onChange={(e) => handleMarginChange('horizontal', Number(e.target.value))}
-                    className="text-center"
-                    min="0"
-                    max="100"
-                    step="1"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">좌측과 우측에 동일하게 적용</p>
-                </div>
-              </div>
-              <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600">
-                  <strong>참고:</strong> 기본값 15mm는 보수적인 여백 설정입니다. 
-                  여백 영역의 텍스트(머리글, 바닥글, 페이지 번호 등)는 검사에서 제외됩니다.
-                  텍스트가 추출되지 않으면 여백을 더 작게 조정해보세요.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 엑셀 파일 업로드 */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                3단계: Excel 교정 데이터 업로드
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="excelFile">교정 데이터 Excel 파일 (.xlsx, .xls)</Label>
-                  <Input
-                    id="excelFile"
-                    ref={excelInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleExcelFileSelect}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-xs text-slate-600 mt-2">
-                    A열: 틀린 표현, B열: 올바른 표현
-                  </p>
-                </div>
-                
-                {corrections.length > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <FileSpreadsheet className="w-5 h-5 text-green-600 mt-0.5" />
+                  )}
+                  {corrections.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet className="w-5 h-5 text-accent" />
                       <div>
-                        <p className="font-medium text-green-900">
-                          {excelFile?.name}
-                        </p>
-                        <p className="text-sm text-green-700">
-                          총 <strong>{corrections.length}개의 교정 규칙</strong> 로드 완료 (전체 시트 포함)
-                        </p>
-                        <p className="text-xs text-green-600 mt-1">
-                          💡 모든 시트의 A열(틀린 표현)과 B열(올바른 표현)을 검색합니다
+                        <p className="font-medium text-foreground">{excelFile?.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {corrections.length}개 교정 규칙 로드됨
                         </p>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
+
+              {pdfDoc && corrections.length > 0 && (
+                <Button
+                  onClick={() => setCurrentStep(2)}
+                  className="w-full hover-lift-editorial"
+                >
+                  다음 단계로
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              )}
             </CardContent>
           </Card>
 
-          {/* 교정 규칙 미리보기 */}
-          {corrections.length > 0 && (
-            <Card className="mb-6">
+          {/* 2단계: 분석 시작 */}
+          {currentStep >= 2 && (
+            <Card className={cn(
+              'card-editorial transition-all duration-300',
+              currentStep >= 2 && 'shadow-lg',
+              currentStep === 2 && 'ring-2 ring-primary/20'
+            )}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  교정 규칙 미리보기
+                <CardTitle className="flex items-center gap-3">
+                  <div className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                    currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  )}>
+                    2
+                  </div>
+                  PDF 맞춤법 분석
+                  {matches.length > 0 && (
+                    <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {corrections.slice(0, 10).map((correction, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
-                      <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">
-                        {correction.wrong}
-                      </span>
-                      <span>→</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                        {correction.correct}
-                      </span>
-                    </div>
-                  ))}
-                  {corrections.length > 10 && (
-                    <p className="text-xs text-slate-500 text-center pt-2">
-                      ... 및 {corrections.length - 10}개 더
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 오류 메시지 */}
-          {error && (
-            <Alert className="mb-6 border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* 분석 시작 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="w-5 h-5" />
-                4단계: 문서 분석 시작
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-slate-600">
-                  PDF 문서에서 교정이 필요한 부분을 찾아 페이지별로 보여드립니다.
-                </p>
-                
-                <div className="flex gap-3">
+              <CardContent className="space-y-6">
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-4">
+                    <FileSearch className="w-8 h-8 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">스마트 분석 준비 완료</h3>
+                  <p className="text-muted-foreground mb-2">
+                    여백 {margins.vertical}×{margins.horizontal}mm 설정으로 본문 영역만 검사합니다
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    {corrections.length}개 교정 규칙로 {pdfDoc?.totalPages}페이지를 정밀 검사합니다
+                  </p>
+                  
                   <Button
                     onClick={analyzeDocument}
-                    disabled={!pdfDoc || corrections.length === 0 || isProcessing}
-                    className="flex-1"
+                    disabled={isProcessing}
+                    size="lg"
+                    className="hover-lift-editorial"
                   >
                     {isProcessing ? (
                       <>
@@ -902,37 +559,166 @@ function PDFSpellCheckerContent() {
                       </>
                     ) : (
                       <>
-                        <Search className="w-4 h-4 mr-2" />
-                        문서 분석하기
+                        <FileSearch className="w-4 h-4 mr-2" />
+                        맞춤법 검사 시작
                       </>
                     )}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 3단계: 결과 */}
+          {matches.length > 0 && (
+            <Card className="card-editorial shadow-lg ring-2 ring-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
+                    3
+                  </div>
+                  맞춤법 검사 결과 ({matches.length}개 발견)
+                  <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
+                  <p className="text-primary font-semibold">
+                    총 {matches.length}개의 맞춤법 오류를 발견했습니다.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    여백 {margins.vertical}×{margins.horizontal}mm 안쪽 본문 영역에서 검출된 결과입니다.
+                  </p>
+                </div>
+
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {Array.from(new Set(matches.map(m => m.pageIndex))).map(pageIndex => {
+                    const pageMatches = matches.filter(m => m.pageIndex === pageIndex)
+                    const pageContent = pdfDoc!.pages[pageIndex].content
+                    
+                    return (
+                      <div key={pageIndex} className="border border-border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            {pdfDoc!.pages[pageIndex].pageNumber}페이지 ({pageMatches.length}개 오류)
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(pageContent, pageIndex)}
+                            className="hover-lift-editorial"
+                          >
+                            {copiedPages.has(pageIndex) ? (
+                              <Check className="w-3 h-3 mr-1" />
+                            ) : (
+                              <Copy className="w-3 h-3 mr-1" />
+                            )}
+                            {copiedPages.has(pageIndex) ? '복사됨' : '복사'}
+                          </Button>
+                        </div>
+                        <div
+                          className="text-sm leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html: highlightText(pageContent, matches, pageIndex)
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t">
                   <Button
                     variant="outline"
-                    onClick={resetTool}
-                    disabled={isProcessing}
+                    onClick={resetForm}
+                    className="hover-lift-editorial"
                   >
-                    초기화
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    새로 시작
                   </Button>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* 사이드바 - 도움말 */}
+        <div className="space-y-6">
+          {/* 사용법 가이드 */}
+          <Card className="card-editorial">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="w-5 h-5 text-primary" />
+                사용법 가이드
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary">1.</span>
+                  PDF 문서와 Excel 교정 데이터 업로드
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary">2.</span>
+                  여백 설정으로 검사할 본문 영역 조정
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary">3.</span>
+                  맞춤법 검사 후 결과 확인 및 복사
+                </li>
+              </ul>
             </CardContent>
           </Card>
 
-          {/* 사용법 안내 */}
-          <div className="mt-8 bg-slate-100 rounded-lg p-6">
-            <h3 className="font-semibold text-slate-900 mb-3">💡 사용법</h3>
-            <ul className="space-y-2 text-sm text-slate-700">
-              <li>• PDF 파일(.pdf)과 Excel 파일(.xlsx, .xls)을 각각 업로드하세요</li>
-              <li>• 상하/좌우 여백값(mm)을 설정하여 머리글, 바닥글 등을 제외할 수 있습니다</li>
-              <li>• Excel 파일의 A열에는 '틀린 표현', B열에는 '올바른 표현'을 입력하세요</li>
-              <li>• 분석 결과에서 페이지별로 수정 사항을 확인할 수 있습니다</li>
-              <li>• 모든 처리는 브라우저에서 진행되어 파일이 외부로 전송되지 않습니다</li>
-            </ul>
-          </div>
+          {/* 여백 설정 팁 */}
+          <Card className="card-editorial">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-accent" />
+                여백 설정 팁
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>• <strong>표준 (15mm):</strong> 일반 문서에 적합</li>
+                <li>• <strong>넓게 (20mm):</strong> 헤더/푸터가 많은 문서</li>
+                <li>• <strong>좁게 (10mm):</strong> 전체 페이지 검사 필요시</li>
+                <li>• 설정에 따라 검사 영역이 달라집니다</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* PRO 기능 */}
+          <Card className="card-editorial">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-accent" />
+                PRO 기능
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>• 스마트 여백 제외 검사</li>
+                <li>• 페이지별 오류 하이라이트</li>
+                <li>• 다중 시트 Excel 지원</li>
+                <li>• 실시간 검사 결과 복사</li>
+                <li>• 대용량 PDF 처리 지원</li>
+              </ul>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+
+      {/* 오류 메시지 */}
+      {error && (
+        <Alert className="mt-6 border-destructive/20 bg-destructive/5">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-destructive">
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
+    </ToolPageLayout>
   )
 }
 
@@ -942,7 +728,7 @@ export default function PDFSpellCheckerPage() {
       requireAuth={true} 
       requireRole="premium" 
       featureName="PDF 맞춤법 검사기"
-      fallbackMessage="구글 로그인 후 프리미엄으로 업그레이드하시면 PDF 맞춤법 검사기를 사용하실 수 있습니다! AI 기반 고급 교정 기능으로 PDF 문서의 맞춤법을 정밀하게 검사합니다."
+      fallbackMessage="구글 로그인 후 프리미엄으로 업그레이드하시면 PDF 맞춤법 검사기를 사용하실 수 있습니다! PDF 문서의 본문 영역만 정밀하게 분석하여 맞춤법을 검사하는 고급 기능을 제공합니다."
     >
       <PDFSpellCheckerContent />
     </AuthRequired>

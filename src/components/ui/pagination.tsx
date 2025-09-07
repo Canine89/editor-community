@@ -46,7 +46,7 @@ export function Pagination({
         size="sm"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-1"
+        className="flex items-center gap-1 hover-lift-editorial"
       >
         <ChevronLeft className="h-4 w-4" />
         이전
@@ -59,12 +59,13 @@ export function Pagination({
             variant={currentPage === 1 ? "default" : "outline"}
             size="sm"
             onClick={() => onPageChange(1)}
+            className={currentPage === 1 ? "shadow-lg" : "hover-lift-editorial"}
           >
             1
           </Button>
           {showLeftEllipsis && (
             <div className="flex items-center">
-              <MoreHorizontal className="h-4 w-4 text-slate-400" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground/60" />
             </div>
           )}
         </>
@@ -77,6 +78,7 @@ export function Pagination({
           variant={currentPage === page ? "default" : "outline"}
           size="sm"
           onClick={() => onPageChange(page)}
+          className={currentPage === page ? "shadow-lg" : "hover-lift-editorial"}
         >
           {page}
         </Button>
@@ -87,13 +89,14 @@ export function Pagination({
         <>
           {showRightEllipsis && (
             <div className="flex items-center">
-              <MoreHorizontal className="h-4 w-4 text-slate-400" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground/60" />
             </div>
           )}
           <Button
             variant={currentPage === totalPages ? "default" : "outline"}
             size="sm"
             onClick={() => onPageChange(totalPages)}
+            className={currentPage === totalPages ? "shadow-lg" : "hover-lift-editorial"}
           >
             {totalPages}
           </Button>
@@ -106,7 +109,7 @@ export function Pagination({
         size="sm"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="flex items-center gap-1"
+        className="flex items-center gap-1 hover-lift-editorial"
       >
         다음
         <ChevronRight className="h-4 w-4" />
@@ -132,7 +135,7 @@ export function PaginationInfo({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="text-sm text-slate-600">
+    <div className="text-sm text-muted-foreground">
       전체 {totalItems.toLocaleString()}건 중 {startItem.toLocaleString()}-{endItem.toLocaleString()}건 표시 
       (페이지 {currentPage}/{totalPages})
     </div>

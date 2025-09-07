@@ -6,10 +6,10 @@ import { createClient } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 
 interface Post {
@@ -38,9 +38,9 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
 
   const categories = [
     { value: 'general', label: '일반' },
-    { value: 'job', label: '구인구직' },
-    { value: 'qna', label: 'Q&A' },
-    { value: 'tips', label: '팁/노하우' }
+    { value: 'question', label: '질문' },
+    { value: 'share', label: '정보공유' },
+    { value: 'discussion', label: '토론' }
   ]
 
   useEffect(() => {
@@ -128,7 +128,8 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
       }
 
       alert('게시글이 수정되었습니다')
-      router.push(`/community/${post.id}`)
+      // 브라우저 캐시를 새로고침하고 상세 페이지로 이동
+      window.location.href = `/community/${post.id}`
     } catch (error) {
       console.error('게시글 수정 중 오류:', error)
       alert('게시글 수정 중 오류가 발생했습니다')
@@ -211,16 +212,13 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
               {/* 내용 */}
               <div className="space-y-2">
                 <Label htmlFor="content">내용</Label>
-                <Textarea
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="게시글 내용을 입력하세요"
-                  rows={15}
-                  maxLength={5000}
+                <RichTextEditor
+                  content={content}
+                  onChange={setContent}
+                  placeholder="게시글 내용을 입력하세요..."
                 />
                 <div className="text-sm text-gray-500 text-right">
-                  {content.length}/5000
+                  {content.replace(/<[^>]*>/g, '').length}/5000
                 </div>
               </div>
 
