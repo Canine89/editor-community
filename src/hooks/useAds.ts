@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getActiveAdvertisements, getAdSettings, incrementAdClick, incrementAdView, type Advertisement, type AdSettings as DBAdSettings } from '@/lib/advertisements'
 
 export interface Ad {
   id: string
@@ -97,6 +98,29 @@ export function useAds() {
     loadAds()
   }, [])
 
+  // Advertisement를 Ad 인터페이스로 변환하는 함수
+  const convertAdvertisementToAd = (ad: Advertisement): Ad => ({
+    id: ad.id,
+    type: ad.type,
+    title: ad.title,
+    description: ad.description,
+    imageUrl: ad.image_url,
+    linkUrl: ad.link_url,
+    isActive: ad.is_active,
+    displayOrder: ad.display_order,
+    startDate: ad.start_date,
+    endDate: ad.end_date
+  })
+
+  // AdSettings를 DB 형식에서 Hook 형식으로 변환
+  const convertDBSettingsToHookSettings = (dbSettings: DBAdSettings): AdSettings => ({
+    showTopCarousel: dbSettings.show_top_carousel,
+    showBottomBanner: dbSettings.show_bottom_banner,
+    carouselAutoPlay: dbSettings.carousel_auto_play,
+    carouselInterval: dbSettings.carousel_interval,
+    bannerPosition: dbSettings.banner_position
+  })
+
   const loadAds = async () => {
     try {
       setLoading(true)
@@ -104,6 +128,7 @@ export function useAds() {
       const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
       
       if (isDevMode) {
+        // 개발 모드에서는 목 데이터 사용
         const activeCarouselAds = mockCarouselAds
           .filter(ad => ad.isActive && ad.type === 'carousel')
           .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -115,10 +140,30 @@ export function useAds() {
         setCarouselAds(activeCarouselAds)
         setBannerAds(activeBannerAds)
       } else {
-        // 프로덕션에서는 실제 광고 데이터 로드
-        // TODO: Supabase에서 광고 데이터 가져오기
-        setCarouselAds([])
-        setBannerAds([])
+        // 프로덕션에서는 실제 데이터베이스에서 광고 데이터 로드
+        const [allAds, dbSettings] = await Promise.all([
+          getActiveAdvertisements(),
+          getAdSettings()
+        ])
+
+        // 캐러셀 광고와 배너 광고 분리
+        const carouselAdvertisements = allAds
+          .filter(ad => ad.type === 'carousel')
+          .sort((a, b) => a.display_order - b.display_order)
+          .map(convertAdvertisementToAd)
+
+        const bannerAdvertisements = allAds
+          .filter(ad => ad.type === 'banner')
+          .sort((a, b) => a.display_order - b.display_order)
+          .map(convertAdvertisementToAd)
+
+        setCarouselAds(carouselAdvertisements)
+        setBannerAds(bannerAdvertisements)
+
+        // 광고 설정 업데이트
+        if (dbSettings) {
+          setSettings(convertDBSettingsToHookSettings(dbSettings))
+        }
       }
     } catch (error) {
       console.error('광고 데이터 로드 실패:', error)
@@ -136,7 +181,7 @@ export function useAds() {
     }))
   }
 
-  const trackAdClick = (adId: string) => {
+  const trackAdClick = async (adId: string) => {
     try {
       if (typeof window !== 'undefined') {
         console.log(`광고 클릭 추적: ${adId}`)
@@ -144,8 +189,8 @@ export function useAds() {
         const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
         
         if (!isDevMode) {
-          // 프로덕션에서는 실제 분석 서비스로 전송
-          // TODO: 광고 클릭 추적 구현
+          // 프로덕션에서는 실제 데이터베이스에 클릭 수 증가
+          await incrementAdClick(adId)
         }
       }
     } catch (error) {
@@ -153,7 +198,7 @@ export function useAds() {
     }
   }
 
-  const trackAdView = (adId: string) => {
+  const trackAdView = async (adId: string) => {
     try {
       if (typeof window !== 'undefined') {
         console.log(`광고 노출 추적: ${adId}`)
@@ -161,8 +206,8 @@ export function useAds() {
         const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
         
         if (!isDevMode) {
-          // 프로덕션에서는 실제 분석 서비스로 전송
-          // TODO: 광고 노출 추적 구현
+          // 프로덕션에서는 실제 데이터베이스에 노출 수 증가
+          await incrementAdView(adId)
         }
       }
     } catch (error) {

@@ -8,6 +8,8 @@
 --    - posts
 --    - comments
 --    - jobs
+--    - advertisements
+--    - ad_settings
 
 -- 프로필 테이블
 create table if not exists profiles (
@@ -159,4 +161,74 @@ begin
   where id = post_uuid;
 end;
 $$ language plpgsql security definer;
+
+-- 광고 테이블
+create table if not exists advertisements (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  description text,
+  type text not null check (type in ('carousel', 'banner')),
+  image_url text not null,
+  link_url text not null,
+  display_order integer not null default 1,
+  start_date timestamp with time zone not null,
+  end_date timestamp with time zone not null,
+  is_active boolean default true,
+  click_count integer default 0 not null,
+  view_count integer default 0 not null,
+  advertiser_name text not null,
+  advertiser_email text,
+  advertiser_phone text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 광고 설정 테이블
+create table if not exists ad_settings (
+  id uuid default gen_random_uuid() primary key,
+  show_top_carousel boolean default true,
+  show_bottom_banner boolean default true,
+  carousel_auto_play boolean default true,
+  carousel_interval integer default 5000,
+  banner_position text default 'static' check (banner_position in ('fixed', 'static')),
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 광고 테이블 RLS 설정
+alter table advertisements enable row level security;
+alter table ad_settings enable row level security;
+
+-- 광고 정책 (모든 사용자가 볼 수 있지만 관리자만 수정 가능)
+create policy "Advertisements are viewable by everyone" on advertisements
+  for select using (true);
+
+create policy "Only authenticated users can manage advertisements" on advertisements
+  for all using (auth.uid() is not null);
+
+-- 광고 설정 정책 (모든 사용자가 볼 수 있지만 관리자만 수정 가능)
+create policy "Ad settings are viewable by everyone" on ad_settings
+  for select using (true);
+
+create policy "Only authenticated users can manage ad settings" on ad_settings
+  for all using (auth.uid() is not null);
+
+-- 광고 클릭/조회수 업데이트 함수
+create or replace function increment_ad_clicks(ad_uuid uuid)
+returns void as $$
+begin
+  update advertisements set click_count = click_count + 1 where id = ad_uuid;
+end;
+$$ language plpgsql security definer;
+
+create or replace function increment_ad_views(ad_uuid uuid)
+returns void as $$
+begin
+  update advertisements set view_count = view_count + 1 where id = ad_uuid;
+end;
+$$ language plpgsql security definer;
+
+-- 기본 광고 설정 데이터 삽입
+insert into ad_settings (show_top_carousel, show_bottom_banner, carousel_auto_play, carousel_interval, banner_position)
+values (true, true, true, 5000, 'static')
+on conflict do nothing;
 

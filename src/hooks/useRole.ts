@@ -131,6 +131,17 @@ export async function logPremiumUsage(
   }
 }
 
+// useAdmin 훅 - 관리자 권한 체크
+export function useAdmin() {
+  const { role, loading, canAccessAdminPages } = useRole()
+
+  return {
+    isAdmin: canAccessAdminPages,
+    loading,
+    role
+  }
+}
+
 // 관리자 활동 로그 기록 (기존 useAdmin에서 이전)
 export async function logAdminActivity(
   action: string,
