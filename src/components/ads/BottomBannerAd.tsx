@@ -74,8 +74,58 @@ export function BottomBannerAd({
     }
   }, [position])
 
-  if (!currentAd || isDismissed || (position === 'fixed' && !isVisible)) {
+  if (isDismissed || (position === 'fixed' && !isVisible)) {
     return null
+  }
+
+  // 광고가 없을 때 광고 문의 배너 표시
+  if (!currentAd) {
+    return (
+      <div 
+        className={cn(
+          "w-full bg-white border-t shadow-lg z-40",
+          position === 'fixed' && "fixed bottom-0 left-0 right-0",
+          position === 'static' && "relative",
+          className
+        )}
+      >
+        <div className="max-w-6xl mx-auto relative">
+          <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 space-y-2 sm:space-y-0">
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-700">
+                광고 문의
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                편집자 커뮤니티 광고 게재 문의: hgpark@goldenrabbit.co.kr
+              </p>
+            </div>
+            
+            <div className="flex items-center text-xs sm:text-sm text-slate-500">
+              <span>📧 hgpark@goldenrabbit.co.kr</span>
+            </div>
+          </div>
+          
+          {/* 광고 문의 라벨 */}
+          <div className="absolute top-2 left-2">
+            <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">
+              광고 문의
+            </span>
+          </div>
+          
+          {/* 닫기 버튼 (dismissible일 때만) */}
+          {dismissible && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-1 sm:top-2 right-1 sm:right-2 h-6 w-6 sm:h-8 sm:w-8 text-slate-400 hover:text-slate-600"
+              onClick={handleDismiss}
+            >
+              <X className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const handleAdClick = () => {

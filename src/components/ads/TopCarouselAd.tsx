@@ -58,7 +58,37 @@ export function TopCarouselAd({
   }, [currentIndex, carouselAds, trackAdView])
 
   if (carouselAds.length === 0) {
-    return null
+    return (
+      <div 
+        className={cn(
+          "relative w-full bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg overflow-hidden shadow-sm",
+          className
+        )}
+      >
+        <div className="h-[200px] md:h-[250px] lg:h-[300px] flex items-center justify-center">
+          <div className="text-center px-4 sm:px-6">
+            <div className="max-w-2xl">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-slate-700 mb-2 leading-tight">
+                광고 문의
+              </h2>
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-slate-600 mb-4 leading-relaxed">
+                편집자 커뮤니티에 광고를 게재하고 싶으시다면 연락해 주세요
+              </p>
+              <div className="text-sm sm:text-base text-slate-500">
+                <p>📧 이메일: hgpark@goldenrabbit.co.kr</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* 광고 문의 라벨 */}
+        <div className="absolute top-2 sm:top-4 left-2 sm:left-4">
+          <span className="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded">
+            광고 문의
+          </span>
+        </div>
+      </div>
+    )
   }
 
   const currentAd = carouselAds[currentIndex]
