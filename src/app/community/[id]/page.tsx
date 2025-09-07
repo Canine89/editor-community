@@ -217,7 +217,7 @@ export default function PostDetailPage() {
         .select('id')
         .eq('user_id', user.id)
         .eq('post_id', id)
-        .single()
+        .maybeSingle()
 
       if (!error && data) {
         setIsLiked(true)

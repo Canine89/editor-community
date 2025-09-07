@@ -2,7 +2,6 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import Typography from '@tiptap/extension-typography'
 import { 
@@ -146,11 +145,12 @@ export function RichTextEditor({
             class: 'font-bold my-4',
           },
         },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline hover:text-primary/80 transition-colors cursor-pointer',
+        // StarterKit에 이미 Link가 포함되어 있어 별도 설정
+        link: {
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-primary underline hover:text-primary/80 transition-colors cursor-pointer',
+          },
         },
       }),
       Placeholder.configure({
