@@ -1,8 +1,8 @@
 // Script to set up initial advertisements and settings in production database
 const { createClient } = require('@supabase/supabase-js')
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://obmtqjrmyfiicfjjrwfz.supabase.co'
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ibXRxanJteWZpaWNmampyd2Z6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkyNzI5NCwiZXhwIjoyMDcyNTAzMjk0fQ.9YYBMXlF_hDA8ttYhXm91mZGi2y2-rVvabNCcjqnn_c'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nnllrgwnukqqepwkluja.supabase.co'
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ubGxyZ3dudWtxcWVwd2tsdWphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyNTM5Nzg1NiwiZXhwIjoyMDQwOTczODU2fQ.K9kEGGNm2-qs8lkWYCTKynyxCONK6NUy47F5VFLhZHs'
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -189,9 +189,112 @@ async function verifySetup() {
   }
 }
 
+async function createTables() {
+  console.log('🏗️ Creating advertisement tables...')
+  
+  try {
+    // 테이블이 이미 존재하는지 확인
+    const { data: existingAds, error: checkError } = await supabase
+      .from('advertisements')
+      .select('id')
+      .limit(1)
+    
+    if (!checkError) {
+      console.log('✅ Advertisement tables already exist!')
+      return
+    }
+    
+    console.log('📋 Tables not found, creating them now...')
+    
+    // 전체 스키마 실행
+    const schemaSQL = `
+    -- 광고 테이블
+    CREATE TABLE IF NOT EXISTS advertisements (
+      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+      title text NOT NULL,
+      description text,
+      type text NOT NULL CHECK (type IN ('carousel', 'banner')),
+      image_url text NOT NULL,
+      link_url text NOT NULL,
+      display_order integer NOT NULL DEFAULT 1,
+      start_date timestamp with time zone NOT NULL,
+      end_date timestamp with time zone NOT NULL,
+      is_active boolean DEFAULT true,
+      click_count integer DEFAULT 0 NOT NULL,
+      view_count integer DEFAULT 0 NOT NULL,
+      advertiser_name text NOT NULL,
+      advertiser_email text,
+      advertiser_phone text,
+      created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+      updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    );
+    
+    -- 광고 설정 테이블
+    CREATE TABLE IF NOT EXISTS ad_settings (
+      id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+      show_top_carousel boolean DEFAULT true,
+      show_bottom_banner boolean DEFAULT true,
+      carousel_auto_play boolean DEFAULT true,
+      carousel_interval integer DEFAULT 5000,
+      banner_position text DEFAULT 'static' CHECK (banner_position IN ('fixed', 'static')),
+      updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    );
+    
+    -- RLS 설정
+    ALTER TABLE advertisements ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE ad_settings ENABLE ROW LEVEL SECURITY;
+    
+    -- 광고 정책
+    CREATE POLICY "Advertisements are viewable by everyone" ON advertisements
+      FOR SELECT USING (true);
+    CREATE POLICY "Only authenticated users can manage advertisements" ON advertisements
+      FOR ALL USING (auth.uid() IS NOT NULL);
+    
+    -- 광고 설정 정책
+    CREATE POLICY "Ad settings are viewable by everyone" ON ad_settings
+      FOR SELECT USING (true);
+    CREATE POLICY "Only authenticated users can manage ad settings" ON ad_settings
+      FOR ALL USING (auth.uid() IS NOT NULL);
+    
+    -- 광고 클릭/조회수 업데이트 함수
+    CREATE OR REPLACE FUNCTION increment_ad_clicks(ad_uuid uuid)
+    RETURNS void AS $$
+    BEGIN
+      UPDATE advertisements SET click_count = click_count + 1 WHERE id = ad_uuid;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    CREATE OR REPLACE FUNCTION increment_ad_views(ad_uuid uuid)
+    RETURNS void AS $$
+    BEGIN
+      UPDATE advertisements SET view_count = view_count + 1 WHERE id = ad_uuid;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    `
+    
+    const { error: schemaError } = await supabase.rpc('exec', { sql: schemaSQL })
+    
+    if (schemaError) {
+      console.error('❌ Schema creation failed:', schemaError.message)
+      console.log('⚠️ Please run supabase-schema.sql manually in Supabase SQL Editor')
+      return false
+    }
+    
+    console.log('✅ Advertisement tables created successfully!')
+    return true
+    
+  } catch (error) {
+    console.error('❌ Table creation error:', error.message)
+    console.log('⚠️ Please run supabase-schema.sql manually in Supabase SQL Editor')
+    return false
+  }
+}
+
 async function main() {
   console.log('🎯 Starting advertisement system setup...\n')
   
+  await createTables()
+  console.log()
   await setupInitialAds()
   console.log()
   await setupAdSettings()
