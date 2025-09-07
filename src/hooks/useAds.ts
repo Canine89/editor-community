@@ -127,11 +127,13 @@ export function useAds() {
       
       const isDevMode = process.env.NODE_ENV === 'development'
       
-      console.log('🔍 useAds: Loading advertisements...', {
-        isDevMode,
-        env: process.env.NODE_ENV,
-        nodeEnv: process.env.NODE_ENV
-      })
+      if (isDevMode) {
+        console.log('🔍 useAds: Loading advertisements...', {
+          isDevMode,
+          env: process.env.NODE_ENV,
+          nodeEnv: process.env.NODE_ENV
+        })
+      }
       
       if (isDevMode) {
         // 개발 모드에서는 목 데이터 사용
@@ -149,17 +151,10 @@ export function useAds() {
         setBannerAds(activeBannerAds)
       } else {
         // 프로덕션에서는 실제 데이터베이스에서 광고 데이터 로드
-        console.log('💾 useAds: Loading from database (production mode)')
-        
         const [allAds, dbSettings] = await Promise.all([
           getActiveAdvertisements(),
           getAdSettings()
         ])
-
-        console.log('📊 useAds: Database results', {
-          totalAds: allAds?.length || 0,
-          hasSettings: !!dbSettings
-        })
 
         // 캐러셀 광고와 배너 광고 분리
         const carouselAdvertisements = allAds
@@ -172,10 +167,6 @@ export function useAds() {
           .sort((a, b) => a.display_order - b.display_order)
           .map(convertAdvertisementToAd)
 
-        console.log('🎠 useAds: Processed ads', {
-          carouselAds: carouselAdvertisements.length,
-          bannerAds: bannerAdvertisements.length
-        })
 
         setCarouselAds(carouselAdvertisements)
         setBannerAds(bannerAdvertisements)
@@ -186,7 +177,9 @@ export function useAds() {
         }
       }
     } catch (error) {
-      console.error('광고 데이터 로드 실패:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('광고 데이터 로드 실패:', error)
+      }
       setCarouselAds([])
       setBannerAds([])
     } finally {
@@ -204,9 +197,11 @@ export function useAds() {
   const trackAdClick = async (adId: string) => {
     try {
       if (typeof window !== 'undefined') {
-        console.log(`광고 클릭 추적: ${adId}`)
-        
         const isDevMode = process.env.NODE_ENV === 'development'
+        
+        if (isDevMode) {
+          console.log(`광고 클릭 추적: ${adId}`)
+        }
         
         if (!isDevMode) {
           // 프로덕션에서는 실제 데이터베이스에 클릭 수 증가
@@ -214,16 +209,31 @@ export function useAds() {
         }
       }
     } catch (error) {
-      console.error('광고 클릭 추적 실패:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('광고 클릭 추적 실패:', error)
+      }
     }
   }
+
+  // 이미 추적된 광고를 기록하는 Set (중복 추적 방지)
+  const [trackedViews] = useState(new Set<string>())
 
   const trackAdView = async (adId: string) => {
     try {
       if (typeof window !== 'undefined') {
-        console.log(`광고 노출 추적: ${adId}`)
+        // 이미 추적된 광고는 건너뛰기
+        if (trackedViews.has(adId)) {
+          return
+        }
         
         const isDevMode = process.env.NODE_ENV === 'development'
+        
+        if (isDevMode) {
+          console.log(`광고 노출 추적: ${adId}`)
+        }
+        
+        // 추적 기록에 추가
+        trackedViews.add(adId)
         
         if (!isDevMode) {
           // 프로덕션에서는 실제 데이터베이스에 노출 수 증가
@@ -231,7 +241,9 @@ export function useAds() {
         }
       }
     } catch (error) {
-      console.error('광고 노출 추적 실패:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('광고 노출 추적 실패:', error)
+      }
     }
   }
 
