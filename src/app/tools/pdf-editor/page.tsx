@@ -1512,6 +1512,7 @@ export default function PDFEditorPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
+      requireRole="premium"
       featureName="PDF 페이지 교체"
       freeFeature={false}
     >
