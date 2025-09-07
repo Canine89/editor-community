@@ -127,8 +127,16 @@ export function useAds() {
       
       const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
       
+      console.log('🔍 useAds: Loading advertisements...', {
+        isDevMode,
+        env: process.env.NEXT_PUBLIC_IS_DEV_MODE,
+        nodeEnv: process.env.NODE_ENV
+      })
+      
       if (isDevMode) {
         // 개발 모드에서는 목 데이터 사용
+        console.log('📋 useAds: Using mock data (development mode)')
+        
         const activeCarouselAds = mockCarouselAds
           .filter(ad => ad.isActive && ad.type === 'carousel')
           .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -141,10 +149,17 @@ export function useAds() {
         setBannerAds(activeBannerAds)
       } else {
         // 프로덕션에서는 실제 데이터베이스에서 광고 데이터 로드
+        console.log('💾 useAds: Loading from database (production mode)')
+        
         const [allAds, dbSettings] = await Promise.all([
           getActiveAdvertisements(),
           getAdSettings()
         ])
+
+        console.log('📊 useAds: Database results', {
+          totalAds: allAds?.length || 0,
+          hasSettings: !!dbSettings
+        })
 
         // 캐러셀 광고와 배너 광고 분리
         const carouselAdvertisements = allAds
@@ -156,6 +171,11 @@ export function useAds() {
           .filter(ad => ad.type === 'banner')
           .sort((a, b) => a.display_order - b.display_order)
           .map(convertAdvertisementToAd)
+
+        console.log('🎠 useAds: Processed ads', {
+          carouselAds: carouselAdvertisements.length,
+          bannerAds: bannerAdvertisements.length
+        })
 
         setCarouselAds(carouselAdvertisements)
         setBannerAds(bannerAdvertisements)
