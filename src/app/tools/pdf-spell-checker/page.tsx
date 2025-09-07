@@ -942,7 +942,7 @@ export default function PDFSpellCheckerPage() {
       requireAuth={true} 
       requireRole="premium" 
       featureName="PDF 맞춤법 검사기"
-      fallbackMessage="PDF 맞춤법 검사기는 프리미엄 회원 전용 기능입니다. AI 기반 고급 교정 기능을 이용하려면 프리미엄으로 업그레이드하세요."
+      fallbackMessage="구글 로그인 후 프리미엄으로 업그레이드하시면 PDF 맞춤법 검사기를 사용하실 수 있습니다! AI 기반 고급 교정 기능으로 PDF 문서의 맞춤법을 정밀하게 검사합니다."
     >
       <PDFSpellCheckerContent />
     </AuthRequired>

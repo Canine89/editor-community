@@ -391,8 +391,8 @@ export default function PDFExtractorPage() {
     <AuthRequired 
       requireAuth={true} 
       requireRole="premium" 
-      featureName="PDF 추출기"
-      fallbackMessage="PDF 추출기는 프리미엄 회원 전용 기능입니다. PDF 파일의 특정 페이지를 정밀하게 추출하는 고급 기능을 이용하려면 프리미엄으로 업그레이드하세요."
+      featureName="PDF 텍스트 추출기"
+      fallbackMessage="구글 로그인 후 프리미엄으로 업그레이드하시면 PDF 텍스트 추출기를 사용하실 수 있습니다! PDF 파일의 특정 페이지를 정밀하게 추출하는 고급 기능을 제공합니다."
     >
       <PDFExtractorContent />
     </AuthRequired>
