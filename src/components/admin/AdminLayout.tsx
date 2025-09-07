@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAdmin } from '@/hooks/useAdmin'
+import { useAdmin } from '@/hooks/useRole'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,8 @@ import {
   Activity,
   Settings,
   Home,
-  ArrowLeft
+  ArrowLeft,
+  Image
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -26,14 +27,14 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children, title, description }: AdminLayoutProps) {
-  const { canAccessAdminPages, isMaster, isEmployee, loading, permissions } = useAdmin()
+  const { isAdmin, loading } = useAdmin()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !canAccessAdminPages()) {
+    if (!loading && !isAdmin) {
       router.replace('/')
     }
-  }, [loading, canAccessAdminPages(), router])
+  }, [loading, isAdmin, router])
 
   if (loading) {
     return (
@@ -46,7 +47,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     )
   }
 
-  if (!canAccessAdminPages()) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -69,6 +70,7 @@ export default function AdminLayout({ children, title, description }: AdminLayou
     { icon: MessageSquare, label: '커뮤니티 관리', href: '/admin/community' },
     { icon: Briefcase, label: '구인구직 관리', href: '/admin/jobs' },
     { icon: Users, label: '사용자 관리', href: '/admin/users' },
+    { icon: Image, label: '광고 관리', href: '/admin/advertisements' },
     { icon: Settings, label: '파일 관리', href: '/admin/file-management' },
   ]
 
@@ -95,14 +97,9 @@ export default function AdminLayout({ children, title, description }: AdminLayou
           </div>
 
           <div className="flex items-center gap-2">
-            {permissions.map((permission) => (
-              <Badge key={permission.id} variant="outline" className="text-xs">
-                {permission.permission_type === 'master' && '마스터'}
-                {permission.permission_type === 'community_admin' && '커뮤니티'}
-                {permission.permission_type === 'jobs_admin' && '구인구직'}
-                {permission.permission_type === 'users_admin' && '사용자'}
-              </Badge>
-            ))}
+            <Badge variant="outline" className="text-xs">
+              관리자
+            </Badge>
           </div>
         </div>
       </header>
