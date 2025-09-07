@@ -20,10 +20,8 @@ export async function getSpellChecker(): Promise<SpellCheckEngine> {
   }
 
   try {
-    console.log('맞춤법 검사 엔진 초기화 중...')
     const database = await spellDataLoader.loadDatabaseForDev()
     cachedEngine = new SpellCheckEngine(database)
-    console.log('맞춤법 검사 엔진 초기화 완료')
     return cachedEngine
   } catch (error) {
     console.error('맞춤법 검사 엔진 초기화 실패:', error)
@@ -60,5 +58,4 @@ export async function applySpellCorrections(text: string, options?: Partial<Spel
 export function clearSpellCheckerCache() {
   cachedEngine = null
   spellDataLoader.clearCache()
-  console.log('맞춤법 검사 엔진 캐시 클리어')
 }

@@ -127,17 +127,9 @@ export function useAds() {
       
       const isDevMode = process.env.NODE_ENV === 'development'
       
-      if (isDevMode) {
-        console.log('🔍 useAds: Loading advertisements...', {
-          isDevMode,
-          env: process.env.NODE_ENV,
-          nodeEnv: process.env.NODE_ENV
-        })
-      }
       
       if (isDevMode) {
         // 개발 모드에서는 목 데이터 사용
-        console.log('📋 useAds: Using mock data (development mode)')
         
         const activeCarouselAds = mockCarouselAds
           .filter(ad => ad.isActive && ad.type === 'carousel')
@@ -199,9 +191,6 @@ export function useAds() {
       if (typeof window !== 'undefined') {
         const isDevMode = process.env.NODE_ENV === 'development'
         
-        if (isDevMode) {
-          console.log(`광고 클릭 추적: ${adId}`)
-        }
         
         if (!isDevMode) {
           // 프로덕션에서는 실제 데이터베이스에 클릭 수 증가
@@ -228,9 +217,6 @@ export function useAds() {
         
         const isDevMode = process.env.NODE_ENV === 'development'
         
-        if (isDevMode) {
-          console.log(`광고 노출 추적: ${adId}`)
-        }
         
         // 추적 기록에 추가
         trackedViews.add(adId)

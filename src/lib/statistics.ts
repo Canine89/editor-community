@@ -34,7 +34,6 @@ export async function getStatistics(): Promise<Statistics> {
       if (usersError?.message?.includes('relation') ||
           postsError?.message?.includes('relation') ||
           jobsError?.message?.includes('relation')) {
-        console.log('데이터베이스 테이블이 아직 생성되지 않았거나 권한이 없습니다.')
         return {
           activeUsers: 0,
           totalPosts: 0,

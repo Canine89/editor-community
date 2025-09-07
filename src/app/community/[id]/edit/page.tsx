@@ -44,36 +44,27 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
   ]
 
   useEffect(() => {
-    console.log('Edit page useEffect - user:', user, 'authLoading:', authLoading, 'params.id:', params.id)
-    
     // 인증이 아직 로딩 중이면 대기
     if (authLoading) {
-      console.log('인증 상태 로딩 중...')
       return
     }
     
     // 인증 완료 후 사용자가 없으면 로그인 페이지로
     if (!user) {
-      console.log('No user found after auth loading, redirecting to auth')
       router.push('/auth')
       return
     }
     
-    console.log('인증 완료, 게시글 로드 시작')
     fetchPost()
   }, [user, authLoading, params.id])
 
   const fetchPost = async () => {
     try {
-      console.log('fetchPost 시작 - user:', user, 'user?.id:', user?.id)
-      
       const { data, error } = await supabase
         .from('posts')
         .select('*')
         .eq('id', params.id)
         .single()
-
-      console.log('게시글 조회 결과 - data:', data, 'error:', error)
 
       if (error) {
         console.error('게시글 조회 오류:', error)
@@ -92,18 +83,15 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
       }
 
       if (!data) {
-        console.log('게시글 데이터 없음')
         alert('게시글을 찾을 수 없습니다')
         router.push('/community')
         return
       }
 
       const postData = data as Post
-      console.log('권한 확인 - postData.author_id:', postData.author_id, 'user.id:', user?.id)
       
       // 타입 안전한 사용자 확인
       if (!user?.id) {
-        console.log('사용자 ID가 없음')
         alert('인증 정보를 확인할 수 없습니다')
         router.push('/auth')
         return
@@ -113,16 +101,12 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
       const isAuthor = postData.author_id === user.id
       const isMaster = user.user_metadata?.user_role === 'master'
       
-      console.log('권한 검사 - isAuthor:', isAuthor, 'isMaster:', isMaster, 'user_role:', user.user_metadata?.user_role)
-      
       if (!isAuthor && !isMaster) {
-        console.log('권한 없음 - 작성자도 마스터도 아님')
         alert('수정 권한이 없습니다. (작성자만 수정 가능)')
         router.push(`/community/${params.id}`)
         return
       }
 
-      console.log('권한 확인 완료 - isAuthor:', isAuthor, 'isMaster:', isMaster)
       setPost(postData)
       setTitle(postData.title)
       setContent(postData.content)
