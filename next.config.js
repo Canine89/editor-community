@@ -5,14 +5,23 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: [
-      'localhost',
-      // Vercel deployment domains
-      'editor-community.vercel.app',
-      // Supabase storage if used for images
-      'nnllrgwnukqqepwkluja.supabase.co',
-      // Unsplash for ad images
-      'images.unsplash.com'
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'editor-community.vercel.app',
+      },
+      {
+        protocol: 'https',
+        hostname: 'nnllrgwnukqqepwkluja.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
   // PDF.js worker 설정 및 빌드 최적화

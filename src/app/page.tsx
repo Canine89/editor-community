@@ -69,25 +69,20 @@ export default function Home() {
         {/* 상단 캐러셀 광고 */}
         <TopCarouselAd className="mb-8" />
         
-        {/* Hero Section */}
-        <div className="relative overflow-hidden mb-16">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 rounded-xl"></div>
-          <div className="relative px-4 py-16">
-            <div className="text-center max-w-4xl mx-auto">
-              <Badge variant="secondary" className="mb-4 px-3 py-1">
-                <Sparkles className="w-3 h-3 mr-1" />
-                베타 버전
-              </Badge>
-              <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent mb-6 leading-tight">
-                편집자 커뮤니티
-              </h1>
-              <p className="text-xl text-slate-600 mb-8 leading-relaxed max-w-2xl mx-auto">
-                전문 편집자들을 위한 종합 플랫폼
-                <br />
-                지식 공유, 취업 지원, 효율적인 업무 도구까지
-              </p>
-            </div>
+        {/* Simplified Hero Section */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+              편집자 커뮤니티
+            </h1>
+            <Badge variant="secondary" className="px-2 py-1 text-xs">
+              <Sparkles className="w-3 h-3 mr-1" />
+              베타
+            </Badge>
           </div>
+          <p className="text-slate-600 max-w-xl mx-auto">
+            전문 편집자들을 위한 종합 플랫폼
+          </p>
         </div>
         {user ? (
           // 로그인된 사용자 대시보드
