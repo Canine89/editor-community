@@ -15,6 +15,7 @@ interface AuthRequiredProps {
   requireRole?: UserRole
   featureName?: string
   fallbackMessage?: string
+  freeFeature?: boolean // 무료 도구임을 나타내는 플래그
 }
 
 export function AuthRequired({
@@ -22,7 +23,8 @@ export function AuthRequired({
   requireAuth = true,
   requireRole,
   featureName = '이 기능',
-  fallbackMessage
+  fallbackMessage,
+  freeFeature = false
 }: AuthRequiredProps) {
   const { user } = useAuth()
   const { role, isAtLeast, loading } = useRole()
@@ -42,23 +44,29 @@ export function AuthRequired({
       <div className="flex items-center justify-center min-h-[400px] p-6">
         <Card className="max-w-md mx-auto text-center">
           <CardHeader>
-            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <LogIn className="h-6 w-6 text-blue-600" />
+            <div className={`mx-auto w-12 h-12 ${freeFeature ? 'bg-green-100' : 'bg-blue-100'} rounded-full flex items-center justify-center mb-4`}>
+              <LogIn className={`h-6 w-6 ${freeFeature ? 'text-green-600' : 'text-blue-600'}`} />
             </div>
-            <CardTitle>로그인이 필요합니다</CardTitle>
+            <CardTitle>
+              {freeFeature ? '무료로 사용하세요!' : '로그인이 필요합니다'}
+            </CardTitle>
             <CardDescription>
-              {fallbackMessage || `${featureName}를 사용하려면 구글 계정으로 로그인해주세요.`}
+              {fallbackMessage || (freeFeature 
+                ? `구글 로그인만 하면 ${featureName}을(를) 무료로 사용할 수 있습니다!`
+                : `${featureName}를 사용하려면 구글 계정으로 로그인해주세요.`)}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col space-y-2">
-            <Button asChild className="w-full">
+            <Button asChild className={`w-full ${freeFeature ? 'bg-green-600 hover:bg-green-700' : ''}`}>
               <Link href="/auth">
                 <LogIn className="mr-2 h-4 w-4" />
-                구글로 로그인
+                {freeFeature ? '구글로 무료 시작하기' : '구글로 로그인'}
               </Link>
             </Button>
             <p className="text-xs text-muted-foreground">
-              구글 OAuth를 통해 안전하게 로그인하세요
+              {freeFeature 
+                ? '구글 OAuth를 통해 안전하게 로그인하고 바로 사용하세요'
+                : '구글 OAuth를 통해 안전하게 로그인하세요'}
             </p>
           </CardFooter>
         </Card>

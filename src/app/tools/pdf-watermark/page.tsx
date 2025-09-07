@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +22,7 @@ interface WatermarkSettings {
   offsetFromBottom: number // mm
 }
 
-export default function PDFWatermarkPage() {
+function PDFWatermarkContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -621,5 +622,17 @@ export default function PDFWatermarkPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PDFWatermarkPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      featureName="PDF 워터마크 도구"
+      freeFeature={true}
+    >
+      <PDFWatermarkContent />
+    </AuthRequired>
   )
 }

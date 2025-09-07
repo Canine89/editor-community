@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -38,7 +39,7 @@ interface CategorySettings {
   [key: string]: boolean
 }
 
-export default function ITSpellCheckerPage() {
+function ITSpellCheckerContent() {
   // 상태 관리
   const [text, setText] = useState('')
   const [result, setResult] = useState<SpellCheckResult | null>(null)
@@ -478,5 +479,17 @@ export default function ITSpellCheckerPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ITSpellCheckerPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      featureName="IT 맞춤법 검사기"
+      freeFeature={true}
+    >
+      <ITSpellCheckerContent />
+    </AuthRequired>
   )
 }

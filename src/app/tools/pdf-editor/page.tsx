@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useMemo, memo } from 'react'
+import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -318,7 +319,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
   )
 })
 
-export default function PDFEditorPage() {
+function PDFEditorContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [pdfInfo, setPdfInfo] = useState<PDFInfo | null>(null)
   const [pages, setPages] = useState<PDFPageData[]>([])
@@ -1415,5 +1416,17 @@ export default function PDFEditorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PDFEditorPage() {
+  return (
+    <AuthRequired 
+      requireAuth={true} 
+      featureName="PDF 페이지 편집기"
+      freeFeature={true}
+    >
+      <PDFEditorContent />
+    </AuthRequired>
   )
 }
