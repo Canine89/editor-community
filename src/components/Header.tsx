@@ -49,10 +49,10 @@ export default function Header() {
 
   const tools = [
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
-    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: false },
     { name: 'IT 맞춤법 검사기', href: '/tools/it-spell-checker', icon: FileText, isPremium: false },
-    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: true },
-    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
+    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: false },
+    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: false },
+    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
     { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
   ]
 
