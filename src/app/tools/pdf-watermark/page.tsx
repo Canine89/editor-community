@@ -267,16 +267,16 @@ function PDFWatermarkContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen gradient-bg-editorial">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* 헤더 */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <FileText className="w-10 h-10 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900">PDF 워터마크</h1>
+              <FileText className="w-10 h-10 text-primary" />
+              <h1 className="text-3xl font-bold text-gradient-editorial">PDF 워터마크</h1>
             </div>
-            <p className="text-gray-600 text-lg">
+            <p className="text-muted-foreground text-lg">
               PDF 파일에 워터마크 텍스트를 추가하세요
             </p>
           </div>
@@ -300,21 +300,21 @@ function PDFWatermarkContent() {
                     onDragLeave={handleDragLeave}
                     className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-300 ease-in-out ${
                       isDragOver
-                        ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-200 ring-opacity-50 scale-[1.02] shadow-lg'
-                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25'
+                        ? 'border-primary bg-primary/10 ring-4 ring-primary/20 scale-[1.02] shadow-editorial'
+                        : 'border-border hover:border-primary hover:bg-brand-warm-50'
                     }`}
                   >
                     <Upload 
                       className={`w-12 h-12 mx-auto mb-4 transition-all duration-300 ${
                         isDragOver 
-                          ? 'text-blue-600 scale-110 animate-pulse' 
-                          : 'text-gray-400'
+                          ? 'text-primary scale-110 animate-pulse' 
+                          : 'text-muted-foreground'
                       }`} 
                     />
                     <p className={`text-lg font-medium mb-2 transition-colors duration-300 ${
                       isDragOver 
-                        ? 'text-blue-800' 
-                        : 'text-gray-700'
+                        ? 'text-primary' 
+                        : 'text-foreground'
                     }`}>
                       {isDragOver 
                         ? 'PDF 파일을 여기에 놓아주세요!' 
@@ -323,8 +323,8 @@ function PDFWatermarkContent() {
                     </p>
                     <p className={`text-sm mb-4 transition-colors duration-300 ${
                       isDragOver 
-                        ? 'text-blue-600 font-medium' 
-                        : 'text-gray-500'
+                        ? 'text-primary font-medium' 
+                        : 'text-muted-foreground'
                     }`}>
                       {isDragOver 
                         ? '파일을 놓으면 자동으로 업로드됩니다' 
@@ -343,8 +343,8 @@ function PDFWatermarkContent() {
                         variant="outline" 
                         className={`cursor-pointer transition-all duration-300 ${
                           isDragOver 
-                            ? 'bg-blue-100 border-blue-400 text-blue-700 scale-105 shadow-md' 
-                            : 'hover:bg-gray-50'
+                            ? 'bg-primary/10 border-primary text-primary scale-105 shadow-editorial' 
+                            : 'hover:bg-brand-warm-50'
                         }`} 
                         asChild
                       >
@@ -356,16 +356,16 @@ function PDFWatermarkContent() {
                     
                     {/* 추가 도움말 - 드래그 상태에 따른 동적 표시 */}
                     {isDragOver && (
-                      <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg animate-fadeIn">
-                        <div className="flex items-center justify-center gap-2 text-blue-800">
-                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></div>
+                      <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded-lg animate-fadeIn">
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-ping"></div>
                           <span className="text-sm font-medium">PDF 파일 감지됨</span>
                         </div>
                       </div>
                     )}
                   </div>
                   {selectedFile && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                    <div className="mt-4 p-4 bg-gradient-to-r from-brand-warm-50 to-primary/5 border border-primary/20 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -450,7 +450,7 @@ function PDFWatermarkContent() {
                         id="watermark-color"
                         value={watermarkSettings.color}
                         onChange={(e) => updateWatermarkSetting('color', e.target.value)}
-                        className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                        className="w-12 h-10 border border-border rounded cursor-pointer"
                       />
                       <Input
                         value={watermarkSettings.color}
@@ -501,11 +501,11 @@ function PDFWatermarkContent() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="border border-gray-200 rounded-lg bg-white min-h-64 relative flex items-center justify-center">
+                  <div className="border border-border rounded-lg bg-white min-h-64 relative flex items-center justify-center">
                     {watermarkSettings.text ? (
                       <div className="text-center p-6">
                         <div
-                          className="inline-block border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 relative overflow-hidden"
+                          className="inline-block border-2 border-dashed border-border rounded-lg bg-muted/50 relative overflow-hidden"
                           style={{
                             width: '180px',
                             height: '246px', // 188:257 비율에 맞춤 (180px * 257 / 188)
@@ -514,12 +514,12 @@ function PDFWatermarkContent() {
                         >
                           {/* PDF 문서 헤더 */}
                           <div className="absolute top-0 left-0 right-0 p-3">
-                            <div className="text-xs text-gray-400 mb-2">PDF 문서</div>
-                            <div className="h-1.5 bg-gray-200 rounded mb-1.5"></div>
-                            <div className="h-1.5 bg-gray-200 rounded w-3/4 mb-1.5"></div>
-                            <div className="h-1.5 bg-gray-200 rounded w-1/2 mb-1.5"></div>
-                            <div className="h-1.5 bg-gray-200 rounded w-2/3 mb-1.5"></div>
-                            <div className="h-1.5 bg-gray-200 rounded w-4/5"></div>
+                            <div className="text-xs text-muted-foreground mb-2">PDF 문서</div>
+                            <div className="h-1.5 bg-muted rounded mb-1.5"></div>
+                            <div className="h-1.5 bg-muted rounded w-3/4 mb-1.5"></div>
+                            <div className="h-1.5 bg-muted rounded w-1/2 mb-1.5"></div>
+                            <div className="h-1.5 bg-muted rounded w-2/3 mb-1.5"></div>
+                            <div className="h-1.5 bg-muted rounded w-4/5"></div>
                           </div>
                           
                           {/* 워터마크 미리보기 - 실제 비율 반영 */}
@@ -541,12 +541,12 @@ function PDFWatermarkContent() {
                             {watermarkSettings.text}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-3">
+                        <p className="text-xs text-muted-foreground mt-3">
                           A4 크기 미리보기 (188×257mm)
                         </p>
                       </div>
                     ) : (
-                      <div className="text-center text-gray-400">
+                      <div className="text-center text-muted-foreground">
                         <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p className="text-sm">워터마크 텍스트를 입력하면<br />미리보기가 표시됩니다</p>
                       </div>
@@ -585,21 +585,21 @@ function PDFWatermarkContent() {
                   
                   {/* 진행 상태 표시 */}
                   {processing && (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mt-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
                         <div>
-                          <p className="text-sm font-medium text-blue-800">워터마크 적용 중...</p>
-                          <p className="text-xs text-blue-600">PDF 파일을 처리하고 있습니다</p>
+                          <p className="text-sm font-medium text-primary">워터마크 적용 중...</p>
+                          <p className="text-xs text-primary">PDF 파일을 처리하고 있습니다</p>
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* 사용 안내 */}
-                  <div className="mt-4 space-y-2 text-sm text-gray-600">
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                       <p>모든 페이지에 워터마크가 적용됩니다</p>
                     </div>
                     <div className="flex items-start gap-2">

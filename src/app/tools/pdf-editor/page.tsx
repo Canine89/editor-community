@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useMemo, memo } from 'react'
+import { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react'
 import { AuthRequired } from '@/components/auth/AuthRequired'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,8 @@ import {
   RotateCcw,
   Move,
   Eye,
-  X
+  X,
+  Undo
 } from 'lucide-react'
 import Link from 'next/link'
 import { PDFDocument } from 'pdf-lib'
@@ -147,17 +148,17 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
     if (actualIsDragging) {
       classes += ' border-4 border-blue-400 shadow-2xl ring-4 ring-blue-100 transform scale-105 rotate-1 z-50'
     } else if (isGroupDragging) {
-      classes += ' border-4 border-purple-500 bg-purple-100 shadow-xl ring-3 ring-purple-300 transform scale-105 z-40'
+      classes += ' border-4 border-primary bg-primary/10 shadow-xl ring-3 ring-primary/30 transform scale-105 z-40'
     } else if (isSelected) {
-      classes += ' border-2 border-purple-400 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg ring-2 ring-purple-200 transform scale-[1.03]'
+      classes += ' border-2 border-primary bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg ring-2 ring-primary/20 transform scale-[1.03]'
     } else if (isOver) {
-      classes += ' border-2 border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200 transform scale-[1.01]'
+      classes += ' border-2 border-blue-300 bg-primary/5 shadow-lg ring-2 ring-blue-200 transform scale-[1.01]'
     } else {
       // 추가 파일인 경우 녹색 테두리, 메인 파일인 경우 회색 테두리
       if (isAdditionalFile) {
         classes += ' border-2 border-green-300 hover:border-green-400 shadow-sm hover:shadow-md hover:scale-[1.01]'
       } else {
-        classes += ' border-2 border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md hover:scale-[1.01]'
+        classes += ' border-2 border-border hover:border-primary/60 shadow-sm hover:shadow-md hover:scale-[1.01]'
       }
     }
     
@@ -200,8 +201,8 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
           className={cn(
             "absolute top-2 left-2 z-20 p-1.5 rounded-full transition-all duration-200 shadow-sm",
             isSelected 
-              ? "bg-purple-500 border-2 border-purple-600 shadow-md" 
-              : "bg-white border-2 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+              ? "bg-primary border-2 border-primary shadow-md" 
+              : "bg-white border-2 border-border hover:bg-muted hover:border-primary/60"
           )}
           title="페이지 선택"
         >
@@ -215,8 +216,8 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
             className={cn(
               "w-4 h-4 rounded cursor-pointer transition-all duration-200",
               isSelected 
-                ? "text-white bg-purple-500 border-purple-500 focus:ring-purple-400" 
-                : "text-purple-600 bg-white border-slate-300 focus:ring-purple-500 hover:border-purple-400"
+                ? "text-white bg-primary border-primary focus:ring-primary" 
+                : "text-primary bg-white border-border focus:ring-primary hover:border-primary"
             )}
           />
         </div>
@@ -230,20 +231,20 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
           "absolute top-2 z-10 p-2 rounded-full cursor-grab active:cursor-grabbing transition-all duration-200 shadow-sm",
           isMultiSelectMode ? "left-12" : "left-2",
           actualIsDragging 
-            ? "bg-blue-500 border-2 border-blue-600 opacity-100 shadow-md transform scale-110" 
-            : "bg-white border-2 border-slate-300 opacity-0 group-hover:opacity-100 hover:border-slate-400 hover:shadow-md"
+            ? "bg-primary/50 border-2 border-blue-600 opacity-100 shadow-md transform scale-110" 
+            : "bg-white border-2 border-border opacity-0 group-hover:opacity-100 hover:border-primary/60 hover:shadow-md"
         )}
         title="드래그하여 순서 변경"
       >
         <GripVertical className={cn(
           "w-4 h-4 transition-colors duration-200",
-          actualIsDragging ? "text-white" : "text-slate-600"
+          actualIsDragging ? "text-white" : "text-muted-foreground"
         )} />
       </div>
 
       {/* 페이지 번호 - 드래그 중에는 숨김, 개선된 스타일 */}
       {!actualIsDragging && (
-        <div className="absolute top-2 right-2 bg-slate-700 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+        <div className="absolute top-2 right-2 bg-muted text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
           {currentIndex + 1}
         </div>
       )}
@@ -252,7 +253,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
       {page.sourceFile && (
         <div className={cn(
           "absolute bottom-2 left-2 text-white text-xs px-3 py-1.5 rounded-full max-w-28 truncate z-10 font-medium shadow-sm transition-all duration-200",
-          isAdditionalFile ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-slate-700"
+          isAdditionalFile ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-muted"
         )}
              title={`소스: ${page.sourceFile} (원본 페이지 ${page.pageNumber})`}>
           {page.sourceFile.replace('.pdf', '').substring(0, 6)}..{page.pageNumber}p
@@ -263,17 +264,17 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
       <div className="w-full h-48 flex items-center justify-center p-4 bg-slate-25 rounded-lg">
         {page.isLoading ? (
           <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs text-slate-500">로딩 중...</span>
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs text-muted-foreground">로딩 중...</span>
           </div>
         ) : page.canvas ? (
           <img 
             src={page.canvas} 
             alt={`페이지 ${page.pageNumber}`}
-            className="max-w-full max-h-full object-contain rounded border border-slate-200 transition-all duration-200 hover:shadow-sm"
+            className="max-w-full max-h-full object-contain rounded border border-border transition-all duration-200 hover:shadow-sm"
           />
         ) : (
-          <div className="text-slate-400 flex flex-col items-center">
+          <div className="text-muted-foreground flex flex-col items-center">
             <FileText className="w-8 h-8 mx-auto mb-2" />
             <span className="text-xs">미리보기 없음</span>
           </div>
@@ -286,7 +287,7 @@ const SortablePage = memo(function SortablePage({ page, onDelete, onViewLarge, i
           size="sm"
           variant="secondary"
           onClick={onViewLarge}
-          className="h-8 w-8 p-0 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 shadow-sm transition-colors duration-200"
+          className="h-8 w-8 p-0 bg-white hover:bg-primary/10 border border-border hover:border-primary shadow-sm transition-colors duration-200"
           title="크게 보기"
         >
           <Eye className="w-3 h-3" />
@@ -337,6 +338,8 @@ function PDFEditorContent() {
   const [isMerging, setIsMerging] = useState(false)
   const [insertPosition, setInsertPosition] = useState<'end' | number>('end')
   const [originalFileCache, setOriginalFileCache] = useState<Map<string, File>>(new Map())
+  const [deletedPagesHistory, setDeletedPagesHistory] = useState<Array<{pages: PDFPageData[], timestamp: number}>>([])
+  const maxHistorySize = 10
 
   // 최적화된 센서 설정 - 성능 개선을 위한 임계값 설정
   const sensors = useSensors(
@@ -358,6 +361,26 @@ function PDFEditorContent() {
       displayPageNumber: index + 1
     }))
   }, [])
+
+  // 히스토리 저장 유틸리티 함수
+  const saveToHistory = useCallback((currentPages: PDFPageData[]) => {
+    const historyEntry = {
+      pages: currentPages,
+      timestamp: Date.now()
+    }
+    
+    setDeletedPagesHistory(prevHistory => {
+      // 동일한 상태는 저장하지 않음 (중복 방지)
+      if (prevHistory.length > 0 && 
+          prevHistory[0].pages.length === currentPages.length &&
+          prevHistory[0].pages.every((page, index) => page.id === currentPages[index]?.id)) {
+        return prevHistory
+      }
+      
+      const newHistory = [historyEntry, ...prevHistory.slice(0, maxHistorySize - 1)]
+      return newHistory
+    })
+  }, [maxHistorySize])
 
   // 페이지 ID → 인덱스 맵핑 (성능 최적화)
   const pageIndexMap = useMemo(() => {
@@ -627,12 +650,14 @@ function PDFEditorContent() {
     setDropPosition(null)
   }, [selectedPages, dropPosition, calculateDropTarget, pageIndexMap])
 
-  const deletePage = (pageId: string) => {
-    setPages(pages => {
-      const filteredPages = pages.filter(page => page.id !== pageId)
-      return assignDisplayPageNumbers(filteredPages)
-    })
-  }
+  const deletePage = useCallback((pageId: string) => {
+    // 1. 먼저 현재 상태를 히스토리에 저장
+    saveToHistory(pages)
+    
+    // 2. 그 다음 페이지 삭제
+    const filteredPages = pages.filter(page => page.id !== pageId)
+    setPages(assignDisplayPageNumbers(filteredPages))
+  }, [pages, saveToHistory, assignDisplayPageNumbers])
 
   // 다중 선택 관련 함수들
   const togglePageSelection = (pageId: string, event?: React.MouseEvent) => {
@@ -660,10 +685,31 @@ function PDFEditorContent() {
     setSelectedPages(new Set(pages.map(page => page.id)))
   }
 
-  const deleteSelectedPages = () => {
-    setPages(pages => pages.filter(page => !selectedPages.has(page.id)))
+  const deleteSelectedPages = useCallback(() => {
+    if (selectedPages.size === 0) return
+    
+    // 1. 먼저 현재 상태를 히스토리에 저장
+    saveToHistory(pages)
+    
+    // 2. 선택된 페이지들 삭제
+    const filteredPages = pages.filter(page => !selectedPages.has(page.id))
+    setPages(assignDisplayPageNumbers(filteredPages))
+    
     clearSelection()
-  }
+  }, [selectedPages, pages, saveToHistory, assignDisplayPageNumbers])
+
+  const handleUndo = useCallback(() => {
+    if (deletedPagesHistory.length === 0) return
+    
+    const mostRecentEntry = deletedPagesHistory[0]
+    setPages(assignDisplayPageNumbers(mostRecentEntry.pages))
+    
+    // 히스토리에서 사용된 엔트리 제거
+    setDeletedPagesHistory(prevHistory => prevHistory.slice(1))
+    
+    // 다중 선택 해제
+    clearSelection()
+  }, [deletedPagesHistory, assignDisplayPageNumbers])
 
   const toggleMultiSelectMode = () => {
     setIsMultiSelectMode(prev => {
@@ -895,8 +941,33 @@ function PDFEditorContent() {
     }
   }
 
+  // Ctrl+Z / Cmd+Z 단축키를 위한 키보드 이벤트 리스너
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+Z (Windows) 또는 Cmd+Z (Mac) 감지
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        // 입력 필드에서는 브라우저 기본 동작 유지
+        const target = event.target as HTMLElement
+        if (target.tagName === 'INPUT' || 
+            target.tagName === 'TEXTAREA' || 
+            target.isContentEditable) {
+          return
+        }
+        
+        // 실행 취소가 가능한 경우에만 처리
+        if (deletedPagesHistory.length > 0) {
+          event.preventDefault()
+          handleUndo()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleUndo, deletedPagesHistory.length])
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen gradient-bg-editorial">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* 헤더 */}
@@ -907,18 +978,18 @@ function PDFEditorContent() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Edit3 className="w-6 h-6 text-purple-600" />
-                PDF 페이지 편집기
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Edit3 className="w-6 h-6 text-primary" />
+                PDF 페이지 교체
               </h1>
-              <p className="text-slate-600">드래그앤드롭으로 PDF 페이지 순서를 변경하고 편집하세요</p>
+              <p className="text-muted-foreground">PDF 페이지를 교체, 순서 변경, 삭제하고 되돌리기 기능을 제공합니다</p>
             </div>
           </div>
 
           {/* 안내사항 */}
-          <Alert className="mb-6 border-purple-200 bg-purple-50">
-            <Info className="h-4 w-4 text-purple-600" />
-            <AlertDescription className="text-purple-800">
+          <Alert className="mb-6 border-primary/20 bg-primary/5">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-foreground">
               <strong>개인정보 보호:</strong> 파일은 브라우저에서만 처리되며 서버로 전송되지 않습니다.
             </AlertDescription>
           </Alert>
@@ -959,8 +1030,8 @@ function PDFEditorContent() {
                 )}
 
                 {isProcessing && (
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex items-center gap-2 text-primary">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                     <span className="text-sm">PDF 로딩 및 미리보기 생성 중...</span>
                   </div>
                 )}
@@ -977,22 +1048,22 @@ function PDFEditorContent() {
                     <Move className="w-5 h-5" />
                     2단계: 페이지 편집
                   </CardTitle>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-muted-foreground">
                     총 {pages.length}페이지
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-blue-800 text-sm">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-foreground text-sm">
                       <Info className="w-4 h-4" />
                       <span>드래그하여 순서 변경, 버튼으로 복제/삭제가 가능합니다</span>
                     </div>
                   </div>
 
                   {/* 다중 선택 컨트롤 */}
-                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between bg-muted/10 border border-border rounded-lg p-3">
                     <div className="flex items-center gap-3">
                       <Button
                         variant={isMultiSelectMode ? "default" : "outline"}
@@ -1001,8 +1072,8 @@ function PDFEditorContent() {
                         className={cn(
                           "flex items-center gap-2 transition-all duration-200",
                           isMultiSelectMode 
-                            ? "bg-purple-600 hover:bg-purple-700 border-purple-600" 
-                            : "hover:bg-purple-50 hover:border-purple-300"
+                            ? "bg-primary hover:bg-primary/90 border-primary" 
+                            : "hover:bg-primary/10 hover:border-primary"
                         )}
                       >
                         <input
@@ -1016,7 +1087,7 @@ function PDFEditorContent() {
                       
                       {isMultiSelectMode && (
                         <>
-                          <span className="text-sm text-slate-600">
+                          <span className="text-sm text-muted-foreground">
                             {selectedPages.size}개 선택됨
                           </span>
                           <Button
@@ -1036,6 +1107,23 @@ function PDFEditorContent() {
                             선택 해제
                           </Button>
                         </>
+                      )}
+                      
+                      {/* 되돌리기 버튼 */}
+                      {deletedPagesHistory.length > 0 && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleUndo}
+                          className="flex items-center gap-2 bg-orange-100 hover:bg-orange-200 border-orange-300 text-orange-800 font-medium"
+                          title={`최근 삭제 작업을 되돌립니다 (${deletedPagesHistory.length}개 기록)`}
+                        >
+                          <Undo className="w-4 h-4" />
+                          실행 취소
+                          <span className="text-xs bg-orange-200 px-1.5 py-0.5 rounded-full">
+                            {deletedPagesHistory.length}
+                          </span>
+                        </Button>
                       )}
                     </div>
                     
@@ -1069,7 +1157,7 @@ function PDFEditorContent() {
                           accept=".pdf"
                           multiple
                           onChange={handleAdditionalFiles}
-                          className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
+                          className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-100 file:text-green-700 hover:file:bg-green-200"
                         />
                       </div>
 
@@ -1142,7 +1230,7 @@ function PDFEditorContent() {
                           <div className="space-y-1">
                             {additionalFiles.map((file, index) => (
                               <div key={index} className="flex items-center justify-between bg-white rounded-lg p-2 border border-green-200">
-                                <span className="text-sm text-slate-700 truncate flex-1">
+                                <span className="text-sm text-foreground truncate flex-1">
                                   {index + 1}. {file.name}
                                 </span>
                                 <Button
@@ -1252,7 +1340,7 @@ function PDFEditorContent() {
                                   draggable={false}
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50 rounded">
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-muted/10 rounded">
                                   <FileText className="w-6 h-6" />
                                 </div>
                               )}
@@ -1260,7 +1348,7 @@ function PDFEditorContent() {
                             
                             {/* 다중 선택 카운터만 유지 (성능 중요) */}
                             {selectedPages.size > 1 && selectedPages.has(activeId) && (
-                              <div className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+                              <div className="absolute -top-1 -right-1 bg-primary text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md">
                                 {selectedPages.size}
                               </div>
                             )}
@@ -1296,8 +1384,8 @@ function PDFEditorContent() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                    <p className="text-sm text-slate-700">
+                  <div className="bg-muted/10 border border-border rounded-lg p-4">
+                    <p className="text-sm text-foreground">
                       <strong>편집 결과:</strong> {pages.length}페이지로 구성된 새로운 PDF가 생성됩니다.
                     </p>
                   </div>
@@ -1335,13 +1423,14 @@ function PDFEditorContent() {
           )}
 
           {/* 사용법 안내 */}
-          <div className="mt-8 bg-slate-100 rounded-lg p-6">
-            <h3 className="font-semibold text-slate-900 mb-3">💡 사용법</h3>
-            <ul className="space-y-2 text-sm text-slate-700">
+          <div className="mt-8 bg-muted rounded-lg p-6">
+            <h3 className="font-semibold text-foreground mb-3">💡 사용법</h3>
+            <ul className="space-y-2 text-sm text-foreground">
               <li>• PDF 파일을 업로드하면 모든 페이지의 미리보기가 생성됩니다</li>
               <li>• 페이지를 드래그하여 순서를 자유롭게 변경할 수 있습니다</li>
               <li>• <strong>다중 선택 모드:</strong> 여러 페이지를 선택한 후 그 중 하나를 드래그하면 선택된 모든 페이지가 함께 이동됩니다</li>
               <li>• 눈 버튼으로 페이지를 크게 보거나 삭제 버튼으로 제거할 수 있습니다</li>
+              <li>• <strong>되돌리기 기능:</strong> 실수로 페이지를 삭제했을 때 '실행 취소' 버튼이나 Ctrl+Z (Windows) / Cmd+Z (Mac) 단축키로 최근 10개 삭제 작업을 되돌릴 수 있습니다</li>
               <li>• <strong>PDF 병합:</strong> 여러 PDF 파일의 페이지를 메인 편집기에 삽입하여 하나의 통합된 환경에서 편집할 수 있습니다</li>
               <li>• 편집이 완료되면 새로운 PDF 파일로 다운로드됩니다</li>
               <li>• 모든 처리는 브라우저에서 진행되어 안전합니다</li>
@@ -1361,26 +1450,26 @@ function PDFEditorContent() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setViewLargePage(null)}
-                    className="text-slate-500 hover:text-slate-700"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
                 
                 {/* 모달 내용 */}
-                <div className="flex-1 p-6 overflow-auto flex items-center justify-center bg-slate-50">
+                <div className="flex-1 p-6 overflow-auto flex items-center justify-center bg-muted/10">
                   {viewLargePage.isLoadingHighRes ? (
                     <div className="flex flex-col items-center gap-4">
                       <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-slate-700 text-lg font-medium">고해상도 이미지 생성 중...</span>
-                      <span className="text-slate-500 text-sm">잠시만 기다려주세요</span>
+                      <span className="text-foreground text-lg font-medium">고해상도 이미지 생성 중...</span>
+                      <span className="text-muted-foreground text-sm">잠시만 기다려주세요</span>
                     </div>
                   ) : viewLargePage.highResCanvas ? (
                     <div className="w-full h-full flex items-center justify-center">
                       <img 
                         src={viewLargePage.highResCanvas} 
                         alt={`페이지 ${viewLargePage.pageNumber} 고해상도`}
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-border"
                         style={{ maxWidth: '58%', maxHeight: '58%' }}
                       />
                     </div>
@@ -1389,12 +1478,12 @@ function PDFEditorContent() {
                       <img 
                         src={viewLargePage.canvas} 
                         alt={`페이지 ${viewLargePage.pageNumber}`}
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-200"
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-border"
                         style={{ maxWidth: '58%', maxHeight: '58%' }}
                       />
                     </div>
                   ) : (
-                    <div className="text-center text-slate-400">
+                    <div className="text-center text-muted-foreground">
                       <FileText className="w-20 h-20 mx-auto mb-4" />
                       <p className="text-lg font-medium">미리보기를 사용할 수 없습니다</p>
                     </div>
@@ -1402,7 +1491,7 @@ function PDFEditorContent() {
                 </div>
                 
                 {/* 모달 푸터 */}
-                <div className="p-4 border-t bg-slate-50 flex justify-center">
+                <div className="p-4 border-t bg-muted/10 flex justify-center">
                   <Button
                     variant="outline"
                     onClick={() => setViewLargePage(null)}
@@ -1423,8 +1512,8 @@ export default function PDFEditorPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
-      featureName="PDF 페이지 편집기"
-      freeFeature={true}
+      featureName="PDF 페이지 교체"
+      freeFeature={false}
     >
       <PDFEditorContent />
     </AuthRequired>

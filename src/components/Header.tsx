@@ -50,7 +50,7 @@ export default function Header() {
   const tools = [
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
     { name: 'IT 맞춤법 검사기', href: '/tools/it-spell-checker', icon: FileText, isPremium: false },
-    { name: 'PDF 편집기', href: '/tools/pdf-editor', icon: Edit3, isPremium: false },
+    { name: 'PDF 페이지 교체', href: '/tools/pdf-editor', icon: Edit3, isPremium: true },
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
     { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
@@ -61,26 +61,31 @@ export default function Header() {
   const premiumTools = tools.filter(tool => tool.isPremium)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b glass-effect-warm shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* 로고 */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
-              <Sparkles className="h-4 w-4 text-white" />
+          {/* 브랜드 로고 */}
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl gradient-primary shadow-lg">
+              <Edit3 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-              편집자 커뮤니티
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-gradient-editorial leading-tight">
+                편집자 커뮤니티
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                Editorial Community
+              </span>
+            </div>
           </Link>
 
           {/* 데스크톱 네비게이션 */}
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="flex items-center space-x-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                className="flex items-center space-x-2 text-sm font-semibold text-foreground/80 hover:text-primary transition-all duration-200 hover:scale-105"
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.name}</span>
@@ -92,19 +97,24 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center space-x-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                  className="flex items-center space-x-2 text-sm font-semibold text-foreground/80 hover:text-primary transition-all duration-200 hover:bg-brand-warm-50 rounded-xl px-4 py-2"
                 >
-                  <Wrench className="h-4 w-4" />
+                  <Wrench className="h-4 w-4 text-brand-teal" />
                   <span>무료 도구</span>
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="start" className="w-64 rounded-2xl border-0 shadow-editorial backdrop-blur-md bg-card/95">
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">무료 도구</p>
+                </div>
                 {freeTools.map((tool) => (
                   <DropdownMenuItem key={tool.name} asChild>
-                    <Link href={tool.href} className="flex items-center">
-                      <tool.icon className="mr-2 h-4 w-4" />
-                      <span>{tool.name}</span>
+                    <Link href={tool.href} className="flex items-center p-3 rounded-xl hover:bg-brand-warm-50 transition-colors">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mr-3">
+                        <tool.icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="font-medium">{tool.name}</span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -116,24 +126,32 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center space-x-1 text-sm font-medium bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-600 hover:from-amber-500/20 hover:to-yellow-500/20 hover:text-amber-700 transition-colors"
+                  className="flex items-center space-x-2 text-sm font-semibold bg-gradient-to-r from-accent/10 to-brand-purple/10 text-accent hover:from-accent/20 hover:to-brand-purple/20 hover:text-accent transition-all duration-200 rounded-xl px-4 py-2 premium-glow"
                 >
-                  <Crown className="h-4 w-4" />
+                  <Crown className="h-4 w-4 text-accent" />
                   <span>프리미엄 도구</span>
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="start" className="w-64 rounded-2xl border-0 shadow-accent backdrop-blur-md bg-card/95">
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
+                    <Crown className="h-3 w-3 mr-1 text-accent" />
+                    프리미엄 도구
+                  </p>
+                </div>
                 {premiumTools.map((tool) => (
                   <DropdownMenuItem key={tool.name} asChild>
-                    <PremiumToolLink href={tool.href} className="flex items-center justify-between">
+                    <PremiumToolLink href={tool.href} className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/5 transition-colors">
                       <div className="flex items-center">
-                        <tool.icon className="mr-2 h-4 w-4" />
-                        <span>{tool.name}</span>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 mr-3">
+                          <tool.icon className="h-4 w-4 text-accent" />
+                        </div>
+                        <span className="font-medium">{tool.name}</span>
                       </div>
-                      <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs ml-2">
+                      <Badge className="gradient-accent text-accent-foreground text-xs px-2 py-1 rounded-lg font-semibold">
                         <Crown className="h-3 w-3 mr-1" />
-                        P
+                        PRO
                       </Badge>
                     </PremiumToolLink>
                   </DropdownMenuItem>
@@ -148,18 +166,23 @@ export default function Header() {
             {user ? (
               <>
                 {/* 웰컴 메시지 */}
-                <div className="hidden md:flex items-center space-x-3 mr-4">
+                <div className="hidden md:flex items-center space-x-4 mr-4">
                   <div className="text-right">
                     <div className="flex items-center justify-end gap-2 mb-1">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-semibold text-foreground">
                         환영합니다!
                       </p>
                       {!loading && (
                         <Badge 
-                          variant={role === 'user' ? 'secondary' : 'default'}
-                          className={role !== 'user'
-                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
-                            : 'text-xs'
+                          variant="outline"
+                          className={
+                            role === 'master' 
+                              ? 'border-destructive bg-destructive/10 text-destructive font-semibold' 
+                            : role === 'employee'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                            : role === 'premium'
+                              ? 'gradient-accent text-accent-foreground font-semibold border-0'
+                              : 'border-muted-foreground/30 bg-muted text-muted-foreground font-semibold'
                           }
                         >
                           {role === 'master' ? (
@@ -186,7 +209,7 @@ export default function Header() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-muted-foreground font-medium">
                       {user.user_metadata?.full_name || user.email}
                     </p>
                   </div>
@@ -195,28 +218,32 @@ export default function Header() {
                 {/* 아바타 드롭다운 */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-slate-100">
+                    <Button variant="ghost" className="relative h-12 w-12 rounded-2xl hover:bg-brand-warm-50 hover:scale-105 transition-all duration-200">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={user.user_metadata?.avatar_url} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                        <AvatarFallback className="gradient-primary text-primary-foreground font-bold text-sm">
                           {user.email?.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
+                  <DropdownMenuContent className="w-64 rounded-2xl border-0 shadow-editorial backdrop-blur-md bg-card/95" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal p-4">
+                      <div className="flex flex-col space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium leading-none">
+                          <p className="text-sm font-semibold leading-none text-foreground">
                             {user.user_metadata?.full_name || '사용자'}
                           </p>
                           {!loading && (
                             <Badge 
-                              variant={role === 'user' ? 'secondary' : 'default'}
-                              className={role !== 'user'
-                                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs' 
-                                : 'text-xs'
+                              className={
+                                role === 'master' 
+                                  ? 'border-destructive bg-destructive/10 text-destructive font-semibold border' 
+                                : role === 'employee'
+                                  ? 'border-primary bg-primary/10 text-primary font-semibold border'
+                                : role === 'premium'
+                                  ? 'gradient-accent text-accent-foreground font-semibold border-0'
+                                : 'border-muted-foreground/30 bg-muted text-muted-foreground font-semibold border'
                               }
                             >
                               {role === 'master' ? (
@@ -243,21 +270,25 @@ export default function Header() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs leading-none text-muted-foreground">
+                        <p className="text-xs leading-none text-muted-foreground font-medium">
                           {user.email}
                         </p>
                       </div>
                     </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="bg-border/50" />
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
+                      <Link href="/profile" className="flex items-center p-3 rounded-xl hover:bg-brand-warm-50 transition-colors font-medium">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mr-3">
+                          <User className="h-4 w-4 text-primary" />
+                        </div>
                         <span>프로필</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/" className="flex items-center">
-                        <Home className="mr-2 h-4 w-4" />
+                      <Link href="/" className="flex items-center p-3 rounded-xl hover:bg-brand-warm-50 transition-colors font-medium">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mr-3">
+                          <Home className="h-4 w-4 text-primary" />
+                        </div>
                         <span>홈</span>
                       </Link>
                     </DropdownMenuItem>
@@ -265,12 +296,16 @@ export default function Header() {
                     {/* 관리자 메뉴 */}
                     {canAccessAdminPages && (
                       <>
-                        <DropdownMenuSeparator />
+                        <DropdownMenuSeparator className="bg-border/50" />
                         <DropdownMenuItem asChild>
-                          <Link href="/admin" className="flex items-center text-red-600 font-medium">
-                            <Shield className="mr-2 h-4 w-4" />
-                            <span>관리자 메뉴</span>
-                            <Badge variant="destructive" className="text-xs ml-2">ADMIN</Badge>
+                          <Link href="/admin" className="flex items-center justify-between p-3 rounded-xl hover:bg-destructive/5 transition-colors font-medium text-destructive">
+                            <div className="flex items-center">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 mr-3">
+                                <Shield className="h-4 w-4 text-destructive" />
+                              </div>
+                              <span>관리자 메뉴</span>
+                            </div>
+                            <Badge variant="destructive" className="text-xs font-semibold">ADMIN</Badge>
                           </Link>
                         </DropdownMenuItem>
                       </>
@@ -279,12 +314,16 @@ export default function Header() {
                     {/* 골든래빗 임직원 전용 메뉴 */}
                     {canViewBookSales && (
                       <>
-                        <DropdownMenuSeparator />
+                        <DropdownMenuSeparator className="bg-border/50" />
                         <DropdownMenuItem asChild>
-                          <Link href="/admin/book-sales" className="flex items-center text-blue-600 font-medium">
-                            <BarChart3 className="mr-2 h-4 w-4" />
-                            <span>도서 판매 데이터</span>
-                            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs ml-2">
+                          <Link href="/admin/book-sales" className="flex items-center justify-between p-3 rounded-xl hover:bg-primary/5 transition-colors font-medium text-primary">
+                            <div className="flex items-center">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mr-3">
+                                <BarChart3 className="h-4 w-4 text-primary" />
+                              </div>
+                              <span>도서 판매 데이터</span>
+                            </div>
+                            <Badge className="gradient-primary text-primary-foreground text-xs font-semibold">
                               <Building className="h-3 w-3 mr-1" />
                               GR
                             </Badge>
@@ -293,20 +332,22 @@ export default function Header() {
                       </>
                     )}
                     
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut} className="text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
+                    <DropdownMenuSeparator className="bg-border/50" />
+                    <DropdownMenuItem onClick={signOut} className="p-3 rounded-xl hover:bg-destructive/5 transition-colors font-medium text-destructive">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 mr-3">
+                        <LogOut className="h-4 w-4 text-destructive" />
+                      </div>
                       <span>로그아웃</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
-              <div className="hidden md:flex items-center space-x-2">
-                <Button variant="ghost" asChild>
+              <div className="hidden md:flex items-center space-x-3">
+                <Button variant="ghost" className="font-semibold hover:bg-brand-warm-50 rounded-xl px-4 py-2 transition-all duration-200" asChild>
                   <Link href="/auth">로그인</Link>
                 </Button>
-                <Button asChild>
+                <Button className="btn-primary font-semibold px-6 py-2 shadow-lg hover:shadow-xl" asChild>
                   <Link href="/auth">시작하기</Link>
                 </Button>
               </div>
@@ -315,19 +356,21 @@ export default function Header() {
             {/* 모바일 메뉴 */}
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="md:hidden h-12 w-12 rounded-2xl hover:bg-brand-warm-50 hover:scale-105 transition-all duration-200">
+                  <Menu className="h-5 w-5 text-foreground" />
                   <span className="sr-only">메뉴 열기</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                <div className="flex flex-col space-y-4 mt-6">
+              <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-gradient-bg-editorial border-0 shadow-editorial">
+                <div className="flex flex-col space-y-3 mt-6">
                   <Link
                     href="/"
-                    className="flex items-center space-x-2 px-2 py-1 rounded-lg hover:bg-accent"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-2xl hover:bg-brand-warm-50 transition-colors font-medium"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <Home className="h-4 w-4" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <Home className="h-4 w-4 text-primary" />
+                    </div>
                     <span>홈</span>
                   </Link>
 
@@ -335,53 +378,59 @@ export default function Header() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className="flex items-center space-x-2 px-2 py-1 rounded-lg hover:bg-accent"
+                      className="flex items-center space-x-3 px-4 py-3 rounded-2xl hover:bg-brand-warm-50 transition-colors font-medium"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                        <item.icon className="h-4 w-4 text-primary" />
+                      </div>
                       <span>{item.name}</span>
                     </Link>
                   ))}
 
                   {/* 모바일 무료 도구 메뉴 */}
-                  <div className="border-t pt-2 mt-2">
-                    <p className="text-xs font-medium text-slate-500 px-2 mb-2 flex items-center">
-                      <Wrench className="h-3 w-3 mr-1" />
+                  <div className="border-t border-border/50 pt-4 mt-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-3 flex items-center">
+                      <Wrench className="h-3 w-3 mr-1 text-brand-teal" />
                       무료 도구
                     </p>
                     {freeTools.map((tool) => (
                       <Link
                         key={tool.name}
                         href={tool.href}
-                        className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent"
+                        className="flex items-center space-x-3 px-4 py-3 rounded-2xl hover:bg-brand-warm-50 transition-colors font-medium"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <tool.icon className="h-4 w-4" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                          <tool.icon className="h-4 w-4 text-primary" />
+                        </div>
                         <span>{tool.name}</span>
                       </Link>
                     ))}
                   </div>
 
                   {/* 모바일 프리미엄 도구 메뉴 */}
-                  <div className="border-t pt-2 mt-2">
-                    <p className="text-xs font-medium text-amber-600 px-2 mb-2 flex items-center">
-                      <Crown className="h-3 w-3 mr-1" />
+                  <div className="border-t border-border/50 pt-4 mt-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-3 flex items-center">
+                      <Crown className="h-3 w-3 mr-1 text-accent" />
                       프리미엄 도구
                     </p>
                     {premiumTools.map((tool) => (
                       <PremiumToolLink
                         key={tool.name}
                         href={tool.href}
-                        className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent"
+                        className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-accent/5 transition-colors font-medium"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <div className="flex items-center space-x-2">
-                          <tool.icon className="h-4 w-4" />
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+                            <tool.icon className="h-4 w-4 text-accent" />
+                          </div>
                           <span>{tool.name}</span>
                         </div>
-                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs">
+                        <Badge className="gradient-accent text-accent-foreground text-xs font-semibold">
                           <Crown className="h-3 w-3 mr-1" />
-                          P
+                          PRO
                         </Badge>
                       </PremiumToolLink>
                     ))}
@@ -391,19 +440,36 @@ export default function Header() {
                   {user && (
                     <>
                       {/* 모바일용 웰컴 메시지 */}
-                      <div className="border-t pt-4 mt-4 px-2">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <Avatar className="w-10 h-10">
+                      <div className="border-t border-border/50 pt-4 mt-4 px-4">
+                        <div className="flex items-center space-x-4 mb-4">
+                          <Avatar className="w-12 h-12">
                             <AvatarImage src={user.user_metadata?.avatar_url} />
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                            <AvatarFallback className="gradient-primary text-primary-foreground font-bold">
                               {user.email?.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              환영합니다!
-                            </p>
-                            <p className="text-xs text-slate-600">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold text-foreground">
+                                환영합니다!
+                              </p>
+                              {!loading && (
+                                <Badge 
+                                  className={
+                                    role === 'master' 
+                                      ? 'border-destructive bg-destructive/10 text-destructive font-semibold border text-xs' 
+                                    : role === 'employee'
+                                      ? 'border-primary bg-primary/10 text-primary font-semibold border text-xs'
+                                    : role === 'premium'
+                                      ? 'gradient-accent text-accent-foreground font-semibold border-0 text-xs'
+                                    : 'border-muted-foreground/30 bg-muted text-muted-foreground font-semibold border text-xs'
+                                  }
+                                >
+                                  {role === 'master' ? 'MASTER' : role === 'employee' ? 'EMPLOYEE' : role === 'premium' ? 'PRO' : 'USER'}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground font-medium">
                               {user.user_metadata?.full_name || user.email}
                             </p>
                           </div>
@@ -413,14 +479,16 @@ export default function Header() {
                         {canAccessAdminPages && (
                           <Link
                             href="/admin"
-                            className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent text-red-600 font-medium"
+                            className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-destructive/5 transition-colors font-medium text-destructive mb-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
-                            <div className="flex items-center space-x-2">
-                              <Shield className="h-4 w-4" />
+                            <div className="flex items-center space-x-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
+                                <Shield className="h-4 w-4 text-destructive" />
+                              </div>
                               <span>관리자 메뉴</span>
                             </div>
-                            <Badge variant="destructive" className="text-xs">ADMIN</Badge>
+                            <Badge variant="destructive" className="text-xs font-semibold">ADMIN</Badge>
                           </Link>
                         )}
 
@@ -428,14 +496,16 @@ export default function Header() {
                         {canViewBookSales && (
                           <Link
                             href="/admin/book-sales"
-                            className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-accent text-blue-600 font-medium"
+                            className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-primary/5 transition-colors font-medium text-primary mb-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
-                            <div className="flex items-center space-x-2">
-                              <BarChart3 className="h-4 w-4" />
+                            <div className="flex items-center space-x-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                                <BarChart3 className="h-4 w-4 text-primary" />
+                              </div>
                               <span>도서 판매 데이터</span>
                             </div>
-                            <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs">
+                            <Badge className="gradient-primary text-primary-foreground text-xs font-semibold">
                               <Building className="h-3 w-3 mr-1" />
                               GR
                             </Badge>
@@ -448,9 +518,11 @@ export default function Header() {
                             setIsMobileMenuOpen(false)
                             signOut()
                           }}
-                          className="flex items-center space-x-2 px-2 py-2 rounded-lg hover:bg-accent text-red-600 w-full text-left mt-2"
+                          className="flex items-center space-x-3 px-4 py-3 rounded-2xl hover:bg-destructive/5 transition-colors font-medium text-destructive w-full text-left"
                         >
-                          <LogOut className="h-4 w-4" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
+                            <LogOut className="h-4 w-4 text-destructive" />
+                          </div>
                           <span>로그아웃</span>
                         </button>
                       </div>
@@ -459,17 +531,17 @@ export default function Header() {
 
                   {!user && (
                     <>
-                      <div className="border-t pt-4 mt-4">
+                      <div className="border-t border-border/50 pt-4 mt-4 px-4">
                         <Link
                           href="/auth"
-                          className="flex items-center space-x-2 px-2 py-1 rounded-lg hover:bg-accent"
+                          className="flex items-center justify-center px-4 py-3 rounded-2xl hover:bg-brand-warm-50 transition-colors font-semibold mb-3"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <span>로그인</span>
                         </Link>
                         <Link
                           href="/auth"
-                          className="flex items-center space-x-2 px-2 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 mt-2"
+                          className="flex items-center justify-center px-4 py-3 rounded-2xl btn-primary font-semibold shadow-lg"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <span>시작하기</span>

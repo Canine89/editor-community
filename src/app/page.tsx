@@ -51,173 +51,182 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="text-center space-y-4">
+      <div className="min-h-screen flex items-center justify-center gradient-bg-editorial">
+        <div className="text-center space-y-6 animate-fade-in">
           <div className="relative">
-            <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin mx-auto"></div>
-            <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-500 rounded-full animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+            <div className="w-16 h-16 border-4 border-border rounded-full animate-spin mx-auto"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-primary rounded-full animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
-          <p className="text-slate-600 font-medium">편집자 커뮤니티 로딩 중...</p>
+          <div className="space-y-2">
+            <p className="text-foreground font-semibold text-lg">편집자 커뮤니티</p>
+            <p className="text-muted-foreground font-medium">로딩 중...</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen gradient-bg-editorial">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* 상단 캐러셀 광고 */}
-        <TopCarouselAd className="mb-8" />
+        <TopCarouselAd className="mb-12" />
         
-        {/* Simplified Hero Section */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+        {/* Editorial Hero Section */}
+        <div className="text-center mb-16 animate-fade-in">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gradient-editorial leading-tight">
               편집자 커뮤니티
             </h1>
-            <Badge variant="secondary" className="px-2 py-1 text-xs">
-              <Sparkles className="w-3 h-3 mr-1" />
+            <Badge className="gradient-accent text-accent-foreground px-3 py-1.5 text-sm font-semibold rounded-full animate-float">
+              <Sparkles className="w-4 h-4 mr-1" />
               베타
             </Badge>
           </div>
-          <p className="text-slate-600 max-w-xl mx-auto">
-            전문 편집자들을 위한 종합 플랫폼
-          </p>
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground font-medium">
+              전문 편집자들을 위한 종합 플랫폼
+            </p>
+            <p className="text-base text-muted-foreground/80">
+              AI 기반 도구와 전문가 네트워크로 편집 업무를 한 단계 발전시키세요
+            </p>
+          </div>
         </div>
         {user ? (
           // 로그인된 사용자 대시보드
-          <div className="space-y-12">
-            {/* 환영 메시지 - 헤더로 이동됨 */}
-            <div className="text-center">
-              <p className="text-lg text-slate-600 mb-8">
+          <div className="space-y-16">
+            {/* 환영 메시지 */}
+            <div className="text-center animate-slide-up">
+              <p className="text-xl text-muted-foreground font-medium mb-2">
                 편집자 커뮤니티의 다양한 기능을 둘러보세요
               </p>
+              <div className="w-24 h-1 gradient-primary rounded-full mx-auto"></div>
             </div>
 
             {/* 메인 기능 카드들 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-1 cursor-pointer">
-                <CardHeader className="pb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <MessageSquare className="w-6 h-6 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in">
+                <CardHeader className="pb-6">
+                  <div className="w-14 h-14 gradient-primary rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
+                    <MessageSquare className="w-7 h-7 text-primary-foreground" />
                   </div>
-                  <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
+                  <CardTitle className="text-2xl font-bold group-hover:text-primary transition-all duration-300">
                     익명 게시판
                   </CardTitle>
-                  <CardDescription className="text-base">
-                    편집자들 간의 지식 공유와 전문적인 토론
+                  <CardDescription className="text-base text-muted-foreground font-medium leading-relaxed">
+                    편집자들 간의 지식 공유와 전문적인 토론을 위한 안전한 소통 공간
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center text-sm text-slate-500">
+                  <div className="flex items-center text-sm font-semibold text-primary group-hover:text-primary/80 transition-colors">
                     <span>커뮤니티 참여하기</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-all duration-300" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-1 cursor-pointer">
-                <CardHeader className="pb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Briefcase className="w-6 h-6 text-white" />
+              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in">
+                <CardHeader className="pb-6">
+                  <div className="w-14 h-14 gradient-warm rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
+                    <Briefcase className="w-7 h-7 text-warning-foreground" />
                   </div>
-                  <CardTitle className="text-xl group-hover:text-green-600 transition-colors">
+                  <CardTitle className="text-2xl font-bold group-hover:text-warning transition-all duration-300">
                     구인구직
                   </CardTitle>
-                  <CardDescription className="text-base">
-                    편집 관련 일자리 찾기와 인재 채용
+                  <CardDescription className="text-base text-muted-foreground font-medium leading-relaxed">
+                    편집 업계의 최신 채용 정보와 인재 연결 플랫폼
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center text-sm text-slate-500">
+                  <div className="flex items-center text-sm font-semibold text-warning group-hover:text-warning/80 transition-colors">
                     <span>채용 정보 보기</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-all duration-300" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg hover:-translate-y-1 cursor-pointer md:col-span-2 lg:col-span-1">
-                <CardHeader className="pb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Wrench className="w-6 h-6 text-white" />
+              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in md:col-span-2 lg:col-span-1">
+                <CardHeader className="pb-6">
+                  <div className="w-14 h-14 gradient-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
+                    <Wrench className="w-7 h-7 text-accent-foreground" />
                   </div>
-                  <CardTitle className="text-xl group-hover:text-purple-600 transition-colors">
-                    유틸리티 도구
+                  <CardTitle className="text-2xl font-bold group-hover:text-accent transition-all duration-300">
+                    AI 편집 도구
                   </CardTitle>
-                  <CardDescription className="text-base">
-                    PDF/워드 파일 처리 및 AI 자동 교정
+                  <CardDescription className="text-base text-muted-foreground font-medium leading-relaxed">
+                    PDF/워드 처리와 AI 기반 자동 교정으로 효율성 극대화
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center text-sm text-slate-500">
+                  <div className="flex items-center text-sm font-semibold text-accent group-hover:text-accent/80 transition-colors">
                     <span>도구 사용하기</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-all duration-300" />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* 통계 섹션 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                <div className="text-2xl font-bold text-slate-900">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center p-8 card-editorial hover-glow transition-all duration-300">
+                <div className="text-3xl font-bold text-gradient-editorial mb-2">
                   {statsLoading ? (
-                    <div className="animate-pulse bg-slate-200 h-8 w-16 mx-auto rounded"></div>
+                    <div className="animate-pulse bg-muted h-10 w-20 mx-auto rounded-xl"></div>
                   ) : (
                     formatNumber(statistics.activeUsers)
                   )}
                 </div>
-                <div className="text-sm text-slate-600">활성 사용자</div>
+                <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">활성 사용자</div>
               </div>
 
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                <div className="text-2xl font-bold text-slate-900">
+              <div className="text-center p-8 card-editorial hover-glow transition-all duration-300">
+                <div className="text-3xl font-bold text-gradient-editorial mb-2">
                   {statsLoading ? (
-                    <div className="animate-pulse bg-slate-200 h-8 w-12 mx-auto rounded"></div>
+                    <div className="animate-pulse bg-muted h-10 w-16 mx-auto rounded-xl"></div>
                   ) : (
                     formatNumber(statistics.totalPosts)
                   )}
                 </div>
-                <div className="text-sm text-slate-600">게시글</div>
+                <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">게시글</div>
               </div>
 
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                <div className="text-2xl font-bold text-slate-900">
+              <div className="text-center p-8 card-editorial hover-glow transition-all duration-300">
+                <div className="text-3xl font-bold text-gradient-editorial mb-2">
                   {statsLoading ? (
-                    <div className="animate-pulse bg-slate-200 h-8 w-10 mx-auto rounded"></div>
+                    <div className="animate-pulse bg-muted h-10 w-14 mx-auto rounded-xl"></div>
                   ) : (
                     formatNumber(statistics.totalJobs)
                   )}
                 </div>
-                <div className="text-sm text-slate-600">채용공고</div>
+                <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">채용공고</div>
               </div>
             </div>
           </div>
         ) : (
           // 로그인하지 않은 사용자용 랜딩 페이지
-          <div className="space-y-16">
+          <div className="space-y-20">
             {/* 특징 섹션 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              <div className="text-center group animate-scale-in">
+                <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300 shadow-editorial animate-float">
+                  <Shield className="w-10 h-10 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">안전한 커뮤니티</h3>
-                <p className="text-slate-600">익명 게시판으로 자유로운 의견 교환</p>
+                <h3 className="text-2xl font-bold mb-4 text-foreground group-hover:text-primary transition-colors">안전한 커뮤니티</h3>
+                <p className="text-muted-foreground font-medium leading-relaxed">익명 게시판으로 자유롭고 안전한 전문 지식 교환</p>
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="w-8 h-8 text-white" />
+              <div className="text-center group animate-scale-in">
+                <div className="w-20 h-20 gradient-warm rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300 shadow-warm animate-pulse-slow">
+                  <Zap className="w-10 h-10 text-warning-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">효율적인 업무</h3>
-                <p className="text-slate-600">AI 기반 자동 교정으로 생산성 향상</p>
+                <h3 className="text-2xl font-bold mb-4 text-foreground group-hover:text-warning transition-colors">효율적인 업무</h3>
+                <p className="text-muted-foreground font-medium leading-relaxed">AI 기반 자동 교정과 편집 도구로 생산성 극대화</p>
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-white" />
+              <div className="text-center group animate-scale-in">
+                <div className="w-20 h-20 gradient-accent rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300 shadow-accent animate-float">
+                  <Users className="w-10 h-10 text-accent-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">네트워킹</h3>
-                <p className="text-slate-600">편집 전문가들과의 소통과 협업</p>
+                <h3 className="text-2xl font-bold mb-4 text-foreground group-hover:text-accent transition-colors">전문가 네트워킹</h3>
+                <p className="text-muted-foreground font-medium leading-relaxed">편집 전문가들과의 소통과 협업으로 성장</p>
               </div>
             </div>
 

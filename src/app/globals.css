@@ -7,97 +7,321 @@
     font-family: Inter, system-ui, sans-serif;
   }
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    /* Editorial Warm Theme */
+    --background: 30 15% 98%;          /* Warm white */
+    --foreground: 184 91% 17%;         /* Deep teal */
+    --card: 30 20% 99%;               /* Slightly warm white */
+    --card-foreground: 184 91% 17%;   /* Deep teal */
+    --popover: 30 20% 99%;
+    --popover-foreground: 184 91% 17%;
+    --primary: 184 91% 17%;           /* Deep Teal (#0f766e) */
+    --primary-foreground: 30 15% 98%; /* Warm white */
+    --secondary: 20 95% 95%;          /* Warm orange tint */
+    --secondary-foreground: 184 91% 17%;
+    --muted: 30 12% 92%;              /* Warm muted */
+    --muted-foreground: 30 8% 45%;    /* Warm gray */
+    --accent: 260 95% 53%;            /* Rich Purple (#7c3aed) */
+    --accent-foreground: 30 15% 98%;
+    --warning: 20 95% 48%;            /* Warm Orange (#ea580c) */
+    --warning-foreground: 30 15% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 30 15% 98%;
+    --border: 30 15% 88%;             /* Warm border */
+    --input: 30 15% 90%;              /* Warm input */
+    --ring: 184 91% 17%;              /* Deep teal ring */
+    
+    /* Editorial Brand Colors */
+    --brand-teal: 184 91% 17%;        /* Primary brand */
+    --brand-orange: 20 95% 48%;       /* Secondary brand */
+    --brand-purple: 260 95% 53%;      /* Accent brand */
+    --brand-warm-50: 30 20% 98%;
+    --brand-warm-100: 30 15% 95%;
+    --brand-warm-200: 30 12% 92%;
+    
+    /* Chart colors with editorial theme */
+    --chart-1: 184 91% 17%;           /* Teal */
+    --chart-2: 20 95% 48%;            /* Orange */
+    --chart-3: 260 95% 53%;           /* Purple */
+    --chart-4: 150 80% 40%;           /* Forest green */
+    --chart-5: 340 75% 55%;           /* Rose */
+    --radius: 0.75rem;                /* Slightly more rounded */
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Editorial Warm Dark Theme */
+    --background: 184 20% 8%;           /* Dark teal base */
+    --foreground: 30 15% 95%;           /* Warm white */
+    --card: 184 15% 10%;               /* Slightly lighter dark */
+    --card-foreground: 30 15% 95%;
+    --popover: 184 15% 10%;
+    --popover-foreground: 30 15% 95%;
+    --primary: 184 80% 65%;            /* Lighter teal for dark mode */
+    --primary-foreground: 184 20% 8%;
+    --secondary: 20 80% 25%;           /* Darker warm orange */
+    --secondary-foreground: 30 15% 95%;
+    --muted: 184 10% 15%;              /* Muted dark teal */
+    --muted-foreground: 30 8% 65%;
+    --accent: 260 85% 65%;             /* Lighter purple */
+    --accent-foreground: 184 20% 8%;
+    --warning: 20 85% 55%;             /* Lighter orange */
+    --warning-foreground: 184 20% 8%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 30 15% 95%;
+    --border: 184 15% 18%;             /* Dark border */
+    --input: 184 15% 18%;
+    --ring: 184 80% 65%;
+    
+    /* Dark mode chart colors */
+    --chart-1: 184 80% 65%;            /* Light teal */
+    --chart-2: 20 85% 55%;             /* Light orange */
+    --chart-3: 260 85% 65%;            /* Light purple */
+    --chart-4: 150 70% 55%;            /* Light green */
+    --chart-5: 340 75% 65%;            /* Light rose */
   }
 }
 
 @layer components {
+  /* Editorial Brand Buttons */
   .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-4 rounded-lg transition-all duration-200 hover:shadow-lg;
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-5 rounded-xl 
+           transition-all duration-300 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5;
   }
 
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2 px-4 rounded-lg transition-all duration-200;
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 px-5 rounded-xl 
+           transition-all duration-300 hover:shadow-md;
+  }
+  
+  .btn-accent {
+    @apply bg-accent hover:bg-accent/90 text-accent-foreground font-medium py-2.5 px-5 rounded-xl 
+           transition-all duration-300 hover:shadow-lg hover:shadow-accent/25 hover:-translate-y-0.5;
+  }
+  
+  .btn-warning {
+    @apply bg-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/90 text-[hsl(var(--warning-foreground))] 
+           font-medium py-2.5 px-5 rounded-xl transition-all duration-300 hover:shadow-lg 
+           hover:shadow-[hsl(var(--warning))]/25 hover:-translate-y-0.5;
   }
 
+  /* Editorial Cards */
   .card {
-    @apply bg-card text-card-foreground rounded-lg border shadow-sm;
+    @apply bg-card text-card-foreground rounded-2xl border shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+  
+  .card-editorial {
+    @apply bg-gradient-to-br from-card to-[hsl(var(--brand-warm-50))] text-card-foreground 
+           rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1;
   }
 
-  /* Modern UI Components */
-  .gradient-bg {
-    @apply bg-gradient-to-br from-slate-50 via-white to-slate-100;
+  /* Editorial Brand Gradients */
+  .gradient-bg-editorial {
+    @apply bg-gradient-to-br from-[hsl(var(--brand-warm-50))] via-background to-[hsl(var(--brand-warm-100))];
+  }
+  
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary to-[hsl(var(--brand-teal))];
+  }
+  
+  .gradient-accent {
+    @apply bg-gradient-to-r from-accent to-[hsl(var(--brand-purple))];
+  }
+  
+  .gradient-warm {
+    @apply bg-gradient-to-r from-[hsl(var(--brand-orange))] to-[hsl(var(--warning))];
   }
 
+  /* Glass Effects */
   .glass-effect {
-    @apply bg-white/80 backdrop-blur-md border border-white/20;
+    @apply bg-background/80 backdrop-blur-md border border-border/50 shadow-sm;
+  }
+  
+  .glass-effect-warm {
+    @apply bg-[hsl(var(--brand-warm-50))]/80 backdrop-blur-md border border-border/50 shadow-sm;
   }
 
-  .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  /* Interactive Effects */
+  .hover-lift-editorial {
+    @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10;
+  }
+  
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/25;
   }
 
-  .text-gradient {
-    @apply bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent;
+  /* Text Gradients */
+  .text-gradient-editorial {
+    @apply bg-gradient-to-r from-primary via-accent to-[hsl(var(--brand-orange))] bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-warm {
+    @apply bg-gradient-to-r from-[hsl(var(--brand-orange))] to-accent bg-clip-text text-transparent;
   }
 
+  /* Animations */
   .animate-float {
     animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
   }
 
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Editorial Premium Styling */
+  .premium-glow {
+    @apply shadow-lg shadow-accent/20 border-2 border-accent/30;
+  }
+  
+  .editorial-border {
+    @apply border-l-4 border-primary bg-gradient-to-r from-primary/5 to-transparent;
+  }
+
+  /* Rich Text Editor Styles */
+  .rich-text-editor-content .ProseMirror {
+    @apply focus:outline-none;
+  }
+
+  .rich-text-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground/60 float-left h-0 pointer-events-none;
+    content: attr(data-placeholder);
+  }
+
+  .rich-text-editor-content .ProseMirror h1 {
+    @apply text-2xl font-bold mt-6 mb-4 first:mt-0 text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror h2 {
+    @apply text-xl font-bold mt-5 mb-3 first:mt-0 text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror h3 {
+    @apply text-lg font-bold mt-4 mb-2 first:mt-0 text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror ul {
+    @apply my-4 ml-6 list-disc list-outside;
+  }
+
+  .rich-text-editor-content .ProseMirror ol {
+    @apply my-4 ml-6 list-decimal list-outside;
+  }
+
+  .rich-text-editor-content .ProseMirror li {
+    @apply my-1 text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror li p {
+    @apply my-0;
+  }
+
+  .rich-text-editor-content .ProseMirror blockquote {
+    @apply border-l-4 border-primary pl-4 my-4 italic text-muted-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror pre {
+    @apply bg-muted p-4 rounded-lg font-mono text-sm my-4 overflow-x-auto text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror code {
+    @apply bg-muted px-2 py-0.5 rounded text-sm text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror a {
+    @apply text-primary underline hover:text-primary/80 transition-colors cursor-pointer;
+  }
+
+  .rich-text-editor-content .ProseMirror p {
+    @apply my-2 leading-relaxed text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror em {
+    @apply italic text-foreground;
+  }
+
+  .rich-text-editor-content .ProseMirror s {
+    @apply line-through text-foreground;
+  }
+
+  /* Rich Text Preview Styles */
+  .rich-text-preview h1 {
+    @apply text-2xl font-bold mt-6 mb-4 first:mt-0 text-foreground;
+  }
+
+  .rich-text-preview h2 {
+    @apply text-xl font-bold mt-5 mb-3 first:mt-0 text-foreground;
+  }
+
+  .rich-text-preview h3 {
+    @apply text-lg font-bold mt-4 mb-2 first:mt-0 text-foreground;
+  }
+
+  .rich-text-preview ul {
+    @apply my-4 ml-6 list-disc list-outside;
+  }
+
+  .rich-text-preview ol {
+    @apply my-4 ml-6 list-decimal list-outside;
+  }
+
+  .rich-text-preview li {
+    @apply my-1 text-foreground;
+  }
+
+  .rich-text-preview li p {
+    @apply my-0;
+  }
+
+  .rich-text-preview blockquote {
+    @apply border-l-4 border-primary pl-4 my-4 italic text-muted-foreground;
+  }
+
+  .rich-text-preview pre {
+    @apply bg-muted p-4 rounded-lg font-mono text-sm my-4 overflow-x-auto text-foreground;
+  }
+
+  .rich-text-preview code {
+    @apply bg-muted px-2 py-0.5 rounded text-sm text-foreground;
+  }
+
+  .rich-text-preview a {
+    @apply text-primary underline hover:text-primary/80 transition-colors cursor-pointer;
+  }
+
+  .rich-text-preview p {
+    @apply my-2 leading-relaxed text-foreground;
+  }
+
+  .rich-text-preview strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .rich-text-preview em {
+    @apply italic text-foreground;
+  }
+
+  .rich-text-preview s {
+    @apply line-through text-foreground;
   }
 }
 

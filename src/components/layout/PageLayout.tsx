@@ -12,7 +12,7 @@ export function PageLayout({
   children, 
   showTopCarousel = true,
   showBottomBanner = true,
-  className = "min-h-screen bg-slate-50" 
+  className = "min-h-screen gradient-bg-editorial" 
 }: PageLayoutProps) {
   return (
     <div className={className}>
@@ -37,7 +37,7 @@ export function PageLayout({
 }
 
 // 관리자 페이지용 전폭 레이아웃
-export function AdminPageLayout({ children, className = "min-h-screen bg-slate-50" }: { children: ReactNode, className?: string }) {
+export function AdminPageLayout({ children, className = "min-h-screen gradient-bg-editorial" }: { children: ReactNode, className?: string }) {
   return (
     <div className={className}>
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -48,11 +48,24 @@ export function AdminPageLayout({ children, className = "min-h-screen bg-slate-5
 }
 
 // 콘텐츠가 매우 넓어야 하는 페이지용 (도구 등)
-export function WidePageLayout({ children, className = "min-h-screen bg-slate-50" }: { children: ReactNode, className?: string }) {
+export function WidePageLayout({ children, className = "min-h-screen gradient-bg-editorial" }: { children: ReactNode, className?: string }) {
   return (
     <div className={className}>
       <div className="max-w-6xl mx-auto px-4 py-8">
         {children}
+      </div>
+    </div>
+  )
+}
+
+// 도구 페이지 전용 레이아웃 (프리미엄 도구에 특화된 UX)
+export function ToolPageLayout({ children, className = "min-h-screen gradient-bg-editorial" }: { children: ReactNode, className?: string }) {
+  return (
+    <div className={className}>
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        <div className="space-y-8">
+          {children}
+        </div>
       </div>
     </div>
   )
