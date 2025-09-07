@@ -15,7 +15,7 @@ export function useAuth() {
     let mounted = true
 
     // 개발 모드에서는 Mock 데이터 사용
-    const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+    const isDevMode = process.env.NODE_ENV === 'development'
     
     if (isDevMode) {
       // 개발 모드에서는 항상 마스터 권한 사용자로 설정
@@ -125,7 +125,7 @@ export function useAuth() {
   const signOut = async () => {
     try {
       // 개발 모드에서는 로그아웃 무효화
-      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      const isDevMode = process.env.NODE_ENV === 'development'
       if (isDevMode) {
         return
       }

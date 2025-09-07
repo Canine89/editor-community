@@ -53,7 +53,7 @@ export default function ProfilePage() {
       setLoading(true)
       
       // 개발 모드에서는 Mock 데이터 사용
-      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      const isDevMode = process.env.NODE_ENV === 'development'
       
       if (isDevMode) {
         // Mock 사용자 데이터에서 현재 사용자 찾기

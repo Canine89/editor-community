@@ -125,11 +125,11 @@ export function useAds() {
     try {
       setLoading(true)
       
-      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      const isDevMode = process.env.NODE_ENV === 'development'
       
       console.log('🔍 useAds: Loading advertisements...', {
         isDevMode,
-        env: process.env.NEXT_PUBLIC_IS_DEV_MODE,
+        env: process.env.NODE_ENV,
         nodeEnv: process.env.NODE_ENV
       })
       
@@ -206,7 +206,7 @@ export function useAds() {
       if (typeof window !== 'undefined') {
         console.log(`광고 클릭 추적: ${adId}`)
         
-        const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+        const isDevMode = process.env.NODE_ENV === 'development'
         
         if (!isDevMode) {
           // 프로덕션에서는 실제 데이터베이스에 클릭 수 증가
@@ -223,7 +223,7 @@ export function useAds() {
       if (typeof window !== 'undefined') {
         console.log(`광고 노출 추적: ${adId}`)
         
-        const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+        const isDevMode = process.env.NODE_ENV === 'development'
         
         if (!isDevMode) {
           // 프로덕션에서는 실제 데이터베이스에 노출 수 증가

@@ -61,7 +61,7 @@ export default function JobsPage() {
   const loadJobs = async () => {
     try {
       // 개발 모드에서는 Mock 데이터 사용
-      const isDevMode = process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+      const isDevMode = process.env.NODE_ENV === 'development'
       
       if (isDevMode) {
         // Mock 데이터를 활성 상태만 필터링

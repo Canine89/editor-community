@@ -35,7 +35,7 @@ export function useRole(): RoleData {
   const supabase = createClient()
 
   // 개발 모드 체크
-  const isDevMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+  const isDevMode = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
     async function fetchUserRole() {
@@ -150,7 +150,7 @@ export async function logAdminActivity(
   details?: any
 ) {
   // 개발 모드에서는 활동 로깅을 건너뜀
-  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true') {
+  if (process.env.NODE_ENV === 'development') {
     return
   }
   

@@ -40,8 +40,8 @@ export function useAdmin() {
   const [permissions, setPermissions] = useState<AdminPermission[]>([])
   const [loading, setLoading] = useState(true)
   
-  // 개발 모드 체크
-  const isDevMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_IS_DEV_MODE === 'true'
+  // 개발 모드 체크 (NODE_ENV만 사용)
+  const isDevMode = process.env.NODE_ENV === 'development'
   
   // 계산된 권한 상태들
   const canAccessAdminPagesValue = isDevMode || isMaster
