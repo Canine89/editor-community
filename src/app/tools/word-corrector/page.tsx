@@ -796,8 +796,9 @@ export default function WordCorrectorPage() {
   return (
     <AuthRequired 
       requireAuth={true} 
+      requireRole="premium" 
       featureName="워드 교정 도구"
-      freeFeature={true}
+      fallbackMessage="이 도구는 프리미엄 구독자만 사용할 수 있습니다. AI 기반 교정 기능을 통해 더욱 정확한 맞춤법 검사를 경험해보세요!"
     >
       <WordCorrectorContent />
     </AuthRequired>
