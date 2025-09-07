@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useAdmin } from '@/hooks/useRole'
+import { useAdmin } from '@/hooks/useAdmin'
 import { 
   getAllAdvertisements, 
   deleteAdvertisement, 

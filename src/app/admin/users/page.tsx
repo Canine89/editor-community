@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRole, UserRole, logAdminActivity } from '@/hooks/useRole'
+import { useAdmin } from '@/hooks/useAdmin'
+import { UserRole } from '@/hooks/useRole'
 import { createClient } from '@/lib/supabase'
 import AdminLayout from '@/components/admin/AdminLayout'
 import { Badge } from '@/components/ui/badge'
@@ -81,7 +82,7 @@ const roleTypes = [
 ]
 
 export default function AdminUsersPage() {
-  const { canAccessAdminPages } = useRole()
+  const { canAccessAdminPages, logActivity } = useAdmin()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
@@ -99,7 +100,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (canAccessAdminPages) {
       loadUsers()
-      logAdminActivity('view_admin_users')
+      logActivity('view_admin_users')
     }
   }, [canAccessAdminPages])
 
@@ -176,7 +177,7 @@ export default function AdminUsersPage() {
         })
       }
       
-      await logAdminActivity('change_user_role', 'user', selectedUser.id, {
+      await logActivity('change_user_role', 'user', selectedUser.id, {
         from_role: selectedUser.user_role,
         to_role: selectedNewRole
       })

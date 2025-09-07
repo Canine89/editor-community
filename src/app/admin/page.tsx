@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRole } from '@/hooks/useRole'
+import { useAdmin } from '@/hooks/useAdmin'
 import AdminLayout from '@/components/admin/AdminLayout'
 import StatsCard from '@/components/admin/StatsCard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,7 +36,7 @@ interface ActivityLog {
 }
 
 export default function AdminDashboard() {
-  const { canAccessAdminPages } = useRole()
+  const { canAccessAdminPages } = useAdmin()
   const [stats, setStats] = useState<Stats | null>({ totalUsers: 0, totalPosts: 0, totalJobs: 0 })
   const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(false)

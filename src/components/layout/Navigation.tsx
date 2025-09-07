@@ -9,13 +9,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MessageSquare, Users, FileText, User, LogOut, Settings } from 'lucide-react'
+import { MessageSquare, Users, FileText, User, LogOut, Settings, Shield } from 'lucide-react'
 
 // 동적 import로 supabase 관련 코드를 클라이언트 사이드에서만 로드
 export function Navigation() {
   const [user, setUser] = useState<any>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     // 클라이언트 사이드에서만 인증 상태 확인
@@ -29,6 +30,27 @@ export function Navigation() {
         if (session?.user) {
           setUser(session.user)
           setIsAuthenticated(true)
+          
+          // 관리자 권한 확인
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('user_role')
+              .eq('id', session.user.id)
+              .single()
+            
+            const { data: permissions } = await supabase
+              .from('admin_permissions')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .eq('is_active', true)
+            
+            const hasMasterRole = profile?.user_role === 'master'
+            const hasAdminPermission = permissions && permissions.length > 0
+            setIsAdmin(hasMasterRole || hasAdminPermission)
+          } catch (error) {
+            setIsAdmin(false)
+          }
         }
 
         setLoading(false)
@@ -47,6 +69,7 @@ export function Navigation() {
       await supabase.auth.signOut()
       setUser(null)
       setIsAuthenticated(false)
+      setIsAdmin(false)
     } catch (error) {
       console.error('Sign out failed:', error)
     }
@@ -114,6 +137,14 @@ export function Navigation() {
                       설정
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="flex items-center">
+                        <Shield className="w-4 h-4 mr-2" />
+                        관리자 메뉴
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={handleSignOut}
                     className="flex items-center text-red-600"

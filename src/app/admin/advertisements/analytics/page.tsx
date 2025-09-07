@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAdmin } from '@/hooks/useRole'
+import { useAdmin } from '@/hooks/useAdmin'
 import { 
   getAdStatistics,
   getExpiringAdvertisements,

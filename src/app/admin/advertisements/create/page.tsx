@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAdmin } from '@/hooks/useRole'
+import { useAdmin } from '@/hooks/useAdmin'
 import { createAdvertisement, uploadAdImage, type CreateAdvertisementData } from '@/lib/advertisements'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
