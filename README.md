@@ -50,7 +50,7 @@ cd editor-community
 npm install
 ```
 
-### 3. 환경 변수 설정
+### 3. 환경 변수 설정 🔐
 `.env.local` 파일을 생성하고 다음 정보를 입력하세요:
 
 ```env
@@ -62,6 +62,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 # OpenAI API 설정
 OPENAI_API_KEY=your_openai_api_key
 ```
+
+**⚠️ 보안 주의사항:**
+- **절대로 실제 API 키를 Git에 커밋하지 마세요**
+- `.env.production.example`을 참고하여 환경변수를 설정하세요
+- 프로덕션에서는 Vercel 환경변수 설정을 사용하세요
+- Service Role Key는 특히 주의하여 관리하세요
 
 ### 4. Supabase 설정
 1. [Supabase](https://supabase.com)에 가입하고 새 프로젝트를 생성하세요

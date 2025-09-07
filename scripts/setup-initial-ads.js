@@ -1,8 +1,15 @@
 // Script to set up initial advertisements and settings in production database
 const { createClient } = require('@supabase/supabase-js')
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nnllrgwnukqqepwkluja.supabase.co'
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ubGxyZ3dudWtxcWVwd2tsdWphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyNTM5Nzg1NiwiZXhwIjoyMDQwOTczODU2fQ.K9kEGGNm2-qs8lkWYCTKynyxCONK6NUy47F5VFLhZHs'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing required environment variables:')
+  if (!supabaseUrl) console.error('  - NEXT_PUBLIC_SUPABASE_URL')
+  if (!supabaseKey) console.error('  - SUPABASE_SERVICE_ROLE_KEY')
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
