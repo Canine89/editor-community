@@ -16,7 +16,8 @@ import {
   ArrowRight,
   MessageSquare,
   Zap,
-  Shield
+  Shield,
+  QrCode
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getStatistics, formatNumber, type Statistics } from '@/lib/statistics'
@@ -145,7 +146,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in md:col-span-2 lg:col-span-1">
+              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in">
                 <CardHeader className="pb-6">
                   <div className="w-14 h-14 gradient-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
                     <Wrench className="w-7 h-7 text-accent-foreground" />
@@ -165,6 +166,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+
 
             {/* 통계 섹션 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

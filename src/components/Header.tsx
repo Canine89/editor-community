@@ -34,7 +34,9 @@ import {
   Edit3,
   Crown,
   Zap,
-  Building
+  Building,
+  QrCode,
+  LinkIcon
 } from 'lucide-react'
 
 export default function Header() {
@@ -48,8 +50,10 @@ export default function Header() {
   ]
 
   const tools = [
+    { name: 'QR 코드 생성기', href: '/tools/qr-generator', icon: QrCode, isPremium: false },
     { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
     { name: 'IT 맞춤법 검사기', href: '/tools/it-spell-checker', icon: FileText, isPremium: false },
+    { name: '스마트 링크 생성기', href: '/tools/smart-link-generator', icon: LinkIcon, isPremium: true },
     { name: 'PDF 페이지 교체', href: '/tools/pdf-editor', icon: Edit3, isPremium: true },
     { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
     { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },

@@ -16,7 +16,9 @@ import {
   FileSearch,
   Edit3,
   Crown,
-  Shield
+  Shield,
+  QrCode,
+  Link as LinkIcon
 } from 'lucide-react'
 
 const tools = [
@@ -79,6 +81,26 @@ const tools = [
     gradient: 'gradient-primary',
     available: true,
     isPremium: false
+  },
+  {
+    id: 'qr-generator',
+    title: 'QR 코드 생성기',
+    description: 'URL, 텍스트, 연락처 등을 QR 코드로 변환하여 쉽게 공유',
+    icon: QrCode,
+    href: '/tools/qr-generator',
+    gradient: 'gradient-primary',
+    available: true,
+    isPremium: false
+  },
+  {
+    id: 'smart-link-generator',
+    title: '스마트 링크 도구',
+    description: '벌크 단축링크 생성, QR 코드 자동 생성, 링크 관리 및 분석',
+    icon: LinkIcon,
+    href: '/tools/smart-link-generator',
+    gradient: 'gradient-accent',
+    available: true,
+    isPremium: true
   },
   {
     id: 'text-formatter',
