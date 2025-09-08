@@ -124,26 +124,68 @@ async function handleSingleCreation(userId: string, url: string, name?: string) 
       }
 
     } else {
-      // 이름이 없는 경우 - Bitly 직접 생성
-      const accessToken = process.env.BITLY_ACCESS_TOKEN
-      if (!accessToken) {
+      // 이름이 없는 경우 - 자동으로 관리형 링크로 생성 (자동 이름 부여)
+      const autoName = `링크-${Date.now().toString().slice(-6)}` // 자동 생성 이름
+      
+      // 할당량 확인
+      const quotaCheck = await checkUserQuota(userId)
+      if (!quotaCheck.canCreate) {
         return NextResponse.json({ 
-          error: 'Bitly 서비스가 현재 이용할 수 없습니다.' 
-        }, { status: 503 })
+          error: '월 할당량(50개)을 초과했습니다.' 
+        }, { status: 400 })
       }
 
-      const bitlyResult = await createBitlyShortLink(testUrl, accessToken)
-      if (bitlyResult.success) {
-        result = {
-          url,
-          success: true,
-          managed: false,
-          short_url: bitlyResult.data?.link,
-          can_edit: false,
-          created_at: bitlyResult.data?.created_at
+      // 고유 단축 코드 생성
+      const shortCode = `ec-${nanoid(8)}`
+      
+      // Bitly 링크 생성 (선택사항, 실패해도 진행)
+      let bitlyLink = ''
+      const accessToken = process.env.BITLY_ACCESS_TOKEN
+      if (accessToken) {
+        try {
+          const bitlyResult = await createBitlyShortLink(testUrl, accessToken)
+          if (bitlyResult.success) {
+            bitlyLink = bitlyResult.data?.link || ''
+          }
+        } catch (bitlyError) {
+          console.log('Bitly 생성 실패, 자체 링크만 사용:', bitlyError)
         }
-      } else {
-        result.error = bitlyResult.message || 'URL 단축에 실패했습니다.'
+      }
+
+      // 관리형 링크 생성
+      const { data: linkData, error: linkError } = await supabase
+        .from('managed_links')
+        .insert({
+          user_id: userId,
+          link_name: autoName,
+          short_code: shortCode,
+          current_url: testUrl,
+          original_url: testUrl,
+          bitly_link: bitlyLink || null
+        })
+        .select()
+        .single()
+
+      if (linkError) {
+        return NextResponse.json({ 
+          error: '링크 생성에 실패했습니다: ' + linkError.message 
+        }, { status: 500 })
+      }
+
+      // 할당량 업데이트
+      await updateUserQuota(userId)
+
+      result = {
+        url,
+        name: autoName,
+        success: true,
+        managed: true,
+        short_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://editor-community.com'}/l/${shortCode}`,
+        bitly_url: bitlyLink,
+        short_code: shortCode,
+        can_edit: true,
+        click_count: 0,
+        id: linkData.id
       }
     }
 
@@ -160,13 +202,7 @@ async function handleSingleCreation(userId: string, url: string, name?: string) 
 async function handleBulkCreation(userId: string, bulkData: any[]) {
   const supabase = createServerSupabaseClient()
   const results = []
-  const accessToken = process.env.BITLY_ACCESS_TOKEN
-
-  if (!accessToken) {
-    return NextResponse.json({ 
-      error: 'Bitly 서비스가 현재 이용할 수 없습니다.' 
-    }, { status: 503 })
-  }
+  const accessToken = process.env.BITLY_ACCESS_TOKEN // 선택사항, 없어도 진행
 
   // 프리미엄 권한 확인
   const { data: profile } = await supabase
@@ -244,19 +280,61 @@ async function handleBulkCreation(userId: string, bulkData: any[]) {
           }
         }
       } else {
-        // 이름이 없는 경우 - Bitly 직접 생성
-        const bitlyResult = await createBitlyShortLink(testUrl, accessToken)
-        if (bitlyResult.success) {
-          result = {
-            url,
-            success: true,
-            managed: false,
-            short_url: bitlyResult.data?.link,
-            can_edit: false,
-            created_at: bitlyResult.data?.created_at
-          }
+        // 이름이 없는 경우 - 자동으로 관리형 링크로 생성 (자동 이름 부여)
+        const autoName = `링크-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 4)}`
+        
+        const quotaCheck = await checkUserQuota(userId)
+        if (!quotaCheck.canCreate) {
+          result.error = '월 할당량(50개)을 초과했습니다.'
         } else {
-          result.error = bitlyResult.message || 'URL 단축에 실패했습니다.'
+          // Bitly 링크 생성 (선택사항, 실패해도 진행)
+          let bitlyLink = ''
+          if (accessToken) {
+            try {
+              const bitlyResult = await createBitlyShortLink(testUrl, accessToken)
+              if (bitlyResult.success) {
+                bitlyLink = bitlyResult.data?.link || ''
+              }
+            } catch (bitlyError) {
+              console.log('Bitly 생성 실패, 자체 링크만 사용:', bitlyError)
+            }
+          }
+
+          // 고유 단축 코드 생성
+          const shortCode = `ec-${nanoid(8)}`
+
+          // 관리형 링크 생성
+          const { data: linkData, error: linkError } = await supabase
+            .from('managed_links')
+            .insert({
+              user_id: userId,
+              link_name: autoName,
+              short_code: shortCode,
+              current_url: testUrl,
+              original_url: testUrl,
+              bitly_link: bitlyLink || null
+            })
+            .select()
+            .single()
+
+          if (!linkError && linkData) {
+            await updateUserQuota(userId)
+            
+            result = {
+              url,
+              name: autoName,
+              success: true,
+              managed: true,
+              short_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://editor-community.com'}/l/${shortCode}`,
+              bitly_url: bitlyLink,
+              short_code: shortCode,
+              can_edit: true,
+              click_count: 0,
+              id: linkData.id
+            }
+          } else {
+            result.error = linkError?.message || '링크 생성에 실패했습니다.'
+          }
         }
       }
 

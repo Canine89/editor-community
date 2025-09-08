@@ -567,7 +567,7 @@ export default function SmartLinkGeneratorPage() {
                           onChange={(e) => setSingleName(e.target.value)}
                         />
                         <div className="text-xs text-muted-foreground">
-                          💡 별명을 입력하면 <strong>관리형 링크</strong>로 생성되어 나중에 URL을 수정할 수 있습니다. (할당량 소모)
+                          💡 별명을 입력하면 사용자 지정 이름으로 관리됩니다. 빈 경우 자동 이름이 생성됩니다. (할당량 소모)
                         </div>
                       </div>
                     </div>
@@ -723,7 +723,7 @@ export default function SmartLinkGeneratorPage() {
                           </>
                         ) : (
                           <>
-                            ⚡ <strong>일회성 링크:</strong> Bitly로 바로 생성되며 할당량을 소모하지 않습니다.
+                            ⚡ <strong>자동 생성:</strong> 자동 이름으로 관리형 링크가 생성됩니다. 할당량이 소모됩니다.
                           </>
                         )}
                       </div>
@@ -1121,9 +1121,9 @@ export default function SmartLinkGeneratorPage() {
                   </div>
                   
                   <div className="text-xs text-muted-foreground">
-                    <p>• 관리형 링크만 할당량 소모</p>
-                    <p>• 일회성 링크는 할당량 미소모</p>
-                    <p>• 매월 1일에 자동 초기화</p>
+                    <p>• 모든 생성된 링크가 관리형 링크입니다</p>
+                    <p>• 편집, 삭제, 클릭 추적이 가능합니다</p>
+                    <p>• 매월 1일에 할당량 자동 초기화</p>
                   </div>
                 </CardContent>
               </Card>
