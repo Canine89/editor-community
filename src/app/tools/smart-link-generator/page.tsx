@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AuthRequired } from '@/components/auth/AuthRequired'
+import { useRole } from '@/hooks/useRole'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -77,6 +78,9 @@ interface ManagedLink {
 }
 
 export default function SmartLinkGeneratorPage() {
+  // 권한 체크
+  const { canAccessPremiumFeatures, loading: roleLoading } = useRole()
+  
   // 개별 입력 상태
   const [singleUrl, setSingleUrl] = useState('')
   const [singleName, setSingleName] = useState('')
@@ -447,6 +451,131 @@ export default function SmartLinkGeneratorPage() {
       loadManagedLinks()
     }
   }, [activeTab])
+
+  // 로딩 중일 때
+  if (roleLoading) {
+    return (
+      <AuthRequired>
+        <ToolPageLayout>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">권한 확인 중...</p>
+            </div>
+          </div>
+        </ToolPageLayout>
+      </AuthRequired>
+    )
+  }
+
+  // 프리미엄 권한이 없을 때
+  if (!canAccessPremiumFeatures) {
+    return (
+      <AuthRequired>
+        <ToolPageLayout>
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Link href="/tools">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  유틸리티로 돌아가기
+                </Link>
+              </Button>
+              <Badge className="gradient-accent text-accent-foreground">
+                <Crown className="h-3 w-3 mr-1" />
+                PRO
+              </Badge>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 gradient-accent rounded-3xl flex items-center justify-center shadow-editorial mx-auto mb-4">
+                <LinkIcon className="w-8 h-8 text-accent-foreground" />
+              </div>
+              <h1 className="text-3xl font-bold text-gradient-editorial mb-2">
+                스마트 링크 도구
+              </h1>
+              <p className="text-lg text-muted-foreground mb-8">
+                벌크 단축링크 생성, QR 코드 자동 생성, 링크 관리 및 분석
+              </p>
+            </div>
+          </div>
+
+          <Card className="card-editorial max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-accent">
+                <Crown className="w-6 h-6" />
+                프리미엄 전용 기능
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-center mb-6">
+                <p className="text-muted-foreground mb-4">
+                  스마트 링크 생성기는 프리미엄 사용자 전용 기능입니다.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="w-5 h-5 text-green-600" />
+                    <span className="font-medium">벌크 링크 생성</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    한번에 수십 개의 링크를 단축하고 관리하세요
+                  </p>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <QrCode className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium">QR 코드 자동 생성</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    모든 링크에 QR 코드가 자동으로 생성됩니다
+                  </p>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Edit className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium">링크 관리</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    생성한 링크를 언제든지 편집하고 삭제할 수 있습니다
+                  </p>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart3 className="w-5 h-5 text-orange-600" />
+                    <span className="font-medium">클릭 분석</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    각 링크의 클릭 수와 통계를 확인하세요
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-center pt-6 border-t">
+                <p className="text-sm text-muted-foreground mb-4">
+                  프리미엄 계정으로 업그레이드하여 모든 기능을 이용해보세요
+                </p>
+                <Button className="mr-2">
+                  <Crown className="w-4 h-4 mr-2" />
+                  프리미엄 업그레이드
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/tools">
+                    무료 도구 둘러보기
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </ToolPageLayout>
+      </AuthRequired>
+    )
+  }
 
   return (
     <AuthRequired>

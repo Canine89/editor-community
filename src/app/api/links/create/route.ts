@@ -40,22 +40,47 @@ async function handleSingleCreation(userId: string, url: string, name?: string) 
     return NextResponse.json({ error: 'URL이 필요합니다.' }, { status: 400 })
   }
 
+  // URL 유효성 검증
+  let testUrl: string
   try {
-    // URL 유효성 검증
-    const testUrl = url.startsWith('http') ? url : `https://${url}`
+    testUrl = url.startsWith('http') ? url : `https://${url}`
     new URL(testUrl)
+  } catch (urlError) {
+    console.error('URL 형식 오류:', urlError)
+    return NextResponse.json({
+      error: '올바른 URL 형식이 아닙니다.'
+    }, { status: 400 })
+  }
 
+  try {
     let result: any = { url, success: false }
 
     if (name && name.trim()) {
       // 이름이 있는 경우 - 관리형 링크 생성
       
       // 프리미엄 권한 확인
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('user_role, membership_tier')
-        .eq('id', userId)
-        .single()
+      let profile: any
+      try {
+        const { data, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_role, membership_tier')
+          .eq('id', userId)
+          .single()
+          
+        if (profileError) {
+          console.error('프로필 조회 오류:', profileError)
+          return NextResponse.json({ 
+            error: '사용자 정보를 확인할 수 없습니다.' 
+          }, { status: 500 })
+        }
+        
+        profile = data
+      } catch (profileFetchError) {
+        console.error('프로필 조회 실패:', profileFetchError)
+        return NextResponse.json({ 
+          error: '사용자 정보 조회에 실패했습니다.' 
+        }, { status: 500 })
+      }
 
       const isPremium = profile?.membership_tier === 'premium' || 
                        ['employee', 'master'].includes(profile?.user_role || '')
@@ -150,9 +175,10 @@ async function handleSingleCreation(userId: string, url: string, name?: string) 
     return NextResponse.json({ success: result.success, result })
 
   } catch (error) {
+    console.error('링크 생성 중 예상치 못한 오류:', error)
     return NextResponse.json({
-      error: '올바른 URL 형식이 아닙니다.'
-    }, { status: 400 })
+      error: '링크 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+    }, { status: 500 })
   }
 }
 
@@ -169,11 +195,28 @@ async function handleBulkCreation(userId: string, bulkData: any[]) {
   }
 
   // 프리미엄 권한 확인
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('user_role, membership_tier')
-    .eq('id', userId)
-    .single()
+  let profile: any
+  try {
+    const { data, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_role, membership_tier')
+      .eq('id', userId)
+      .single()
+      
+    if (profileError) {
+      console.error('벌크 생성 - 프로필 조회 오류:', profileError)
+      return NextResponse.json({ 
+        error: '사용자 정보를 확인할 수 없습니다.' 
+      }, { status: 500 })
+    }
+    
+    profile = data
+  } catch (profileFetchError) {
+    console.error('벌크 생성 - 프로필 조회 실패:', profileFetchError)
+    return NextResponse.json({ 
+      error: '사용자 정보 조회에 실패했습니다.' 
+    }, { status: 500 })
+  }
 
   const isPremium = profile?.membership_tier === 'premium' || 
                    ['employee', 'master'].includes(profile?.user_role || '')
@@ -187,11 +230,21 @@ async function handleBulkCreation(userId: string, bulkData: any[]) {
   for (const urlData of bulkData) {
     const { url, name } = urlData
 
+    // URL 유효성 검증
+    let testUrl: string
     try {
-      // URL 유효성 검증
-      const testUrl = url.startsWith('http') ? url : `https://${url}`
+      testUrl = url.startsWith('http') ? url : `https://${url}`
       new URL(testUrl)
+    } catch (urlError) {
+      results.push({
+        url,
+        success: false,
+        error: '올바른 URL 형식이 아닙니다.'
+      })
+      continue
+    }
 
+    try {
       let result: any = { url, success: false }
 
       if (name && name.trim()) {
@@ -263,10 +316,11 @@ async function handleBulkCreation(userId: string, bulkData: any[]) {
       results.push(result)
 
     } catch (error) {
+      console.error('벌크 생성 중 오류:', error)
       results.push({
         url,
         success: false,
-        error: '올바른 URL 형식이 아닙니다.'
+        error: '링크 생성 중 오류가 발생했습니다.'
       })
     }
 
