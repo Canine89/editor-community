@@ -7,7 +7,6 @@ import { useRole } from '@/hooks/useRole'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { PremiumToolLink } from '@/components/PremiumToolLink'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,22 +20,14 @@ import {
   Menu,
   MessageSquare,
   Briefcase,
-  Wrench,
   User,
   LogOut,
   Home,
-  Sparkles,
-  PenTool,
-  FileText,
-  ChevronDown,
   Shield,
   BarChart3,
   Edit3,
-  Crown,
   Zap,
-  Building,
-  QrCode,
-  LinkIcon
+  Building
 } from 'lucide-react'
 
 export default function Header() {
@@ -48,21 +39,6 @@ export default function Header() {
     { name: '커뮤니티', href: '/community', icon: MessageSquare },
     { name: '구인구직', href: '/jobs', icon: Briefcase },
   ]
-
-  const tools = [
-    { name: 'QR 코드 생성기', href: '/tools/qr-generator', icon: QrCode, isPremium: false },
-    { name: 'PDF 워터마크', href: '/tools/pdf-watermark', icon: PenTool, isPremium: false },
-    { name: 'IT 맞춤법 검사기', href: '/tools/it-spell-checker', icon: FileText, isPremium: false },
-    { name: '스마트 링크 생성기', href: '/tools/smart-link-generator', icon: LinkIcon, isPremium: true },
-    { name: 'PDF 페이지 교체', href: '/tools/pdf-editor', icon: Edit3, isPremium: true },
-    { name: 'PDF 추출기', href: '/tools/pdf-extractor', icon: FileText, isPremium: true },
-    { name: '워드 교정 도구', href: '/tools/word-corrector', icon: FileText, isPremium: true },
-    { name: 'PDF 맞춤법 검사기', href: '/tools/pdf-spell-checker', icon: FileText, isPremium: true },
-  ]
-
-  // 무료 도구와 프리미엄 도구 분리
-  const freeTools = tools.filter(tool => !tool.isPremium)
-  const premiumTools = tools.filter(tool => tool.isPremium)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b glass-effect-warm shadow-sm">
@@ -96,72 +72,6 @@ export default function Header() {
               </Link>
             ))}
 
-            {/* 무료 도구 드롭다운 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center space-x-2 text-sm font-semibold text-foreground/80 hover:text-primary transition-all duration-200 hover:bg-brand-warm-50 rounded-xl px-4 py-2"
-                >
-                  <Wrench className="h-4 w-4 text-brand-teal" />
-                  <span>무료 도구</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 rounded-2xl border-0 shadow-editorial backdrop-blur-md bg-card/95">
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">무료 도구</p>
-                </div>
-                {freeTools.map((tool) => (
-                  <DropdownMenuItem key={tool.name} asChild>
-                    <Link href={tool.href} className="flex items-center p-3 rounded-xl hover:bg-brand-warm-50 transition-colors">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 mr-3">
-                        <tool.icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="font-medium">{tool.name}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* 프리미엄 도구 드롭다운 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center space-x-2 text-sm font-semibold bg-gradient-to-r from-accent/10 to-brand-purple/10 text-accent hover:from-accent/20 hover:to-brand-purple/20 hover:text-accent transition-all duration-200 rounded-xl px-4 py-2 premium-glow"
-                >
-                  <Crown className="h-4 w-4 text-accent" />
-                  <span>프리미엄 도구</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 rounded-2xl border-0 shadow-accent backdrop-blur-md bg-card/95">
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center">
-                    <Crown className="h-3 w-3 mr-1 text-accent" />
-                    프리미엄 도구
-                  </p>
-                </div>
-                {premiumTools.map((tool) => (
-                  <DropdownMenuItem key={tool.name} asChild>
-                    <PremiumToolLink href={tool.href} className="flex items-center justify-between p-3 rounded-xl hover:bg-accent/5 transition-colors">
-                      <div className="flex items-center">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 mr-3">
-                          <tool.icon className="h-4 w-4 text-accent" />
-                        </div>
-                        <span className="font-medium">{tool.name}</span>
-                      </div>
-                      <Badge className="gradient-accent text-accent-foreground text-xs px-2 py-1 rounded-lg font-semibold">
-                        <Crown className="h-3 w-3 mr-1" />
-                        PRO
-                      </Badge>
-                    </PremiumToolLink>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
 
           </nav>
 
@@ -392,53 +302,6 @@ export default function Header() {
                     </Link>
                   ))}
 
-                  {/* 모바일 무료 도구 메뉴 */}
-                  <div className="border-t border-border/50 pt-4 mt-4">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-3 flex items-center">
-                      <Wrench className="h-3 w-3 mr-1 text-brand-teal" />
-                      무료 도구
-                    </p>
-                    {freeTools.map((tool) => (
-                      <Link
-                        key={tool.name}
-                        href={tool.href}
-                        className="flex items-center space-x-3 px-4 py-3 rounded-2xl hover:bg-brand-warm-50 transition-colors font-medium"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                          <tool.icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <span>{tool.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* 모바일 프리미엄 도구 메뉴 */}
-                  <div className="border-t border-border/50 pt-4 mt-4">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-3 flex items-center">
-                      <Crown className="h-3 w-3 mr-1 text-accent" />
-                      프리미엄 도구
-                    </p>
-                    {premiumTools.map((tool) => (
-                      <PremiumToolLink
-                        key={tool.name}
-                        href={tool.href}
-                        className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-accent/5 transition-colors font-medium"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-                            <tool.icon className="h-4 w-4 text-accent" />
-                          </div>
-                          <span>{tool.name}</span>
-                        </div>
-                        <Badge className="gradient-accent text-accent-foreground text-xs font-semibold">
-                          <Crown className="h-3 w-3 mr-1" />
-                          PRO
-                        </Badge>
-                      </PremiumToolLink>
-                    ))}
-                  </div>
 
 
                   {user && (

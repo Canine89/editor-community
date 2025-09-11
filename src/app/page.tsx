@@ -11,13 +11,11 @@ import {
   FileText,
   Users,
   Briefcase,
-  Wrench,
   Sparkles,
   ArrowRight,
   MessageSquare,
   Zap,
-  Shield,
-  QrCode
+  Shield
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getStatistics, formatNumber, type Statistics } from '@/lib/statistics'
@@ -89,7 +87,7 @@ export default function Home() {
               전문 편집자들을 위한 종합 플랫폼
             </p>
             <p className="text-base text-muted-foreground/80">
-              AI 기반 도구와 전문가 네트워크로 편집 업무를 한 단계 발전시키세요
+              전문가 네트워크로 편집 업무를 한 단계 발전시키세요
             </p>
           </div>
         </div>
@@ -105,7 +103,7 @@ export default function Home() {
             </div>
 
             {/* 메인 기능 카드들 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in">
                 <CardHeader className="pb-6">
                   <div className="w-14 h-14 gradient-primary rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
@@ -146,25 +144,6 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="card-editorial group hover-lift-editorial cursor-pointer animate-scale-in">
-                <CardHeader className="pb-6">
-                  <div className="w-14 h-14 gradient-accent rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300 shadow-lg">
-                    <Wrench className="w-7 h-7 text-accent-foreground" />
-                  </div>
-                  <CardTitle className="text-2xl font-bold group-hover:text-accent transition-all duration-300">
-                    AI 편집 도구
-                  </CardTitle>
-                  <CardDescription className="text-base text-muted-foreground font-medium leading-relaxed">
-                    PDF/워드 처리와 AI 기반 자동 교정으로 효율성 극대화
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center text-sm font-semibold text-accent group-hover:text-accent/80 transition-colors">
-                    <span>도구 사용하기</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-all duration-300" />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
 
@@ -221,7 +200,7 @@ export default function Home() {
                   <Zap className="w-10 h-10 text-warning-foreground" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4 text-foreground group-hover:text-warning transition-colors">효율적인 업무</h3>
-                <p className="text-muted-foreground font-medium leading-relaxed">AI 기반 자동 교정과 편집 도구로 생산성 극대화</p>
+                <p className="text-muted-foreground font-medium leading-relaxed">전문적인 편집 커뮤니티로 생산성 극대화</p>
               </div>
               <div className="text-center group animate-scale-in">
                 <div className="w-20 h-20 gradient-accent rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300 shadow-accent animate-float">
